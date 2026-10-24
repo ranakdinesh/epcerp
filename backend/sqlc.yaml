@@ -1,0 +1,314 @@
+version: "2"
+sql:
+  - name: "health"
+    engine: "postgresql"
+    schema: &migration_history
+      - internal/modules/auth/sql/migrations/000001_auth.up.sql
+      - sql/migrations/000002_client_references.up.sql
+      - sql/migrations/000003_clients.up.sql
+      - sql/migrations/000004_storage.up.sql
+      - sql/migrations/000005_material_catalogue.up.sql
+      - sql/migrations/000006_manufacturers.up.sql
+      - sql/migrations/000007_event_delivery.up.sql
+      - sql/migrations/000008_project_identity.up.sql
+      - internal/modules/auth/sql/migrations/000009_profiles.up.sql
+      - internal/modules/auth/sql/migrations/000010_auth_user_profile.up.sql
+      - sql/migrations/000011_client_contact_types.up.sql
+      - sql/migrations/000012_suppliers.up.sql
+      - sql/migrations/000013_supplier_workflow.up.sql
+      - sql/migrations/000014_category_catalogue.up.sql
+      - sql/migrations/000015_category_units_and_creation.up.sql
+      - sql/migrations/000016_category_corrections.up.sql
+      - sql/migrations/000017_configuration_templates.up.sql
+      - sql/migrations/000018_template_publications.up.sql
+      - sql/migrations/000019_manufacturer_imports.up.sql
+      - sql/migrations/000020_catalogue_items.up.sql
+      - sql/migrations/000021_tender_document_reading.up.sql
+      - sql/migrations/000022_purchase_fms_workspace.up.sql
+      - sql/migrations/000023_project_capture.up.sql
+      - sql/migrations/000024_work_calendar.up.sql
+      - sql/migrations/000025_project_imports.up.sql
+      - sql/migrations/000026_project_metadata.up.sql
+      - sql/migrations/000027_python_sku_policy.up.sql
+      - sql/migrations/000028_client_purchase_rules.up.sql
+      - sql/migrations/000029_project_material_requirements.up.sql
+      - sql/migrations/000030_purchase_bo.up.sql
+      - sql/migrations/000031_purchase_holds.up.sql
+      - sql/migrations/000032_purchase_indents.up.sql
+      - sql/migrations/000033_project_purchase_enabled.up.sql
+      - sql/migrations/000034_purchase_indent_groups.up.sql
+      - sql/migrations/000035_purchase_indent_documents.up.sql
+      - sql/migrations/000036_group_quotations.up.sql
+      - sql/migrations/000037_project_responsibility_profiles.up.sql
+      - sql/migrations/000038_project_budget_drafts.up.sql
+      - sql/migrations/000039_organisation_director.up.sql
+      - sql/migrations/000040_communication_inbox.up.sql
+      - sql/migrations/000041_finance_budget_approval.up.sql
+      - sql/migrations/000042_quotation_approvals.up.sql
+      - sql/migrations/000043_purchase_work_packages.up.sql
+      - sql/migrations/000044_purchase_sourcing.up.sql
+      - sql/migrations/000045_purchase_technical.up.sql
+      - sql/migrations/000046_purchase_orders.up.sql
+      - sql/migrations/000047_purchase_acceptance.up.sql
+      - sql/migrations/000048_purchase_advances.up.sql
+      - sql/migrations/000049_purchase_inspections.up.sql
+      - sql/migrations/000050_purchase_inspection_reports.up.sql
+      - sql/migrations/000051_purchase_quality.up.sql
+      - sql/migrations/000052_purchase_client_clearance.up.sql
+      - sql/migrations/000053_purchase_dispatch.up.sql
+      - sql/migrations/000054_purchase_site_receipts.up.sql
+      - sql/migrations/000055_purchase_grns.up.sql
+      - sql/migrations/000056_purchase_engineer_confirmations.up.sql
+      - sql/migrations/000057_finance_accounts_acceptance.up.sql
+      - sql/migrations/000058_personal_purchase_tasks.up.sql
+      - sql/migrations/000059_client_form_defaults.up.sql
+      - internal/modules/auth/sql/migrations/000060_profile_image_objects.up.sql
+      - sql/migrations/000061_quotation_invoice_total.up.sql
+      - sql/migrations/000062_quotation_shortlists.up.sql
+      - sql/migrations/000063_quotation_work_notices.up.sql
+      - sql/migrations/000064_quotation_work_tasks.up.sql
+      - sql/migrations/000065_quotation_shortlist_drafts.up.sql
+      - sql/migrations/000066_vendor_indent_terms.up.sql
+      - sql/migrations/000067_supplier_document_objects.up.sql
+      - sql/migrations/000068_supplier_review_assignments.up.sql
+      - sql/migrations/000069_supplier_document_approval_tasks.up.sql
+      - sql/migrations/000070_finance_review_budget_binding.up.sql
+      - sql/migrations/000071_quotation_optional_item_notes.up.sql
+      - sql/migrations/000072_optional_quotation_item_budgets.up.sql
+      - sql/migrations/000073_client_signed_purchase_orders.up.sql
+      - sql/migrations/000074_approved_vendor_awards.up.sql
+      - sql/migrations/000075_technical_minio_objects.up.sql
+      - sql/migrations/000076_vendor_loi_documents.up.sql
+      - sql/migrations/000077_vendor_loi_reviews.up.sql
+      - internal/modules/auth/sql/migrations/000078_auth_password_recovery.up.sql
+      - internal/modules/auth/sql/migrations/000079_auth_credential_onboarding.up.sql
+      - internal/modules/auth/sql/migrations/000080_auth_organisation.up.sql
+      - internal/modules/auth/sql/migrations/000081_auth_offboarding.up.sql
+      - sql/migrations/000082_tender_owner_handover.up.sql
+      - internal/modules/auth/sql/migrations/000083_auth_personal_contact.up.sql
+      - internal/modules/auth/sql/migrations/000084_auth_username_history.up.sql
+      - sql/migrations/000085_named_tender_foundation.up.sql
+      - sql/migrations/000086_document_packages.up.sql
+      - sql/migrations/000087_tender_capture.up.sql
+      - sql/migrations/000088_tender_assignment_notices.up.sql
+      - internal/modules/auth/sql/migrations/000089_auth_schema.up.sql
+    queries: "internal/modules/health/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/health/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "auth"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/auth/sql/queries"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/modules/auth/adapters/repository/sqlc"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "storage"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/storage/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/storage/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "master"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/master/adapters/sql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/modules/master/adapters/repository/sqlc"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "event_delivery"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/event_delivery/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/event_delivery/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "projects"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/projects/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/projects/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "document_reading"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/document_reading/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/document_reading/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "tender_fms"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/tender_fms/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/tender_fms/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "purchase_fms"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/purchase_fms/adapters/sql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/modules/purchase_fms/adapters/repository/sqlc"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "work_calendar"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/work_calendar/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/work_calendar/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_empty_slices: true
+
+  - name: "project_items"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/project_items/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/project_items/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "project_access"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/project_access/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/project_access/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "project_budgets"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/project_budgets/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/project_budgets/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+  - name: "organisation_governance"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/organisation_governance/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/organisation_governance/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "communication_inbox"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/communication_inbox/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/communication_inbox/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "finance_approvals"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/finance_approvals/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/finance_approvals/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "finance_accounts_acceptance"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/finance_accounts_acceptance/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/finance_accounts_acceptance/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true
+
+  - name: "document_packages"
+    engine: "postgresql"
+    schema: *migration_history
+    queries: "internal/modules/document_packages/adapters/outbound/sql/queries.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/modules/document_packages/adapters/outbound/internal/db"
+        sql_package: "pgx/v5"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_empty_slices: true

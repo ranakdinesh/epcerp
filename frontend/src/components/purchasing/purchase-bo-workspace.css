@@ -1,0 +1,1132 @@
+/* Shared purchase workbench: task content, navigation and contextual actions. */
+.bo-workspace {
+  --bo-navy: #122436;
+  --bo-blue: #164fc7;
+  --bo-ink: #172b40;
+  --bo-muted: #516478;
+  --bo-line: #d5dee7;
+  --bo-bg: #edf3f9;
+  width: 100%;
+  min-width: 0;
+  height: 100dvh;
+  color: var(--bo-ink);
+  background: var(--bo-bg);
+  font:
+    14px/1.5 system-ui,
+    -apple-system,
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+:is(.bo-workspace, .go-purchase-content) * {
+  box-sizing: border-box;
+}
+:is(.bo-workspace, .go-purchase-content) :is(h1, h2, h3, p, fieldset) {
+  margin: 0;
+}
+:is(.bo-workspace, .go-purchase-content) fieldset {
+  border: 0;
+  min-width: 0;
+  padding: 0;
+}
+:is(.bo-workspace, .go-purchase-content) button {
+  font: inherit;
+  cursor: pointer;
+  min-height: 44px;
+  border: 1px solid var(--bo-line);
+  border-radius: 6px;
+  background: white;
+  color: var(--bo-ink);
+  padding: 9px 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+:is(.bo-workspace, .go-purchase-content) button:hover {
+  background: #eaf1fb;
+}
+:is(.bo-workspace, .go-purchase-content) :is(button, input, textarea, select, a, summary):focus-visible {
+  outline: 3px solid #629aff;
+  outline-offset: 3px;
+}
+:is(.bo-workspace, .go-purchase-content) button:disabled {
+  cursor: default;
+  background: #e1e8f2;
+  color: #657890;
+  border-color: var(--bo-line);
+}
+:is(.bo-workspace, .go-purchase-content) button.primary {
+  background: var(--bo-blue);
+  border-color: var(--bo-blue);
+  color: white;
+}
+:is(.bo-workspace, .go-purchase-content) button.primary:hover {
+  background: #103da1;
+}
+:is(.bo-workspace, .go-purchase-content) button.primary:disabled {
+  background: #e1e8f2;
+  border-color: var(--bo-line);
+  color: #657890;
+}
+:is(.bo-workspace, .go-purchase-content) button svg,
+:is(.bo-workspace, .go-purchase-content) summary > svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+:is(.bo-workspace, .go-purchase-content) small {
+  color: var(--bo-muted);
+  font-size: 12px;
+}
+:is(.bo-workspace, .go-purchase-content) :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  font: inherit;
+  border: 1px solid #b9c7d5;
+  background: white;
+  border-radius: 5px;
+  color: var(--bo-ink);
+  padding: 10px;
+  min-height: 44px;
+  max-width: 100%;
+  width: 100%;
+}
+:is(.bo-workspace, .go-purchase-content) textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+:is(.bo-workspace, .go-purchase-content) :is(input, textarea)::placeholder {
+  color: #687889;
+}
+:is(.bo-workspace, .go-purchase-content) label {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+}
+:is(.bo-workspace, .go-purchase-content) label > :is(input, select, textarea) {
+  margin-top: 7px;
+  font-size: 14px;
+  font-weight: 400;
+}
+.bo-appbar {
+  height: 56px;
+  flex-shrink: 0;
+  background: var(--bo-navy);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 24px;
+  position: relative;
+  z-index: 10;
+}
+.bo-appbar .bo-brand {
+  color: white;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.bo-brand span {
+  color: #46cbd3;
+}
+.bo-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border-left: 1px solid #58718a;
+  padding-left: 24px;
+}
+.bo-breadcrumb a {
+  color: #dbe9f6;
+  padding: 12px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.bo-breadcrumb a:hover {
+  color: #78d7e6;
+}
+.bo-breadcrumb svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #95b0c7;
+}
+.bo-account {
+  margin-left: auto;
+  position: relative;
+  flex-shrink: 0;
+}
+.bo-account summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  list-style: none;
+}
+.bo-account summary::-webkit-details-marker {
+  display: none;
+}
+.bo-avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: #456781;
+  border-radius: 50%;
+  font-weight: 700;
+  color: white;
+}
+.bo-account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 190px;
+  padding: 14px;
+  border: 1px solid var(--bo-line);
+  border-radius: 7px;
+  background: white;
+  color: var(--bo-ink);
+  box-shadow: 0 8px 24px #12243624;
+}
+.bo-account-menu strong {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+.bo-account-menu button {
+  width: 100%;
+}
+.bo-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+.bo-layout.rail-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bo-rail {
+  background: var(--bo-navy);
+  color: #cfdeeb;
+  overflow: auto;
+  min-height: 0;
+  padding: 8px 0 20px;
+}
+.bo-rail-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px 0 18px;
+  font-size: 12px;
+  color: #a8c2da;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-rail-title button {
+  background: transparent;
+  color: #a8c2da;
+  border: 0;
+  min-width: 44px;
+  padding: 10px;
+}
+.bo-phase-title {
+  padding: 14px 18px 7px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: #a8c2da;
+}
+.bo-step {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 16px;
+  min-height: 48px;
+  color: #cfdeeb;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+  font-size: 13px;
+}
+.bo-step:hover {
+  background: #203d56;
+  color: white;
+}
+.bo-step[aria-current="step"] {
+  background: #1b4f90;
+  border-left-color: #4e92ff;
+  color: white;
+  font-weight: 650;
+}
+.bo-step-no {
+  flex: 0 0 25px;
+  width: 25px;
+  height: 25px;
+  border: 1px solid #65839c;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  font-size: 12px;
+}
+.bo-step[aria-current="step"] .bo-step-no {
+  background: white;
+  border-color: white;
+  color: var(--bo-blue);
+}
+.bo-step-signal {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-step-signal {
+  color: #ffd68a;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-step-signal.delayed {
+  color: #ffb9b1;
+}
+.bo-step-no svg {
+  width: 20px;
+  height: 20px;
+}
+.bo-work {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bo-record {
+  min-height: 82px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: white;
+  border-bottom: 1px solid var(--bo-line);
+  flex-shrink: 0;
+}
+.bo-record-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.bo-record h1 {
+  font-size: 24px;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-icon-button {
+  padding: 10px;
+  border: 0;
+  color: var(--bo-muted);
+}
+:is(.bo-workspace, .go-purchase-content) .bo-list-selector {
+  padding: 8px 0 8px 18px;
+  border: 0;
+  border-left: 1px solid var(--bo-line);
+  border-radius: 0;
+  background: transparent;
+  font-weight: 600;
+  max-width: 320px;
+  text-align: left;
+}
+.bo-requirement {
+  border-left: 1px solid var(--bo-line);
+  padding-left: 18px;
+  color: var(--bo-muted);
+}
+.bo-record-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-quiet-button {
+  background: transparent;
+  border-color: transparent;
+  padding: 9px;
+  color: var(--bo-blue);
+}
+.bo-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 650;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.bo-pill.amber {
+  background: #fff0d4;
+  color: #874900;
+  border: 1px solid #efc976;
+}
+.bo-pill.complete {
+  background: #e2f3e9;
+  color: #206343;
+  border: 1px solid #b7dcc6;
+}
+.bo-scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  padding: 24px;
+  scroll-padding: 20px;
+}
+.bo-scroll > * + * {
+  margin-top: 16px;
+}
+.bo-card {
+  background: white;
+  border: 1px solid var(--bo-line);
+  border-radius: 6px;
+  padding: 18px;
+}
+.bo-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.bo-card > p {
+  margin-bottom: 14px;
+  color: var(--bo-muted);
+}
+.bo-grid-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.bo-count {
+  color: var(--bo-muted);
+  font-size: 16px;
+  font-weight: 500;
+}
+.bo-count::before {
+  content: "(";
+}
+.bo-count::after {
+  content: ")";
+}
+.bo-table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--bo-line);
+  border-radius: 5px;
+}
+:is(.bo-workspace, .go-purchase-content) table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table {
+  min-width: 1180px;
+  table-layout: fixed;
+  border: 0;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table > thead > tr > th {
+  width: auto;
+  padding: 13px 12px;
+  background: #e3ecf7;
+  color: var(--bo-ink);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--bo-line);
+}
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table > tbody > tr > td {
+  padding: 18px 12px;
+  vertical-align: top;
+  background: white;
+  border-bottom: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table > tbody > tr:nth-child(even) > td {
+  background: #f5f8fc;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table > tbody > tr:hover > td {
+  background: #edf4ff;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table > tbody > tr > td + td,
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table > thead > tr > th + th {
+  border-left: 1px solid #e3ebf3;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-summary-table > tbody > tr + tr > td {
+  border-top: 1px solid var(--bo-line);
+}
+.bo-grid-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.bo-grid-sku {
+  display: block;
+  font-size: 12px;
+  color: var(--bo-muted);
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.bo-grid-description {
+  display: block;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--bo-ink);
+}
+.bo-number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.bo-muted {
+  color: var(--bo-muted);
+}
+.bo-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bo-row-actions button {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--bo-blue);
+}
+.bo-row-actions button svg {
+  width: 18px;
+  height: 18px;
+}
+.bo-row-menu {
+  position: relative;
+}
+.bo-row-menu small {
+  display: block;
+  padding: 6px;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-remove {
+  color: #9c342b;
+}
+.bo-actionbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #f8fbff;
+  border-top: 1px solid var(--bo-line);
+  padding: 16px 24px;
+}
+.bo-actionbar > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bo-actionbar [role="status"] {
+  color: var(--bo-muted);
+  font-size: 13px;
+}
+.bo-missing {
+  font-size: 12px;
+  color: #874900;
+}
+.bo-missing summary {
+  cursor: pointer;
+  min-height: 28px;
+}
+.bo-missing ul {
+  position: absolute;
+  bottom: 85px;
+  left: 244px;
+  max-width: min(430px, 80vw);
+  max-height: 220px;
+  overflow: auto;
+  background: white;
+  border: 1px solid var(--bo-line);
+  padding: 16px 24px;
+  border-radius: 6px;
+  list-style: disc;
+  z-index: 6;
+}
+.bo-message {
+  padding: 12px;
+  border: 1px solid var(--bo-line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.bo-message.error {
+  background: #fff0ed;
+  color: #91251b;
+}
+.bo-message.complete {
+  background: #edf8f0;
+  color: #206343;
+}
+.bo-dialog {
+  margin: auto;
+  border: 1px solid var(--bo-line);
+  border-radius: 8px;
+  padding: 20px;
+  width: min(520px, calc(100vw - 32px));
+  max-height: 90dvh;
+  overflow: auto;
+  color: var(--bo-ink);
+  background: white;
+}
+.bo-dialog::backdrop {
+  background: #12243670;
+}
+.bo-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.bo-dialog-heading h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.bo-dialog-heading button {
+  padding: 9px;
+  min-width: 44px;
+  border: 0;
+}
+.bo-dialog > button {
+  margin-top: 16px;
+}
+.bo-schedule {
+  width: min(1000px, calc(100vw - 32px));
+}
+.bo-context {
+  margin: 0 0 0 auto;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  width: min(400px, 100vw);
+}
+.bo-context-body {
+  padding-top: 14px;
+}
+.bo-context article {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bo-line);
+}
+.bo-context article p {
+  margin: 6px 0;
+}
+.bo-completion-panel {
+  position: fixed;
+  inset: auto 24px 88px auto;
+  margin: 0;
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100dvh - 140px);
+  overflow: auto;
+  background: white;
+  border: 1px solid #c4d5e8;
+  border-radius: 7px;
+  padding: 18px;
+  color: var(--bo-ink);
+  box-shadow: 0 12px 36px #12243624;
+}
+.bo-completion-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+}
+.bo-completion-panel .bo-message {
+  margin-top: 10px;
+}
+/* Specialist stages share the shell; only their task actions stay in local bars. */
+.bo-stage {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-stage-toolbar {
+  background: #f8fbff;
+  border-bottom: 1px solid var(--bo-line);
+  padding: 10px 24px;
+  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-stage-toolbar button {
+  min-height: 44px;
+  box-shadow: none;
+  font-size: 13px;
+}
+.bo-stage main > [class*="max-w-"] {
+  max-width: none;
+}
+.bo-stage .vtpl-data-table > thead > tr > th {
+  background: #e3ecf7;
+  color: var(--bo-ink);
+}
+.bo-stage table {
+  table-layout: auto;
+}
+@media (max-width: 1100px) {
+  .bo-layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .bo-record {
+    padding: 12px 18px;
+    flex-wrap: wrap;
+  }
+  .bo-record h1 {
+    font-size: 21px;
+  }
+  .bo-record-actions {
+    margin-left: auto;
+  }
+  .bo-record-title {
+    gap: 8px;
+  }
+}
+@media (max-width: 599px) {
+  .bo-appbar {
+    padding: 0 12px;
+    gap: 12px;
+  }
+  .bo-appbar .bo-brand {
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+  .bo-breadcrumb {
+    gap: 5px;
+    padding-left: 10px;
+    font-size: 12px;
+    flex: 1;
+  }
+  .bo-breadcrumb a:last-child {
+    max-width: 85px;
+  }
+  .bo-account-name {
+    display: none;
+  }
+  .bo-account summary {
+    gap: 4px;
+  }
+  .bo-account summary > svg {
+    display: none;
+  }
+  .bo-record {
+    padding: 10px 12px;
+    gap: 4px;
+  }
+  .bo-record-title {
+    width: 100%;
+  }
+  .bo-record h1 {
+    font-size: 21px;
+    max-width: calc(100% - 110px);
+  }
+  :is(.bo-workspace, .go-purchase-content) .bo-list-selector,
+  .bo-requirement {
+    margin-left: 44px;
+    padding-left: 0;
+    border-left: 0;
+    max-width: calc(100% - 44px);
+    min-height: 36px;
+  }
+  .bo-record-actions {
+    margin-left: 44px;
+  }
+  :is(.bo-workspace, .go-purchase-content) .bo-quiet-button {
+    padding: 6px 8px;
+    min-height: 44px;
+  }
+  .bo-layout {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bo-rail {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(270px, 85vw);
+    z-index: 7;
+    box-shadow: 6px 0 24px #12243640;
+  }
+  .bo-scroll {
+    padding: 14px 12px;
+  }
+  .bo-card {
+    padding: 12px;
+  }
+  .bo-actionbar {
+    padding: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .bo-actionbar > div:last-child {
+    width: 100%;
+  }
+  .bo-actionbar > div:last-child button {
+    flex: 1;
+    min-width: 0;
+  }
+  .bo-missing ul {
+    left: 12px;
+    bottom: 125px;
+  }
+  .bo-completion-panel {
+    right: 12px;
+    bottom: 125px;
+  }
+  :is(.bo-workspace, .go-purchase-content) .bo-stage-toolbar {
+    padding: 10px 12px;
+  }
+}
+@media print {
+  .bo-appbar,
+  .bo-rail,
+  .bo-record,
+  .bo-actionbar,
+  .bo-completion-panel {
+    display: none !important;
+  }
+}
+
+:is(.bo-workspace, .go-purchase-content) .bo-entry {
+  margin-top: 18px;
+  border: 1px solid var(--bo-line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 18px;
+}
+.bo-entry-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.bo-entry-heading h4 {
+  font-size: 14px;
+  font-weight: 700;
+}
+.bo-entry-heading button {
+  font-size: 12px;
+  color: #9c342b;
+}
+.bo-entry-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.bo-entry-item {
+  grid-column: span 2;
+}
+.bo-entry-notes {
+  grid-column: span 2;
+}
+.bo-entry-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.bo-entry-actions small {
+  margin-right: auto;
+}
+.bo-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--bo-muted);
+}
+:is(.bo-workspace, .go-purchase-content) .bo-note-button {
+  padding: 8px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: transparent;
+  background: transparent;
+  color: var(--bo-blue);
+}
+.bo-note-tooltip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  background: #172b40;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px #12243630;
+  padding: 14px;
+  width: min(300px, calc(100vw - 32px));
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.5;
+  z-index: 30;
+}
+@media (max-width: 899px) {
+  .bo-entry-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bo-entry-actions {
+    flex-wrap: wrap;
+  }
+  .bo-entry-actions small {
+    width: 100%;
+  }
+  .bo-grid-heading {
+    align-items: flex-start;
+  }
+  :is(.bo-workspace, .go-purchase-content) .bo-entry {
+    padding: 14px;
+  }
+}
+@media (max-width: 599px) {
+  .bo-entry-fields {
+    grid-template-columns: 1fr;
+  }
+  .bo-entry-item,
+  .bo-entry-notes {
+    grid-column: auto;
+  }
+  .bo-grid-heading p {
+    display: none;
+  }
+  .bo-entry-actions button {
+    flex: 1;
+  }
+}
+/* Explicit, searchable Item Bank dropdown; unavailable items remain explained. */
+.bo-item-picker {
+  position: relative;
+  margin-top: 7px;
+  font-weight: 400;
+}
+.bo-picker-control {
+  display: flex;
+  align-items: flex-start;
+}
+.bo-picker-input {
+  flex: 1;
+  min-width: 0;
+}
+.bo-picker-input [data-field-error] {
+  margin: 6px 0 0;
+}
+.bo-picker-control input {
+  width: 100%;
+  min-height: 44px;
+  min-width: 0;
+  border-radius: 5px 0 0 5px;
+}
+.bo-picker-control button {
+  flex: 0 0 44px;
+  height: 44px;
+  border-radius: 0 5px 5px 0;
+  padding: 10px;
+  border-left: 0;
+}
+.bo-picker-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  border: 1px solid var(--bo-line);
+  border-radius: 7px;
+  background: white;
+  box-shadow: 0 8px 24px #12243624;
+  max-height: 260px;
+  overflow: auto;
+}
+.bo-picker-option {
+  padding: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--bo-line);
+  overflow-wrap: anywhere;
+}
+.bo-picker-option strong,
+.bo-picker-option span,
+.bo-picker-option small {
+  display: block;
+}
+.bo-picker-option span {
+  color: var(--bo-muted);
+  margin-top: 4px;
+  font-size: 12px;
+}
+.bo-picker-option[aria-selected="true"],
+.bo-picker-option:not([aria-disabled="true"]):hover {
+  background: #e8effe;
+}
+.bo-picker-option[aria-disabled="true"] {
+  cursor: default;
+  background: #f4f6f8;
+  color: var(--bo-muted);
+}
+.bo-picker-menu p {
+  padding: 12px;
+  color: var(--bo-muted);
+  font-size: 12px;
+}
+.bo-row-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: 190px;
+  padding: 10px;
+  background: white;
+  border: 1px solid var(--bo-line);
+  border-radius: 6px;
+  color: var(--bo-ink);
+  box-shadow: 0 8px 24px #12243624;
+}
+.bo-row-popover small {
+  display: block;
+  padding: 6px 0 0;
+}
+.bo-stage-reference {
+  padding: 8px 24px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--bo-line);
+  background: white;
+}
+.bo-stage-reference summary {
+  cursor: pointer;
+  color: var(--bo-muted);
+}
+.bo-stage-reference p {
+  margin-top: 8px;
+}
+@media (max-width: 599px) {
+  .bo-stage-reference {
+    padding: 8px 12px;
+  }
+}
+.bo-row-actions button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.bo-stage-toolbar .bo-segmented {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: #e7eef8;
+  border: 1px solid var(--bo-line);
+  border-radius: 7px;
+}
+:is(.bo-workspace, .go-purchase-content) .bo-segmented button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--bo-ink);
+}
+:is(.bo-workspace, .go-purchase-content) .bo-segmented button[aria-pressed="true"] {
+  background: var(--bo-blue);
+  color: white;
+}
+.bo-stage-toolbar > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media screen and (max-width: 640px) {
+  .bo-stage :is(.grid-cols-2, .grid-cols-3) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bo-stage .p-6 {
+    padding: 16px;
+  }
+  .bo-stage-reference summary {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+  }
+}
+@media screen and (max-width: 640px) {
+  .bo-stage [class*="col-span-"] {
+    grid-column: auto;
+  }
+  .bo-stage .grid > * {
+    min-width: 0;
+  }
+}
+
+/* Item/vendor checkbox labels remain full-size targets inside the specialist grid. */
+.indent-group-workspace label.indent-selection,
+.quotation-receipt-workspace label.indent-selection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.indent-group-workspace .indent-selection input[type="checkbox"],
+.quotation-receipt-workspace .indent-selection input[type="checkbox"] {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.bo-step-state { display: block; font-size: 0.75rem; color: #a8c2d5; }
+.bo-step[aria-current="step"] .bo-step-state { color: #dbeafe; }
+
+/* Native Go task content uses the existing app shell and theme. */
+.go-purchase-content {
+ --bo-navy: var(--go-ink); --bo-blue: var(--go-blue); --bo-ink: var(--go-ink);
+ --bo-muted: var(--go-muted); --bo-line: var(--go-line); --bo-bg: var(--go-page);
+ min-width: 0;
+}
+.go-purchase-content .bo-entry { background: var(--go-panel); }
+.go-purchase-content :is(input,select,textarea,.bo-picker-menu,.bo-card,.bo-dialog,.bo-context) {
+ background-color: var(--go-panel); color: var(--go-ink); border-color: var(--go-line);
+}
+.go-purchase-content .bo-picker-option:hover { background: var(--go-hover); }
+html[data-theme="dark"] .go-purchase-content .bo-summary-table :is(th,td) {
+ background: var(--go-panel); color: var(--go-ink); border-color: var(--go-line);
+}
+
+.go-purchase-content button.primary { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.go-purchase-content button:not(.primary) { background: var(--go-panel); color: var(--go-ink); }
+.go-purchase-content button:not(.primary):hover { background: var(--go-hover); }
+.go-purchase-content button.bo-remove { color: #9c342b; }
+html[data-theme="dark"] .go-purchase-content button.bo-remove { color: #fca5a5; }
+
+/* Keep shared grid sorting controls consistent with other workspace grids. */
+.go-purchase-content thead button:not(.primary) {
+ background: transparent; border: 0; padding: 0; border-radius: 0;
+ justify-content: flex-start;
+}
+
+/* Keep picker feedback separate from the search row and its bounded popup. */
+.bo-picker-option .bo-picker-specs {
+ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+ overflow: hidden; color: var(--bo-ink); font-size: 12px; line-height: 1.5;
+}
+.bo-picker-option .bo-picker-sku {
+ white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+ font-family: ui-monospace, monospace;
+}
+.go-purchase-content .bo-picker-option[aria-selected="true"] { background: var(--go-hover); }
+.go-purchase-content .bo-picker-option[aria-disabled="true"] { background: var(--go-page); color: var(--go-muted); }
+.go-purchase-content .bo-picker-option[aria-disabled="true"] .bo-picker-specs { color: var(--go-muted); }

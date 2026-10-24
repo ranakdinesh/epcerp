@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
+const {outputText}=ts.transpileModule(readFileSync(new URL("../src/components/purchasing/quotation-terms.ts",import.meta.url),"utf8"),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}});
+const {supplierPaymentTerms}=await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+const vendor=terms=>({data:{payment_terms:terms}});
+test("explicit supplier text is reused without replacing it with percentage boilerplate",()=>assert.equal(supplierPaymentTerms(vendor({description:"  Net 30 after acceptance  ",advance_pct:25})),"Net 30 after acceptance"));
+test("percentage and credit defaults retain the indent's commercial wording",()=>assert.equal(supplierPaymentTerms(vendor({advance_pct:10,qc_pct:20,delivery_pct:60,retention_pct:10,credit_days:30})),"Payment shall be 10% advance against PI, 20% after stage inspection / QC clearance, 60% after material delivery at site, 10% retention / warranty. Credit period: 30 days."));
+test("missing or empty defaults do not pretend terms were agreed",()=>{assert.equal(supplierPaymentTerms(),"");assert.equal(supplierPaymentTerms({data:{}}),"");assert.equal(supplierPaymentTerms(vendor({advance_pct:0,description:" "})),"");assert.equal(supplierPaymentTerms(vendor({credit_days:45})),"Credit period: 45 days.");});

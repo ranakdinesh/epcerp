@@ -1,0 +1,10 @@
+BEGIN;
+DROP TABLE user_activity;
+DROP TABLE refresh_tokens;
+DROP TABLE role_permissions;
+DROP TABLE user_roles;
+DROP TABLE permissions;
+DROP TABLE roles;
+DROP TABLE users;
+DROP TABLE epcerp_schema_identity;
+COMMIT;

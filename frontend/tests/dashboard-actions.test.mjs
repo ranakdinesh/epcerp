@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {readFileSync} from 'node:fs';
+import ts from 'typescript';
+const js=ts.transpileModule(readFileSync(new URL('../src/components/dashboards/action-model.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
+const {projectActions}=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const leaf={id:'1',code:'A',name:'Cable delivery',leaf:true,progress:0,finish_date:'2026-09-01',effective_doer_id:'doer',effective_resolver_id:'resolver'};
+const board={plan:{},members:[{id:'doer',label:'Doer'},{id:'resolver',label:'Resolver'}],nodes:[leaf,{...leaf,id:'2',code:'B',progress:100},{...leaf,id:'3',code:'C',finish_date:null,effective_doer_id:null}]};
+test('prioritises escalation and avoids repeating overdue task; excludes completed leaf',()=>{const issue={id:'issue',node_id:'1',reason:'Awaiting approval',resolver_id:'resolver',due_at:'2026-09-07T12:00:00Z',overdue_minutes:60,resolved_at:null};const rows=projectActions(board,[issue],'resolver','2026-09-08');assert.equal(rows.length,2);assert.equal(rows[0].priority,'Resolution overdue');assert.equal(rows[0].doer,'Doer');assert.equal(rows[0].mine,true);assert.equal(rows[1].priority,'Assignment needed');});
+test('missing issue access still permits task checks and does not invent escalations',()=>{const rows=projectActions(board,null,'other','2026-09-08');assert.equal(rows[0].priority,'Task past target');assert.equal(rows.filter(r=>r.mine).length,0);assert.deepEqual(projectActions(null,[],'other','2026-09-08'),[]);});

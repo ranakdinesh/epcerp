@@ -1,0 +1,10 @@
+import { copyFileSync, cpSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+const require=createRequire(import.meta.url);
+const packagePath=require.resolve('pdfjs-dist/package.json');
+const { version }=require(packagePath);
+const destination=new URL(`../public/pdfjs-${version}/`,import.meta.url);
+mkdirSync(destination,{recursive:true});
+copyFileSync(join(dirname(packagePath),'build/pdf.worker.min.mjs'),new URL('pdf.worker.min.mjs',destination));
+for(const folder of ['standard_fonts','cmaps','wasm']) cpSync(join(dirname(packagePath),folder),new URL(folder,destination),{recursive:true});

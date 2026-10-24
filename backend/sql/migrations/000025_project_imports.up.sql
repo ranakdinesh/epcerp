@@ -1,0 +1,4 @@
+CREATE TABLE project_imports(id uuid PRIMARY KEY,project_id uuid NOT NULL UNIQUE REFERENCES projects(id),source_id uuid NOT NULL UNIQUE,source_sha256 text NOT NULL CHECK(length(source_sha256)=64),source_snapshot jsonb NOT NULL,source_created_at timestamptz NOT NULL,source_updated_at timestamptz NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp(),created_by_id uuid REFERENCES users(id));
+CREATE FUNCTION reject_project_import_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Project import provenance is immutable'; END $$;
+CREATE TRIGGER project_import_immutable BEFORE UPDATE OR DELETE ON project_imports FOR EACH ROW EXECUTE FUNCTION reject_project_import_change();
+CREATE TRIGGER project_import_no_truncate BEFORE TRUNCATE ON project_imports FOR EACH STATEMENT EXECUTE FUNCTION reject_project_import_change();

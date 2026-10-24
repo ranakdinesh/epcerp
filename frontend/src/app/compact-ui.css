@@ -1,0 +1,64 @@
+/* Compact screen presentation shared by every epcERP page. Print layouts are independent. */
+@media screen {
+  :root { --ui-action-size: .75rem; --ui-page-gutter: 20px; }
+
+  /* This product-wide label rule intentionally overrides individual utility sizes. */
+  html body :is(button, input[type="button"], input[type="submit"], [role="button"], a[class*="min-h-11"], a.primary),
+  html body input::file-selector-button {
+    font-size: var(--ui-action-size) !important;
+    font-weight: 700 !important;
+    line-height: 1.4;
+  }
+
+  html body .go-content { padding: var(--ui-page-gutter); }
+  .go-workspace .go-process-breadcrumb { margin-bottom: 12px; }
+  .go-workspace .go-page-heading { margin-bottom: 20px; }
+  .go-workspace .go-page-heading h1 { margin-block: 8px; font-size: clamp(24px, 2.5vw, 30px); }
+  .go-content > .space-y-5 > :not(:last-child) { margin-block-start: 0; margin-block-end: 12px; }
+  .go-workspace .go-content h2 { margin-bottom: 8px; }
+  .go-workspace .go-navigation { padding-top: 12px; }
+  .go-workspace .go-navigation p { margin-top: 16px; }
+
+  html body .data-grid-toolbar { padding: 12px; gap: 8px; }
+  .go-purchase-content .data-grid-rows { display: flex; }
+
+  html body .vtpl-data-table > thead > tr > th { padding: 6px 12px; }
+  html body .vtpl-data-table > tbody > tr > :is(th, td) { padding: 8px 12px; }
+  html body .vtpl-data-table > thead > tr > th > button { min-height: 44px; }
+
+  .go-purchase-content .bo-stage-toolbar { padding: 8px 0; }
+  .go-purchase-content .bo-stage > main { padding: 12px 0; }
+  .go-purchase-content .indent-group-workspace { padding: 0; }
+  .purchase-indent-switcher { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .purchase-indent-switcher [role="tablist"] { display: flex; flex-wrap: wrap; gap: 8px; }
+  .purchase-indent-switcher [aria-selected="true"] { background: var(--go-hover); color: var(--go-blue); border-color: var(--go-blue); }
+  .purchase-progress-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; font-size: 12px; color: var(--go-muted); }
+  .purchase-progress-strip strong { color: var(--go-ink); }
+
+  @media (max-width: 768px) {
+    :root { --ui-page-gutter: 12px; }
+    .go-purchase-content .bo-stage-toolbar > div { max-width: 100%; }
+    .go-purchase-content .bo-stage-toolbar .bo-segmented { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+    .go-purchase-content .bo-segmented button { flex-shrink: 0; white-space: nowrap; }
+    html body .data-grid-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+    .data-grid-toolbar-main { display: contents; }
+    .data-grid-search { grid-column: 1; grid-row: 1; min-width: 0; }
+    .data-grid-toolbar-main > :not(.data-grid-search) { grid-column: 1 / -1; }
+    html body .data-grid-rows { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    html body .data-grid-rows select { min-width: 72px; width: auto; margin: 0; }
+
+    .purchase-indent-switcher [role="tablist"] { flex: 1; }
+    .purchase-indent-switcher [role="tab"] { flex: 1; }
+  }
+}
+
+/* Finance offer identity stays consistent in selection, item comparison and totals. */
+@media screen {
+  .finance-review { --finance-lowest: #edf9f0; --finance-preferred: #fff9df; --finance-picked: #1d4ed8; }
+  html[data-theme="dark"] .finance-review { --finance-lowest: #173b30; --finance-preferred: #3b351b; --finance-picked: #93b4ff; }
+  html body .finance-review .vtpl-data-table .finance-lowest-cell { background: var(--finance-lowest); }
+  html body .finance-review .vtpl-data-table .finance-preferred-cell { background: var(--finance-preferred); }
+  html body .finance-review .finance-vendor-choice > td:has(input:checked) { box-shadow: inset 0 0 0 2px var(--finance-picked); }
+  html[data-theme="dark"] .finance-review :is(.text-green-800,.text-amber-900,.text-yellow-900,.text-blue-800) { color: var(--go-ink); }
+  html[data-theme="dark"] .finance-review .finance-budget-notice { background: #3b351b; border-color: #6e6032; color: #fce8b2; }
+}

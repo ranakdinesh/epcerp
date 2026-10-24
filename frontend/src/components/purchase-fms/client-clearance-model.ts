@@ -1,0 +1,8 @@
+export type ClearanceStatus="pending"|"cleared";
+export const clearanceLabels:Record<ClearanceStatus,string>={pending:"Pending client clearance",cleared:"MDCC issued · Cleared"};
+export type Clearance={status:ClearanceStatus;mdcc_ref:string;clearance_date:string;cleared_by_authority:string;remarks:string;file_name:string};
+export type ClearanceSource={project_id:string;package_id:string;quality_id:string;quality_version:number;quality_revision:number;report_id:string;report_version:number;report_revision:number;ir_number:string;irn_number:string;issue_date:string;number:string;supplier_name:string;description:string;cleared_quantity:string;uom:string;available:boolean;blockers:string[]};
+export type ClearanceRecord={id:string;project_id:string;package_id:string;version:number;revision:number;source_snapshot:ClearanceSource;clearance:Clearance;is_active:boolean;created_at:string;updated_at:string;created_by_id:string;updated_by_id:string};
+export type ClearanceEvent={id:string;reason:string;action:string;before:ClearanceRecord|null;after:ClearanceRecord;at:string;actor_id:string};
+export type ClearanceData={record:ClearanceRecord|null;source:ClearanceSource;actions:string[];history:ClearanceEvent[];task_only:boolean};
+export function clearanceCommand(version:number,action:"record"|"revise",f:FormData){const text=(name:string)=>String(f.get(name)??"");const base={version,action,reason:text("reason")};if(action==="revise")return base;return {...base,clearance:{status:text("status"),mdcc_ref:text("mdcc_ref"),clearance_date:text("clearance_date"),cleared_by_authority:text("cleared_by_authority"),remarks:text("remarks"),file_name:text("file_name")}};}

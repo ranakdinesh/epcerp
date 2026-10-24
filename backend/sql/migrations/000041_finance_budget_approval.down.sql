@@ -1,0 +1,13 @@
+BEGIN;
+DO $$ BEGIN IF EXISTS(SELECT 1 FROM finance_budget_decisions) OR EXISTS(SELECT 1 FROM project_budgets WHERE state<>'draft' OR approval_decision_id IS NOT NULL OR approved_snapshot<>'null'::jsonb OR revision<>1) OR EXISTS(SELECT 1 FROM project_budget_events WHERE action IN('approve','revise')) THEN RAISE EXCEPTION 'Refusing to remove populated Finance approvals or approved budget evidence';END IF;END $$;
+DROP TRIGGER project_budget_finance_baseline ON project_budgets;
+DROP FUNCTION check_project_budget_finance_baseline();
+ALTER TABLE project_budgets DROP CONSTRAINT project_budget_approval_snapshot,DROP COLUMN approval_decision_id,DROP COLUMN approved_snapshot;
+ALTER TABLE project_budgets DROP CONSTRAINT project_budgets_state_check;
+ALTER TABLE project_budgets ADD CONSTRAINT project_budgets_state_check CHECK(state='draft');
+ALTER TABLE project_budget_events DROP CONSTRAINT project_budget_events_action_check;
+ALTER TABLE project_budget_events ADD CONSTRAINT project_budget_events_action_check CHECK(action IN('save','price_items'));
+DROP TABLE finance_budget_decisions;
+DROP FUNCTION check_finance_budget_event();
+DROP FUNCTION protect_finance_budget_decisions();
+COMMIT;

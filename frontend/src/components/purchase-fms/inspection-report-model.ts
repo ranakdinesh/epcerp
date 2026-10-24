@@ -1,0 +1,8 @@
+export type ReportStatus="pending"|"issued";
+export const reportLabels:Record<ReportStatus,string>={pending:"Pending issuance",issued:"Issued"};
+export type Report={status:ReportStatus;ir_number:string;irn_number:string;issue_date:string;issuing_authority:string;cleared_quantity:string;uom:string;file_name:string};
+export type ReportSource={project_id:string;package_id:string;inspection_id:string;inspection_version:number;inspection_revision:number;actual_date:string;order_id:string;order_version:number;number:string;supplier_name:string;description:string;quantity:string;uom:string;qap_reference:string;available:boolean;blockers:string[]};
+export type ReportRecord={id:string;project_id:string;package_id:string;version:number;revision:number;source_snapshot:ReportSource;report:Report;is_active:boolean;created_at:string;updated_at:string;created_by_id:string;updated_by_id:string};
+export type ReportEvent={id:string;reason:string;action:string;before:ReportRecord|null;after:ReportRecord;at:string;actor_id:string};
+export type ReportData={record:ReportRecord|null;source:ReportSource;actions:string[];history:ReportEvent[];task_only:boolean};
+export function reportCommand(version:number,action:"record"|"revise",f:FormData){const text=(name:string)=>String(f.get(name)??"");const base={version,action,reason:text("reason")};if(action==="revise")return base;return {...base,report:{status:text("status"),ir_number:text("ir_number"),irn_number:text("irn_number"),issue_date:text("issue_date"),issuing_authority:text("issuing_authority"),cleared_quantity:text("cleared_quantity"),file_name:text("file_name")}};}

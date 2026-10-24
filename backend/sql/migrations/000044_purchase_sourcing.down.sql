@@ -1,0 +1,13 @@
+BEGIN;
+DO $$BEGIN IF EXISTS(SELECT 1 FROM purchase_sourcing_cases) OR EXISTS(SELECT 1 FROM purchase_sourcing_events) THEN RAISE EXCEPTION 'Cannot rollback populated sourcing evidence';END IF;END $$;
+DROP TABLE purchase_sourcing_allocations;
+DROP FUNCTION check_purchase_sourcing_allocation();
+DROP FUNCTION protect_purchase_sourcing_allocation();
+DROP TABLE purchase_sourcing_events;
+DROP TABLE purchase_sourcing_cases;
+DROP FUNCTION check_purchase_sourcing_event();
+DROP FUNCTION check_purchase_sourcing_write();
+DROP FUNCTION check_purchase_sourcing_reservation();
+DROP FUNCTION protect_purchase_sourcing_history();
+DROP FUNCTION protect_purchase_sourcing();
+COMMIT;

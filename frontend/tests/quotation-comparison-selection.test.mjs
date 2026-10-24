@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
+const {outputText}=ts.transpileModule(readFileSync(new URL("../src/components/purchasing/quotation-comparison-selection.ts",import.meta.url),"utf8"),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}});
+const {bestVendorQuote,draftComparison,quoteKey}=await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+const q=(document,revision,total,eligible=true,group="g")=>({document_id:document,revision,total,eligible,group_id:group,lines:[{line_id:'l',landed:total}],rank:0,suggested:false});
+test("recommends lowest eligible vendor revision even when newer is expensive or cheaper excluded",()=>{const quotes=[q('a',1,'100.00'),q('a',2,'120.00'),q('a',3,'80.00',false)];assert.equal(bestVendorQuote(quotes).revision,1);assert.equal(bestVendorQuote([q('a',1,'100.00'),q('a',2,'100.00')]).revision,2);assert.equal(bestVendorQuote([q('a',1,'1.00',false)]),undefined);});
+test("manual choices rerank chosen vendor totals, remain group-local and leave snapshots unchanged",()=>{const quotes=[q('a',1,'100.00'),q('a',2,'140.00'),q('b',1,'110.00'),q('c',1,'20.00',true,'other')],before=structuredClone(quotes);assert.equal(draftComparison(quotes,{})[0].suggested,true);const selected=draftComparison(quotes,{a:'a:2'});assert.equal(selected[0].rank,2);assert.equal(selected[1].suggested,true);assert.equal(selected[1].lines[0].item_lowest,true);assert.equal(selected[2].rank,1);assert.deepEqual(quotes,before);});
+test("invalid or excluded choice falls back safely and exact large decimal prices distinguish cents",()=>{const quotes=[q('a',1,'99999999999999999999.99'),q('a',2,'99999999999999999999.98'),q('a',3,'0.00',false)];assert.equal(bestVendorQuote(quotes).revision,2);assert.equal(draftComparison(quotes,{a:'a:3'})[0].revision,2);assert.equal(quoteKey(q('a',2,'0.00')),'a:2');});
+test("equal prices share L1 and unquoted vendors are excluded from draft",()=>{const result=draftComparison([q('a',1,'100.00'),q('b',1,'100.00'),q('c',1,'50.00',false)],{});assert.deepEqual(result.map(q=>q.rank),[1,1]);assert.equal(result.length,2);});

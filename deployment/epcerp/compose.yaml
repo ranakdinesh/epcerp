@@ -1,0 +1,158 @@
+name: epcerp-local
+
+x-api: &api
+  image: epcerp-api:local
+  build:
+    context: ../../backend
+    dockerfile: ../deployment/epcerp/api.Dockerfile
+  environment: &api-environment
+    EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+    EPCERP_HTTP_ADDRESS: 0.0.0.0:8001
+    EPCERP_BREVO_API_KEY: ${EPCERP_BREVO_API_KEY:-}
+    EPCERP_RECOVERY_SENDER_EMAIL: ${EPCERP_RECOVERY_SENDER_EMAIL:-}
+    EPCERP_RECOVERY_SENDER_NAME: ${EPCERP_RECOVERY_SENDER_NAME:-}
+    EPCERP_EMAIL_SENDER_EMAIL: ${EPCERP_EMAIL_SENDER_EMAIL:-}
+    EPCERP_EMAIL_SENDER_NAME: ${EPCERP_EMAIL_SENDER_NAME:-}
+    EPCERP_PUBLIC_URL: ${EPCERP_PUBLIC_URL:-https://erp.vishaltechnopower.in}
+    VTPL_ENVIRONMENT: development
+    EPCERP_IMAGE_ENCRYPTION_KEY: ${EPCERP_IMAGE_ENCRYPTION_KEY:?Run setup.sh first}
+    EPCERP_SUPPLIER_DOCUMENT_KEY: ${EPCERP_SUPPLIER_DOCUMENT_KEY:?Run setup.sh first}
+    EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
+    VTPL_JWT_SECRET_KEY: ${EPCERP_JWT_SECRET:?Run setup.sh first}
+    VTPL_JWT_ISSUER: epcERP
+    VTPL_JWT_AUDIENCE: epcERP-api
+    VTPL_BOOTSTRAP_SUPERADMIN_USERNAME: superadmin
+    VTPL_BOOTSTRAP_SUPERADMIN_EMAIL: admin@epcerp.local
+    VTPL_BOOTSTRAP_SUPERADMIN_PASSWORD: ${EPCERP_ADMIN_PASSWORD:?Run setup.sh first}
+    VTPL_ALLOWED_HOSTS: api,localhost,127.0.0.1
+    VTPL_CORS_ORIGINS: http://localhost:9092,http://127.0.0.1:9092
+    VTPL_FORCE_HTTPS: "false"
+    VTPL_LOG_LEVEL: info
+    VTPL_STORAGE_ENDPOINT: storage:9000
+    VTPL_STORAGE_ACCESS_KEY: epcerp_storage
+    VTPL_STORAGE_SECRET_KEY: ${EPCERP_STORAGE_SECRET:?Run setup.sh first}
+    VTPL_STORAGE_BUCKET: epcerp-documents
+    VTPL_STORAGE_SECURE: "false"
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5439:5432"
+    environment:
+      POSTGRES_USER: epcerp
+      POSTGRES_DB: epcerp
+      POSTGRES_PASSWORD: ${EPCERP_DB_PASSWORD:?Run setup.sh first}
+    networks: [default, reading_internal]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U epcerp -d epcerp']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  migrate:
+    <<: *api
+    command: ["/app/migrate", "up"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    volumes:
+      - document_packages_data:/var/lib/epcerp/document-packages
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      storage:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8001/api/v1/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  storage:
+    image: epcerp-storage:local
+    build:
+      # Storage is built entirely from this deployment directory.
+      context: .
+      dockerfile: storage.Dockerfile
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: epcerp_storage
+      MINIO_ROOT_PASSWORD: ${EPCERP_STORAGE_SECRET:?Run setup.sh first}
+    ports:
+      - "127.0.0.1:9002:9000"
+    volumes:
+      - storage_data:/data
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:9000/minio/health/live]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  document-worker:
+    image: epcerp-document-worker:local
+    build:
+      context: ../../backend
+      dockerfile: ../deployment/epcerp/worker.Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
+      VTPL_ENVIRONMENT: development
+      VTPL_LOG_LEVEL: info
+    networks: [reading_internal]
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,uid=10001,gid=10001,mode=0700
+    mem_limit: 2g
+    cpus: 1.0
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD-SHELL, 'kill -0 1 && pgrep -f /app/document-worker >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  frontend:
+    image: epcerp-frontend:local
+    build:
+      context: ../../frontend
+      dockerfile: ../deployment/epcerp/frontend.Dockerfile
+    restart: unless-stopped
+    environment:
+      EPCERP_API_URL: http://api:8001/api/v1
+      EPCERP_ENVIRONMENT: development
+      EPCERP_DEVELOPMENT_HTTP: "true"
+    ports:
+      - "127.0.0.1:9092:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/login?session=expired').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  document_packages_data:
+  postgres_data:
+  storage_data:
+
+networks:
+  reading_internal:
+    internal: true

@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {readFileSync} from "node:fs";
+import ts from "typescript";
+const source=readFileSync(new URL('../src/app/api/administration/organisation/[[...path]]/route.ts',import.meta.url),'utf8');
+const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}});
+function route(calls){const loaded={exports:{}};new Function('require','exports',outputText)(()=>({proxyAuthenticatedRequest:async(request,context,resource,methods,limit)=>{calls.push({method:request.method,path:(await context.params).path,resource,methods:[...methods],limit});return Response.json({ok:true})}}),loaded.exports);return loaded.exports}
+const id='10000000-0000-4000-8000-000000000001';
+test('Organisation proxy admits owned methods and preserves the authenticated payload bound',async()=>{const calls=[],r=route(calls);for(const [method,path]of [['GET',['departments']],['POST',['departments']],['PATCH',['employees',id]],['GET',['team',id,'work']],['GET',['offboarding',id,'history']],['POST',['offboarding',id,'approve']],['POST',['offboarding',id,'deactivate']]]){const response=await r[method](new Request('http://localhost/api/administration/organisation',{method}),{params:Promise.resolve({path})});assert.equal(response.status,200)}for(const c of calls){assert.equal(c.resource,'auth/organisation');assert.equal(c.limit,16384)}});
+test('Organisation proxy rejects traversal, arbitrary source routes and inappropriate methods',async()=>{const calls=[],r=route(calls);for(const [method,path]of [['GET',['..','users']],['POST',['team',id,'work']],['PATCH',['offboarding',id]],['GET',['employees',id,'password']],['POST',['offboarding',id,'unknown']],['GET',['employees/../../users']],['GET',['team','not-an-id','work']],['POST',['offboarding',id,'approve','extra']]]){const response=await r[method](new Request('http://localhost/api/administration/organisation',{method}),{params:Promise.resolve({path})});assert.equal(response.status,404)}assert.equal(calls.length,0)});

@@ -1,0 +1,4 @@
+# The storage build downloads its pinned source and needs no local data/secrets.
+*
+!storage.Dockerfile
+!.dockerignore

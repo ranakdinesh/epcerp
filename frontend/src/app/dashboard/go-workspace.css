@@ -1,0 +1,175 @@
+.go-workspace { --go-ink: #172c42; --go-muted: #475569; --go-blue: #1e40af; --go-line: #dce4ee; color: var(--go-ink); background: #f8fafc; min-height: 100vh; display: grid; grid-template-columns: 228px minmax(0, 1fr); grid-template-rows: 72px 1fr; font-family: Arial, sans-serif; }
+.go-appbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 28px; background: white; border-bottom: 1px solid var(--go-line); }
+.go-brand { display: flex; align-items: baseline; gap: 7px; font-size: 21px; text-decoration: none; font-weight: 700; letter-spacing: -.7px; }
+.go-brand strong { color: var(--go-blue); }
+.go-brand span { margin-left: 8px; font-size: 13px; color: var(--go-muted); font-weight: 400; letter-spacing: 0; }
+.go-account { display: flex; align-items: center; gap: 14px; font-size: 14px; }
+.go-account button { min-height: 44px; padding: 0 14px; border: 1px solid var(--go-line); border-radius: 6px; background: white; cursor: pointer; }
+.go-navigation { padding: 22px 16px; border-right: 1px solid var(--go-line); background: white; }
+.go-navigation p { margin: 25px 12px 8px; font-size: 12px; color: var(--go-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.go-navigation a { display: flex; align-items: center; min-height: 44px; padding: 10px 12px; margin-bottom: 3px; border-radius: 6px; font-size: 14px; text-decoration: none; }
+.go-navigation a[aria-current="page"] { background: #e8eefc; color: var(--go-blue); font-weight: 700; }
+.go-navigation a:hover, .go-account button:hover { background: #edf2fa; }
+.go-content { min-width: 0; padding: 36px; }
+.go-page-heading { max-width: 760px; margin-bottom: 36px; }
+.go-eyebrow { color: var(--go-blue); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
+.go-page-heading h1 { font-size: clamp(26px, 3vw, 38px); margin: 12px 0; letter-spacing: -.8px; line-height: 1.2; }
+.go-page-heading > p:last-child, .go-delivery > p { color: var(--go-muted); font-size: 15px; line-height: 1.6; }
+.go-content h2 { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+.go-available ul { list-style: none; padding: 0; margin: 0; background: white; border: 1px solid var(--go-line); border-radius: 8px; }
+.go-available li { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--go-line); padding: 4px 20px; }
+.go-available li:last-child { border: 0; }
+.go-available a { display: flex; align-items: center; min-height: 44px; color: var(--go-blue); font-size: 15px; text-decoration: none; gap: 12px; }
+.go-available a:hover { text-decoration: underline; }
+.go-available li > span { color: var(--go-muted); font-size: 13px; }
+.go-delivery { margin-top: 36px; }
+.go-delivery dl { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; margin-top: 18px; }
+.go-delivery dl > div { padding: 18px 0; border-top: 1px solid var(--go-line); }
+.go-delivery dt { font-size: 15px; font-weight: 700; }
+.go-delivery dt span { margin-left: 10px; font-weight: 400; font-size: 12px; color: var(--go-muted); }
+.go-delivery dd { margin: 6px 0 0; color: var(--go-muted); font-size: 14px; line-height: 1.6; }
+.go-workspace :is(a,button):focus-visible { outline: 2px solid var(--go-blue); outline-offset: 3px; }
+.go-skip-link { position: absolute; left: 12px; top: -100px; background: white; padding: 12px; z-index: 10; }
+.go-skip-link:focus { top: 12px; }
+@media (max-width: 768px) { .go-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; } .go-appbar { padding: 12px 18px; flex-wrap: wrap; } .go-navigation { border-right: 0; border-bottom: 1px solid var(--go-line); display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 14px; } .go-navigation > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; } .go-navigation p { width: 100%; margin: 10px 12px 4px; } .go-content { padding: 24px 18px; } .go-delivery dl { grid-template-columns: 1fr; } .go-available li { padding: 6px 12px; } }
+/* Shell preferences and shared account presentation */
+.go-workspace { --go-panel: #fff; --go-page: #f8fafc; --go-hover: #edf2fa; background: var(--go-page); width: 100%; min-height: 100dvh; grid-template-rows: 72px minmax(0,1fr); }
+.go-appbar { position: sticky; top: 0; z-index: 20; background: var(--go-panel); padding: 0 20px; }
+.go-brand-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.go-account button,.go-icon-button { background: var(--go-panel); color: inherit; }
+.go-icon-button { width: 44px; height: 44px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--go-line); border-radius: 8px; cursor: pointer; font-size: 24px; }
+.go-icon-button svg { width: 20px; height: 20px; }
+.go-icon-button:hover { background: var(--go-hover); }
+.go-navigation { background: var(--go-panel); }
+.go-desktop-navigation { position: relative; padding-top: 68px; }
+.go-desktop-toggle { position: absolute; top: 12px; right: -16px; z-index: 10; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 4px; background: transparent; box-shadow: none; }
+.go-desktop-toggle svg { width: 16px; height: 16px; }
+.go-desktop-toggle:focus-visible { outline: 2px solid var(--go-blue); outline-offset: 2px; }
+.go-navigation a { gap: 12px; }
+.go-navigation a svg { width: 20px; height: 20px; flex-shrink: 0; }
+.go-navigation a:hover,.go-account button:hover { background: var(--go-hover); }
+.go-collapsed { grid-template-columns: 76px minmax(0,1fr); }
+.go-collapsed .go-desktop-navigation { padding: 68px 10px 22px; }
+.go-collapsed .go-desktop-navigation a { padding: 12px; justify-content: center; }
+.go-collapsed .go-desktop-navigation a span,.go-collapsed .go-desktop-navigation p { display: none; }
+.go-collapsed .go-desktop-navigation > div { border-top: 1px solid var(--go-line); margin-top: 12px; padding-top: 12px; }
+.go-available ul,.go-skip-link { background: var(--go-panel); }
+.go-avatar { display: inline-flex; flex-shrink: 0; overflow: hidden; align-items: center; justify-content: center; border-radius: 50%; background: #dbeafe; color: #1e40af; font-size: 12px; font-weight: 700; border: 1px solid var(--go-line); }
+.go-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.go-user-identity { display: inline-flex; align-items: center; gap: 10px; min-width: 0; vertical-align: middle; }
+.go-user-identity > span:last-child { overflow-wrap: anywhere; }
+.go-account-menu { position: relative; }
+.go-account-menu summary { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px; border-radius: 8px; cursor: pointer; list-style: none; }
+.go-account-menu summary::-webkit-details-marker { display: none; }
+.go-account-menu summary > svg { width: 16px; }
+.go-account-menu summary .go-user-identity > span:last-child { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.go-account-menu summary:hover { background: var(--go-hover); }
+.go-account-menu summary:focus-visible { outline: 2px solid var(--go-blue); }
+.go-account-dropdown { position: absolute; right: 0; top: calc(100% + 10px); width: 240px; padding: 8px; border: 1px solid var(--go-line); background: var(--go-panel); border-radius: 12px; box-shadow: 0 12px 32px #0f172a22; }
+.go-account-dropdown p { margin: 8px 10px; font-size: 12px; color: var(--go-muted); }
+.go-account-dropdown button { width: 100%; text-align: left; border: 0; border-radius: 6px; }
+.go-account-dropdown hr { border-color: var(--go-line); margin: 8px 0; }
+.go-mobile-toggle { display: none; }
+.go-mobile-navigation { display: none; }
+.go-personal-dialog { width: min(560px,calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; border: 1px solid var(--go-line); border-radius: 16px; background: var(--go-panel); color: var(--go-ink); overflow-y: auto; }
+.go-personal-dialog::backdrop,.go-mobile-navigation::backdrop { background: #0f172a88; }
+.go-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.go-dialog-header h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.go-photo-editor { display: flex; align-items: center; gap: 20px; padding: 24px 0; }
+.go-photo-editor > div { min-width: 0; }
+.go-photo-editor input { width: 100%; font-size: 12px; }
+.go-photo-editor p,.go-personal-form p,.go-account-id { font-size: 13px; color: var(--go-muted); line-height: 1.6; }
+.go-photo-editor button { min-height: 44px; color: var(--go-blue); cursor: pointer; }
+.go-personal-form { display: flex; flex-direction: column; gap: 16px; padding: 20px 0; border-top: 1px solid var(--go-line); }
+.go-personal-form label { display: block; font-size: 14px; font-weight: 600; }
+.go-personal-form input { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px 12px; border: 1px solid var(--go-line); border-radius: 8px; background: var(--go-panel); color: inherit; font-weight: 400; }
+.go-personal-form input:focus-visible { outline: 2px solid var(--go-blue); outline-offset: 2px; }
+.go-personal-form button { min-height: 44px; align-self: flex-start; padding: 10px 18px; background: #1d4ed8; color: white; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.go-personal-form button:disabled { opacity: .5; cursor: wait; }
+.go-form-error { margin: 16px 0; color: #b91c1c; }
+.go-form-success { margin: 16px 0; color: #047857; }
+.go-assignment-people { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+@media (max-width: 768px) {
+ .go-workspace,.go-workspace.go-collapsed { grid-template-columns: minmax(0,1fr); grid-template-rows: 64px minmax(0,1fr); }
+ .go-appbar { padding: 0 12px; flex-wrap: nowrap; gap: 8px; }
+ .go-brand-group { gap: 8px; }
+ .go-brand { font-size: 18px; gap: 4px; white-space: nowrap; }
+ .go-brand span { display: none; }
+ .go-desktop-toggle,.go-desktop-navigation { display: none; }
+ .go-mobile-toggle { display: inline-flex; }
+ .go-account { gap: 4px; }
+ .go-account-menu summary .go-user-identity > span:last-child { display: none; }
+ .go-account-menu summary { padding: 4px; }
+ .go-account-menu summary > svg { display: none; }
+ .go-mobile-navigation[open] { display: block; position: fixed; inset: 0 auto 0 0; margin: 0; width: min(300px,85vw); max-width: 85vw; height: 100dvh; max-height: 100dvh; border: 0; border-right: 1px solid var(--go-line); border-radius: 0; background: var(--go-panel); color: var(--go-ink); padding: 14px; overflow-y: auto; }
+ .go-mobile-navigation .go-navigation { display: block; border: 0; padding: 12px 0; }
+ .go-mobile-navigation .go-navigation > div { display: block; }
+ .go-mobile-navigation .go-navigation p { margin: 24px 12px 8px; }
+ .go-mobile-navigation .go-navigation a { display: flex; }
+ .go-content { padding: 24px 16px; }
+ .go-available li > span { display: none; }
+ .go-personal-dialog { padding: 18px; }
+ .go-photo-editor { gap: 12px; }
+}
+
+/* Process mode swaps the global directory for an independently scrollable step rail. */
+.go-process-workspace:not(.go-collapsed) { grid-template-columns: 280px minmax(0,1fr); }
+.go-process-workspace .go-desktop-navigation { position: sticky; top: 72px; align-self: start; height: calc(100dvh - 72px); overflow-y: auto; padding-top: 48px; }
+.go-process-workspace .go-desktop-toggle { right: 8px; }
+.go-process-heading { padding: 12px; }
+.go-process-heading strong { display: block; font-size: 16px; }
+.go-process-heading small { display: block; margin-top: 5px; color: var(--go-muted); font-size: 12px; }
+.go-step-search { display: block; padding: 8px 12px; font-size: 12px; color: var(--go-muted); }
+.go-step-search input { display: block; width: 100%; min-height: 44px; margin-top: 6px; padding: 8px; border: 1px solid var(--go-line); border-radius: 6px; background: var(--go-panel); color: var(--go-ink); }
+.go-step-search input:focus-visible { outline: 2px solid var(--go-blue); outline-offset: 2px; }
+.go-step-number { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 6px; font-size: 12px; background: var(--go-hover); }
+.go-step-label { min-width: 0; overflow-wrap: anywhere; line-height: 1.4; }
+.go-step-label small { display: block; margin-top: 2px; font-size: 11px; color: var(--go-muted); font-weight: 400; }
+.go-planned-step { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; min-height: 44px; font-size: 13px; color: var(--go-muted); }
+.go-process-group a { align-items: flex-start; font-size: 13px; }
+.go-no-steps { padding: 12px; font-size: 13px; }
+.go-process-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 24px; font-size: 12px; color: var(--go-muted); }
+.go-process-breadcrumb a { color: var(--go-blue); }
+.go-collapsed .go-desktop-navigation :is(.go-process-heading,.go-step-search,.go-no-steps,.go-step-label) { display: none; }
+.go-collapsed .go-desktop-navigation .go-step-number { display: inline-flex; }
+.go-collapsed .go-desktop-navigation .go-planned-step { justify-content: center; padding: 10px; }
+@media(max-width:768px) {
+ .go-process-workspace:not(.go-collapsed) { grid-template-columns: minmax(0,1fr); }
+ .go-process-workspace .go-desktop-navigation { display: none; }
+ .go-process-workspace .go-mobile-navigation .go-process-heading { display: block; }
+ .go-process-workspace .go-mobile-navigation .go-process-group { display: block; }
+}
+
+.go-process-connections { padding: 18px; border: 1px solid var(--go-line); border-radius: 12px; background: var(--go-panel); }
+.go-process-connections > div { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
+.go-process-connections > div > span { display: inline-flex; align-items: center; gap: 12px; }
+.go-process-connections svg { width: 18px; height: 18px; flex-shrink: 0; }
+.go-process-connections a { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 14px; border: 1px solid var(--go-line); border-radius: 8px; color: var(--go-blue); font-size: 14px; }
+.go-process-connections a[aria-current="page"] { background: var(--go-hover); font-weight: 700; }
+.go-map-handoffs { padding: 0; list-style: none; }
+.go-map-handoffs li { padding: 12px 0; border-bottom: 1px solid var(--go-line); font-size: 14px; }
+.go-map-handoffs p,.go-map-support p { margin-top: 6px; font-size: 13px; color: var(--go-muted); line-height: 1.6; }
+/* Personal notifications use the shared appbar and addressed inbox. */
+.go-account .go-notification-bell{position:relative;padding:0;width:44px;height:44px;border-radius:8px}
+.go-notification-count{position:absolute;top:1px;right:0;display:flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 3px;border:2px solid var(--go-panel);border-radius:12px;background:#dc2626;color:white;font-size:10px;font-weight:700}
+@media(max-width:768px){.go-account{gap:7px}.go-account .go-notification-bell{width:44px;min-width:44px}}
+
+/* Personal account: photo-first identity and focused security. */
+.go-personal-dialog{width:min(720px,calc(100% - 32px));padding:0;border-radius:20px;box-shadow:0 24px 80px #0f172a30}
+.go-profile-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 28px 18px}
+.go-profile-topbar h2{font-size:22px;font-weight:750;letter-spacing:-.4px;line-height:1.3;margin:4px 0 0}
+.go-profile-eyebrow{font-size:11px;font-weight:750;letter-spacing:1.5px;color:var(--go-muted);margin:0}
+.go-profile-topbar .go-icon-button{width:44px;height:44px;font-size:24px;flex-shrink:0}
+.go-profile-identity{display:flex;align-items:center;gap:20px;margin:0 28px 24px;padding:20px;border:1px solid var(--go-line);border-radius:14px;background:var(--go-hover)}
+.go-profile-identity .go-avatar{flex-shrink:0;border:3px solid var(--go-panel);box-shadow:0 2px 6px #0f172a12;font-size:22px}
+.go-profile-summary{min-width:0}.go-profile-summary h3{font-size:18px;font-weight:700;overflow-wrap:anywhere;margin:0 0 3px}.go-profile-summary p{font-size:13px;color:var(--go-muted);margin:0;overflow-wrap:anywhere}
+.go-profile-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:650;margin-left:10px;padding:2px 8px;border:1px solid var(--go-line);border-radius:20px;color:var(--go-ink);background:var(--go-panel)}
+.go-profile-photo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.go-profile-photo-actions button{min-height:44px;border:1px solid var(--go-line);border-radius:8px;background:var(--go-panel);padding:8px 12px;color:var(--go-ink);font-size:12px;font-weight:650;cursor:pointer}.go-profile-photo-actions button.go-profile-remove{border-color:transparent;background:transparent;color:var(--go-muted)}.go-profile-summary .go-profile-photo-help{margin-top:6px;font-size:11px}
+.go-profile-tabs{display:flex;gap:24px;border-bottom:1px solid var(--go-line);padding:0 28px}.go-profile-tabs button{min-height:48px;padding:8px 0;border-bottom:2px solid transparent;color:var(--go-muted);font-size:14px;font-weight:650;cursor:pointer}.go-profile-tabs button[aria-current]{border-bottom-color:var(--go-blue);color:var(--go-blue)}
+.go-profile-body{padding:24px 28px 0}.go-profile-section-title h3{font-size:16px;font-weight:700;margin:0 0 4px}.go-profile-section-title p{font-size:13px;color:var(--go-muted);margin:0}
+.go-personal-form{border:0;padding:20px 0 0;gap:20px}.go-personal-form fieldset{border:0;padding:0;margin:0;min-width:0;display:grid;gap:20px}.go-profile-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}.go-personal-form label{font-size:13px}.go-personal-form input,.go-personal-form textarea{font-size:14px;margin-top:7px;min-height:46px;padding:11px 12px;width:100%;border:1px solid var(--go-line);border-radius:8px;background:var(--go-panel);color:var(--go-ink);font-weight:400}.go-personal-form textarea{resize:vertical}.go-personal-form input::placeholder,.go-personal-form textarea::placeholder{color:var(--go-muted);opacity:.8}.go-personal-form textarea:focus-visible,.go-personal-dialog button:focus-visible{outline:2px solid var(--go-blue);outline-offset:3px}
+.go-profile-contact-note{display:grid;grid-template-columns:1fr auto;gap:3px 16px;padding:14px 16px;border:1px solid var(--go-line);border-radius:10px;min-width:0}.go-profile-contact-note span{font-size:12px;color:var(--go-muted)}.go-profile-contact-note strong{font-size:13px;font-weight:500;overflow-wrap:anywhere;grid-column:1}.go-profile-contact-note button{grid-column:2;grid-row:1/3;align-self:center;background:transparent;color:var(--go-blue);padding:6px 0;min-height:44px;font-size:12px}
+.go-profile-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--go-line);margin:4px -28px 0;padding:18px 28px;background:var(--go-hover)}.go-profile-footer p{font-size:12px;margin:0}.go-profile-footer button{flex-shrink:0;margin-left:auto}
+.go-security-options{display:flex;gap:8px;padding-top:20px}.go-security-options button{min-height:44px;padding:8px 14px;font-size:13px;border:1px solid var(--go-line);border-radius:8px;cursor:pointer}.go-security-options button[aria-pressed=true]{color:var(--go-blue);background:var(--go-hover);border-color:var(--go-blue)}
+@media(max-width:600px){.go-personal-dialog{width:calc(100% - 20px);max-height:calc(100dvh - 20px)}.go-profile-topbar{padding:20px 20px 16px}.go-profile-identity{margin:0 20px 20px;padding:16px;gap:14px;align-items:flex-start}.go-profile-identity .go-avatar{width:64px!important;height:64px!important;font-size:18px}.go-profile-tabs{padding:0 20px}.go-profile-body{padding:20px 20px 0}.go-profile-fields{grid-template-columns:minmax(0,1fr);gap:18px}.go-profile-footer{margin-left:-20px;margin-right:-20px;padding:16px 20px;flex-wrap:wrap}.go-profile-footer button{width:100%}.go-profile-contact-note{grid-template-columns:minmax(0,1fr)}.go-profile-contact-note button{grid-column:1;grid-row:auto;justify-self:start}}
+.go-username-form{padding:0 0 22px;margin-bottom:22px;border-bottom:1px solid var(--go-line);gap:6px}.go-username-row{display:flex;align-items:flex-start;gap:12px}.go-username-row>label{flex:1;min-width:0}.go-username-row>button{align-self:flex-start;margin-top:26px;white-space:nowrap}.go-username-form .go-username-hint,.go-username-form .go-username-feedback{font-size:12px;margin:0}.go-username-feedback:empty{display:none}@media(max-width:600px){.go-username-row{flex-direction:column}.go-username-row>label,.go-username-row>button{width:100%;margin-top:0}}

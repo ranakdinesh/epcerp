@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 800 240">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        font-family: TimesNewRomanPS-ItalicMT, 'Times New Roman';
+        font-size: 37.18px;
+        font-style: italic;
+        stroke: #2f4f9b;
+        stroke-miterlimit: 10;
+        stroke-width: .75px;
+      }
+
+      .st1 {
+        font-family: TimesNewRomanPSMT, 'Times New Roman';
+        font-size: 75.35px;
+      }
+
+      .st2 {
+        fill: #9fd8f5;
+      }
+
+      .st3 {
+        fill: #2e4f9b;
+      }
+    </style>
+  </defs>
+  <text class="st3" transform="translate(226.03 84.79)"><tspan class="st1"><tspan x="0" y="0">VISHAL</tspan></tspan><tspan class="st1"><tspan x="0" y="84.02">TECHNOPOWER</tspan></tspan><tspan class="st0"><tspan x="0" y="131.34">Engineering Your Electrical Needs!</tspan></tspan></text>
+  <g>
+    <path class="st2" d="M115.9,33.71h-18.55c-6.35,0-7.4,0-12.86,0H3.83c28.24,49.03,57.4,99.36,85.63,148.36l30.56-66.02h-60.17l56.06-82.34Z"/>
+    <path class="st3" d="M214.41,33.71h-98.5l-13.83,55.8,68.32-.3-80.93,92.86,3.96,7.11s.03,0,3.18,5.54c.95,1.66,1.46,2.56,2.41,4.22,3.37,5.85,6.74,11.69,10.11,17.55,35.22-61.13,70.17-121.82,105.29-182.78Z"/>
+  </g>
+</svg>

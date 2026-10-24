@@ -1,0 +1,1934 @@
+{
+  "status": "approved_initial_adoption",
+  "source": "User-supplied template matrix, 10 October 2026; existing exported Python option sets for review only",
+  "templates": [
+    {
+      "subcategory_code": "LTPC",
+      "template_name": "LT_Power_Cable_Template",
+      "fields": [
+        {
+          "field_code": "C",
+          "field_name": "Number of Cores",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1C",
+              "label": "1C"
+            },
+            {
+              "code": "2C",
+              "label": "2C"
+            },
+            {
+              "code": "3C",
+              "label": "3C"
+            },
+            {
+              "code": "3P5C",
+              "label": "3.5C"
+            },
+            {
+              "code": "4C",
+              "label": "4C"
+            }
+          ]
+        },
+        {
+          "field_code": "SZ",
+          "field_name": "Size",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "X ",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1P5SQMM",
+              "label": "1.5 sqmm"
+            },
+            {
+              "code": "2P5SQMM",
+              "label": "2.5 sqmm"
+            },
+            {
+              "code": "4SQMM",
+              "label": "4 sqmm"
+            },
+            {
+              "code": "6SQMM",
+              "label": "6 sqmm"
+            },
+            {
+              "code": "10SQMM",
+              "label": "10 sqmm"
+            },
+            {
+              "code": "16SQMM",
+              "label": "16 sqmm"
+            },
+            {
+              "code": "25SQMM",
+              "label": "25 sqmm"
+            },
+            {
+              "code": "35SQMM",
+              "label": "35 sqmm"
+            },
+            {
+              "code": "50SQMM",
+              "label": "50 sqmm"
+            },
+            {
+              "code": "70SQMM",
+              "label": "70 sqmm"
+            },
+            {
+              "code": "95SQMM",
+              "label": "95 sqmm"
+            },
+            {
+              "code": "120SQMM",
+              "label": "120 sqmm"
+            },
+            {
+              "code": "150SQMM",
+              "label": "150 sqmm"
+            },
+            {
+              "code": "185SQMM",
+              "label": "185 sqmm"
+            },
+            {
+              "code": "240SQMM",
+              "label": "240 sqmm"
+            },
+            {
+              "code": "300SQMM",
+              "label": "300 sqmm"
+            },
+            {
+              "code": "400SQMM",
+              "label": "400 sqmm"
+            }
+          ]
+        },
+        {
+          "field_code": "COND",
+          "field_name": "Conductor Material",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "COPPER",
+              "label": "Copper"
+            },
+            {
+              "code": "ALUMINIUM",
+              "label": "Aluminium"
+            }
+          ]
+        },
+        {
+          "field_code": "INS",
+          "field_name": "Insulation",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "PVC",
+              "label": "PVC"
+            },
+            {
+              "code": "XLPE",
+              "label": "XLPE"
+            },
+            {
+              "code": "FRLS",
+              "label": "FRLS"
+            },
+            {
+              "code": "LSZH",
+              "label": "LSZH"
+            }
+          ]
+        },
+        {
+          "field_code": "ARM",
+          "field_name": "Armouring",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 5,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 5,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "ARMOURED",
+              "label": "Armoured"
+            },
+            {
+              "code": "UNARMOURED",
+              "label": "Unarmoured"
+            }
+          ]
+        },
+        {
+          "field_code": "V",
+          "field_name": "Voltage Grade",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 6,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 6,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1P1KV",
+              "label": "1.1kV"
+            }
+          ]
+        },
+        {
+          "field_code": "SH",
+          "field_name": "Sheath",
+          "input_type": "dropdown",
+          "mandatory": false,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 7,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": false,
+          "sort_order": 7,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "PVC",
+              "label": "PVC"
+            },
+            {
+              "code": "FRLS",
+              "label": "FRLS"
+            },
+            {
+              "code": "LSZH",
+              "label": "LSZH"
+            }
+          ]
+        }
+      ],
+      "model_required": false
+    },
+    {
+      "subcategory_code": "HTC",
+      "template_name": "HT_Cable_Template",
+      "fields": [
+        {
+          "field_code": "C",
+          "field_name": "Number of Cores",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1C",
+              "label": "1C"
+            },
+            {
+              "code": "3C",
+              "label": "3C"
+            }
+          ]
+        },
+        {
+          "field_code": "SZ",
+          "field_name": "Size",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "X ",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1P5SQMM",
+              "label": "1.5 sqmm"
+            },
+            {
+              "code": "2P5SQMM",
+              "label": "2.5 sqmm"
+            },
+            {
+              "code": "4SQMM",
+              "label": "4 sqmm"
+            },
+            {
+              "code": "6SQMM",
+              "label": "6 sqmm"
+            },
+            {
+              "code": "10SQMM",
+              "label": "10 sqmm"
+            },
+            {
+              "code": "16SQMM",
+              "label": "16 sqmm"
+            },
+            {
+              "code": "25SQMM",
+              "label": "25 sqmm"
+            },
+            {
+              "code": "35SQMM",
+              "label": "35 sqmm"
+            },
+            {
+              "code": "50SQMM",
+              "label": "50 sqmm"
+            },
+            {
+              "code": "70SQMM",
+              "label": "70 sqmm"
+            },
+            {
+              "code": "95SQMM",
+              "label": "95 sqmm"
+            },
+            {
+              "code": "120SQMM",
+              "label": "120 sqmm"
+            },
+            {
+              "code": "150SQMM",
+              "label": "150 sqmm"
+            },
+            {
+              "code": "185SQMM",
+              "label": "185 sqmm"
+            },
+            {
+              "code": "240SQMM",
+              "label": "240 sqmm"
+            },
+            {
+              "code": "300SQMM",
+              "label": "300 sqmm"
+            },
+            {
+              "code": "400SQMM",
+              "label": "400 sqmm"
+            }
+          ]
+        },
+        {
+          "field_code": "COND",
+          "field_name": "Conductor Material",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "COPPER",
+              "label": "Copper"
+            },
+            {
+              "code": "ALUMINIUM",
+              "label": "Aluminium"
+            }
+          ]
+        },
+        {
+          "field_code": "INS",
+          "field_name": "Insulation",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "XLPE",
+              "label": "XLPE"
+            }
+          ]
+        },
+        {
+          "field_code": "ARM",
+          "field_name": "Armouring",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 5,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 5,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "ARMOURED",
+              "label": "Armoured"
+            },
+            {
+              "code": "UNARMOURED",
+              "label": "Unarmoured"
+            }
+          ]
+        },
+        {
+          "field_code": "V",
+          "field_name": "Voltage Grade",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 6,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 6,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "3P3KV",
+              "label": "3.3kV"
+            },
+            {
+              "code": "6P6KV",
+              "label": "6.6kV"
+            },
+            {
+              "code": "11KV",
+              "label": "11kV"
+            },
+            {
+              "code": "22KV",
+              "label": "22kV"
+            },
+            {
+              "code": "33KV",
+              "label": "33kV"
+            }
+          ]
+        }
+      ],
+      "model_required": false
+    },
+    {
+      "subcategory_code": "CTC",
+      "template_name": "Control_Cable_Template",
+      "fields": [
+        {
+          "field_code": "C",
+          "field_name": "Number of Cores",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "2C",
+              "label": "2C"
+            },
+            {
+              "code": "3C",
+              "label": "3C"
+            },
+            {
+              "code": "4C",
+              "label": "4C"
+            },
+            {
+              "code": "5C",
+              "label": "5C"
+            },
+            {
+              "code": "7C",
+              "label": "7C"
+            },
+            {
+              "code": "12C",
+              "label": "12C"
+            },
+            {
+              "code": "19C",
+              "label": "19C"
+            },
+            {
+              "code": "24C",
+              "label": "24C"
+            }
+          ]
+        },
+        {
+          "field_code": "SZ",
+          "field_name": "Size",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "X ",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "0P5SQMM",
+              "label": "0.5 sqmm"
+            },
+            {
+              "code": "0P75SQMM",
+              "label": "0.75 sqmm"
+            },
+            {
+              "code": "1P0SQMM",
+              "label": "1.0 sqmm"
+            },
+            {
+              "code": "1P5SQMM",
+              "label": "1.5 sqmm"
+            },
+            {
+              "code": "2P5SQMM",
+              "label": "2.5 sqmm"
+            }
+          ]
+        },
+        {
+          "field_code": "COND",
+          "field_name": "Conductor Material",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "COPPER",
+              "label": "Copper"
+            },
+            {
+              "code": "ALUMINIUM",
+              "label": "Aluminium"
+            }
+          ]
+        },
+        {
+          "field_code": "INS",
+          "field_name": "Insulation",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "PVC",
+              "label": "PVC"
+            },
+            {
+              "code": "XLPE",
+              "label": "XLPE"
+            },
+            {
+              "code": "FRLS",
+              "label": "FRLS"
+            },
+            {
+              "code": "LSZH",
+              "label": "LSZH"
+            }
+          ]
+        },
+        {
+          "field_code": "ARM",
+          "field_name": "Armouring",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 5,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 5,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "ARMOURED",
+              "label": "Armoured"
+            },
+            {
+              "code": "UNARMOURED",
+              "label": "Unarmoured"
+            }
+          ]
+        },
+        {
+          "field_code": "V",
+          "field_name": "Voltage Grade",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 6,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 6,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1P1KV",
+              "label": "1.1kV"
+            }
+          ]
+        }
+      ],
+      "model_required": false
+    },
+    {
+      "subcategory_code": "SDC",
+      "template_name": "Solar_DC_Cable_Template",
+      "fields": [
+        {
+          "field_code": "C",
+          "field_name": "Number of Cores",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1C",
+              "label": "1C"
+            },
+            {
+              "code": "2C",
+              "label": "2C"
+            }
+          ]
+        },
+        {
+          "field_code": "SZ",
+          "field_name": "Size",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "X ",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "4SQMM",
+              "label": "4 sqmm"
+            },
+            {
+              "code": "6SQMM",
+              "label": "6 sqmm"
+            },
+            {
+              "code": "10SQMM",
+              "label": "10 sqmm"
+            },
+            {
+              "code": "16SQMM",
+              "label": "16 sqmm"
+            }
+          ]
+        },
+        {
+          "field_code": "COND",
+          "field_name": "Conductor Material",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "COPPERTINNED",
+              "label": "Copper Tinned"
+            }
+          ]
+        },
+        {
+          "field_code": "INS",
+          "field_name": "Insulation",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "XLPO",
+              "label": "XLPO"
+            },
+            {
+              "code": "XLPE",
+              "label": "XLPE"
+            }
+          ]
+        },
+        {
+          "field_code": "V",
+          "field_name": "Voltage Grade",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 5,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 5,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1P5KV",
+              "label": "1.5kV"
+            },
+            {
+              "code": "1P8KV",
+              "label": "1.8kV"
+            }
+          ]
+        }
+      ],
+      "model_required": false
+    },
+    {
+      "subcategory_code": "FLD",
+      "template_name": "LED_Flood_Light_Template",
+      "fields": [
+        {
+          "field_code": "W",
+          "field_name": "Wattage",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "10W",
+              "label": "10W"
+            },
+            {
+              "code": "20W",
+              "label": "20W"
+            },
+            {
+              "code": "30W",
+              "label": "30W"
+            },
+            {
+              "code": "50W",
+              "label": "50W"
+            },
+            {
+              "code": "70W",
+              "label": "70W"
+            },
+            {
+              "code": "100W",
+              "label": "100W"
+            },
+            {
+              "code": "150W",
+              "label": "150W"
+            },
+            {
+              "code": "200W",
+              "label": "200W"
+            },
+            {
+              "code": "250W",
+              "label": "250W"
+            },
+            {
+              "code": "300W",
+              "label": "300W"
+            },
+            {
+              "code": "350W",
+              "label": "350W"
+            },
+            {
+              "code": "400W",
+              "label": "400W"
+            }
+          ]
+        },
+        {
+          "field_code": "CCT",
+          "field_name": "CCT",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "3000K",
+              "label": "3000K"
+            },
+            {
+              "code": "4000K",
+              "label": "4000K"
+            },
+            {
+              "code": "5000K",
+              "label": "5000K"
+            },
+            {
+              "code": "5700K",
+              "label": "5700K"
+            },
+            {
+              "code": "6500K",
+              "label": "6500K"
+            }
+          ]
+        },
+        {
+          "field_code": "IP",
+          "field_name": "IP Rating",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "IP20",
+              "label": "IP20"
+            },
+            {
+              "code": "IP44",
+              "label": "IP44"
+            },
+            {
+              "code": "IP54",
+              "label": "IP54"
+            },
+            {
+              "code": "IP65",
+              "label": "IP65"
+            },
+            {
+              "code": "IP66",
+              "label": "IP66"
+            },
+            {
+              "code": "IP67",
+              "label": "IP67"
+            },
+            {
+              "code": "IP68",
+              "label": "IP68"
+            }
+          ]
+        },
+        {
+          "field_code": "IK",
+          "field_name": "IK Rating",
+          "input_type": "dropdown",
+          "mandatory": false,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": false,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "IK06",
+              "label": "IK06"
+            },
+            {
+              "code": "IK07",
+              "label": "IK07"
+            },
+            {
+              "code": "IK08",
+              "label": "IK08"
+            },
+            {
+              "code": "IK09",
+              "label": "IK09"
+            },
+            {
+              "code": "IK10",
+              "label": "IK10"
+            }
+          ]
+        },
+        {
+          "field_code": "BODY",
+          "field_name": "Body Material",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 5,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 5,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "ALUMINIUMDIECAST",
+              "label": "Aluminium Die Cast"
+            },
+            {
+              "code": "CRCA",
+              "label": "CRCA"
+            },
+            {
+              "code": "POLYCARBONATE",
+              "label": "Polycarbonate"
+            },
+            {
+              "code": "STEEL",
+              "label": "Steel"
+            }
+          ]
+        },
+        {
+          "field_code": "BEAM",
+          "field_name": "Beam Angle",
+          "input_type": "dropdown",
+          "mandatory": false,
+          "allow_na": true,
+          "use_in_description": false,
+          "description_order": 0,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": false,
+          "sort_order": 6,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "30DEG",
+              "label": "30 deg"
+            },
+            {
+              "code": "60DEG",
+              "label": "60 deg"
+            },
+            {
+              "code": "90DEG",
+              "label": "90 deg"
+            },
+            {
+              "code": "120DEG",
+              "label": "120 deg"
+            }
+          ]
+        }
+      ],
+      "model_required": true
+    },
+    {
+      "subcategory_code": "STL",
+      "template_name": "LED_Street_Light_Template",
+      "fields": [
+        {
+          "field_code": "W",
+          "field_name": "Wattage",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "10W",
+              "label": "10W"
+            },
+            {
+              "code": "20W",
+              "label": "20W"
+            },
+            {
+              "code": "30W",
+              "label": "30W"
+            },
+            {
+              "code": "50W",
+              "label": "50W"
+            },
+            {
+              "code": "70W",
+              "label": "70W"
+            },
+            {
+              "code": "100W",
+              "label": "100W"
+            },
+            {
+              "code": "150W",
+              "label": "150W"
+            },
+            {
+              "code": "200W",
+              "label": "200W"
+            },
+            {
+              "code": "250W",
+              "label": "250W"
+            },
+            {
+              "code": "300W",
+              "label": "300W"
+            },
+            {
+              "code": "350W",
+              "label": "350W"
+            },
+            {
+              "code": "400W",
+              "label": "400W"
+            }
+          ]
+        },
+        {
+          "field_code": "CCT",
+          "field_name": "CCT",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "3000K",
+              "label": "3000K"
+            },
+            {
+              "code": "4000K",
+              "label": "4000K"
+            },
+            {
+              "code": "5000K",
+              "label": "5000K"
+            },
+            {
+              "code": "5700K",
+              "label": "5700K"
+            },
+            {
+              "code": "6500K",
+              "label": "6500K"
+            }
+          ]
+        },
+        {
+          "field_code": "IP",
+          "field_name": "IP Rating",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "IP20",
+              "label": "IP20"
+            },
+            {
+              "code": "IP44",
+              "label": "IP44"
+            },
+            {
+              "code": "IP54",
+              "label": "IP54"
+            },
+            {
+              "code": "IP65",
+              "label": "IP65"
+            },
+            {
+              "code": "IP66",
+              "label": "IP66"
+            },
+            {
+              "code": "IP67",
+              "label": "IP67"
+            },
+            {
+              "code": "IP68",
+              "label": "IP68"
+            }
+          ]
+        },
+        {
+          "field_code": "MT",
+          "field_name": "Mounting Type",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "POLEMOUNTED",
+              "label": "Pole Mounted"
+            },
+            {
+              "code": "SURFACEMOUNTED",
+              "label": "Surface Mounted"
+            },
+            {
+              "code": "SUSPENDED",
+              "label": "Suspended"
+            },
+            {
+              "code": "BRACKETMOUNTED",
+              "label": "Bracket Mounted"
+            },
+            {
+              "code": "RECESSED",
+              "label": "Recessed"
+            }
+          ]
+        },
+        {
+          "field_code": "BODY",
+          "field_name": "Body Material",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 5,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 5,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "ALUMINIUMDIECAST",
+              "label": "Aluminium Die Cast"
+            },
+            {
+              "code": "CRCA",
+              "label": "CRCA"
+            },
+            {
+              "code": "POLYCARBONATE",
+              "label": "Polycarbonate"
+            },
+            {
+              "code": "STEEL",
+              "label": "Steel"
+            }
+          ]
+        }
+      ],
+      "model_required": true
+    },
+    {
+      "subcategory_code": "HMS",
+      "template_name": "LED_High_Mast_Light_Template",
+      "fields": [
+        {
+          "field_code": "W",
+          "field_name": "Wattage",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "10W",
+              "label": "10W"
+            },
+            {
+              "code": "20W",
+              "label": "20W"
+            },
+            {
+              "code": "30W",
+              "label": "30W"
+            },
+            {
+              "code": "50W",
+              "label": "50W"
+            },
+            {
+              "code": "70W",
+              "label": "70W"
+            },
+            {
+              "code": "100W",
+              "label": "100W"
+            },
+            {
+              "code": "150W",
+              "label": "150W"
+            },
+            {
+              "code": "200W",
+              "label": "200W"
+            },
+            {
+              "code": "250W",
+              "label": "250W"
+            },
+            {
+              "code": "300W",
+              "label": "300W"
+            },
+            {
+              "code": "350W",
+              "label": "350W"
+            },
+            {
+              "code": "400W",
+              "label": "400W"
+            }
+          ]
+        },
+        {
+          "field_code": "CCT",
+          "field_name": "CCT",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "3000K",
+              "label": "3000K"
+            },
+            {
+              "code": "4000K",
+              "label": "4000K"
+            },
+            {
+              "code": "5000K",
+              "label": "5000K"
+            },
+            {
+              "code": "5700K",
+              "label": "5700K"
+            },
+            {
+              "code": "6500K",
+              "label": "6500K"
+            }
+          ]
+        },
+        {
+          "field_code": "IP",
+          "field_name": "IP Rating",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "IP20",
+              "label": "IP20"
+            },
+            {
+              "code": "IP44",
+              "label": "IP44"
+            },
+            {
+              "code": "IP54",
+              "label": "IP54"
+            },
+            {
+              "code": "IP65",
+              "label": "IP65"
+            },
+            {
+              "code": "IP66",
+              "label": "IP66"
+            },
+            {
+              "code": "IP67",
+              "label": "IP67"
+            },
+            {
+              "code": "IP68",
+              "label": "IP68"
+            }
+          ]
+        },
+        {
+          "field_code": "BEAM",
+          "field_name": "Beam Angle",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "30DEG",
+              "label": "30 deg"
+            },
+            {
+              "code": "60DEG",
+              "label": "60 deg"
+            },
+            {
+              "code": "90DEG",
+              "label": "90 deg"
+            },
+            {
+              "code": "120DEG",
+              "label": "120 deg"
+            }
+          ]
+        }
+      ],
+      "model_required": true
+    },
+    {
+      "subcategory_code": "PNL",
+      "template_name": "LED_Panel_Light_Template",
+      "fields": [
+        {
+          "field_code": "W",
+          "field_name": "Wattage",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "10W",
+              "label": "10W"
+            },
+            {
+              "code": "20W",
+              "label": "20W"
+            },
+            {
+              "code": "30W",
+              "label": "30W"
+            },
+            {
+              "code": "50W",
+              "label": "50W"
+            },
+            {
+              "code": "70W",
+              "label": "70W"
+            },
+            {
+              "code": "100W",
+              "label": "100W"
+            },
+            {
+              "code": "150W",
+              "label": "150W"
+            },
+            {
+              "code": "200W",
+              "label": "200W"
+            },
+            {
+              "code": "250W",
+              "label": "250W"
+            },
+            {
+              "code": "300W",
+              "label": "300W"
+            },
+            {
+              "code": "350W",
+              "label": "350W"
+            },
+            {
+              "code": "400W",
+              "label": "400W"
+            }
+          ]
+        },
+        {
+          "field_code": "SZ",
+          "field_name": "Size",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "2X2",
+              "label": "2X2"
+            },
+            {
+              "code": "1X4",
+              "label": "1X4"
+            },
+            {
+              "code": "600X600",
+              "label": "600x600"
+            },
+            {
+              "code": "300X300",
+              "label": "300x300"
+            },
+            {
+              "code": "300X600",
+              "label": "300x600"
+            }
+          ]
+        },
+        {
+          "field_code": "CCT",
+          "field_name": "CCT",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "3000K",
+              "label": "3000K"
+            },
+            {
+              "code": "4000K",
+              "label": "4000K"
+            },
+            {
+              "code": "5000K",
+              "label": "5000K"
+            },
+            {
+              "code": "5700K",
+              "label": "5700K"
+            },
+            {
+              "code": "6500K",
+              "label": "6500K"
+            }
+          ]
+        },
+        {
+          "field_code": "MT",
+          "field_name": "Mounting",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "SURFACEMOUNTED",
+              "label": "Surface Mounted"
+            },
+            {
+              "code": "RECESSED",
+              "label": "Recessed"
+            },
+            {
+              "code": "SUSPENDED",
+              "label": "Suspended"
+            }
+          ]
+        }
+      ],
+      "model_required": true
+    },
+    {
+      "subcategory_code": "LTP",
+      "template_name": "LT_Panel_Template",
+      "fields": [
+        {
+          "field_code": "A",
+          "field_name": "Rated Current",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "100A",
+              "label": "100A"
+            },
+            {
+              "code": "200A",
+              "label": "200A"
+            },
+            {
+              "code": "400A",
+              "label": "400A"
+            },
+            {
+              "code": "630A",
+              "label": "630A"
+            },
+            {
+              "code": "800A",
+              "label": "800A"
+            },
+            {
+              "code": "1000A",
+              "label": "1000A"
+            },
+            {
+              "code": "1250A",
+              "label": "1250A"
+            },
+            {
+              "code": "1600A",
+              "label": "1600A"
+            },
+            {
+              "code": "2000A",
+              "label": "2000A"
+            },
+            {
+              "code": "2500A",
+              "label": "2500A"
+            },
+            {
+              "code": "3200A",
+              "label": "3200A"
+            }
+          ]
+        },
+        {
+          "field_code": "KA",
+          "field_name": "Short Circuit Rating",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "25KA",
+              "label": "25kA"
+            },
+            {
+              "code": "35KA",
+              "label": "35kA"
+            },
+            {
+              "code": "50KA",
+              "label": "50kA"
+            },
+            {
+              "code": "65KA",
+              "label": "65kA"
+            }
+          ]
+        },
+        {
+          "field_code": "IP",
+          "field_name": "IP Rating",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "IP42",
+              "label": "IP42"
+            },
+            {
+              "code": "IP54",
+              "label": "IP54"
+            },
+            {
+              "code": "IP55",
+              "label": "IP55"
+            },
+            {
+              "code": "IP65",
+              "label": "IP65"
+            }
+          ]
+        },
+        {
+          "field_code": "FORM",
+          "field_name": "Form",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 4,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 4,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "FORM1",
+              "label": "Form 1"
+            },
+            {
+              "code": "FORM2",
+              "label": "Form 2"
+            },
+            {
+              "code": "FORM3A",
+              "label": "Form 3a"
+            },
+            {
+              "code": "FORM3B",
+              "label": "Form 3b"
+            },
+            {
+              "code": "FORM4A",
+              "label": "Form 4a"
+            },
+            {
+              "code": "FORM4B",
+              "label": "Form 4b"
+            }
+          ]
+        },
+        {
+          "field_code": "MT",
+          "field_name": "Mounting",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": true,
+          "use_in_description": true,
+          "description_order": 5,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 5,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "FLOORMOUNTED",
+              "label": "Floor Mounted"
+            },
+            {
+              "code": "WALLMOUNTED",
+              "label": "Wall Mounted"
+            }
+          ]
+        }
+      ],
+      "model_required": true
+    },
+    {
+      "subcategory_code": "CEE",
+      "template_name": "Chemical_Earthing_Template",
+      "fields": [
+        {
+          "field_code": "LEN",
+          "field_name": "Length",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 1,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 1,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "1METER",
+              "label": "1 Meter"
+            },
+            {
+              "code": "1P5METER",
+              "label": "1.5 Meter"
+            },
+            {
+              "code": "2METER",
+              "label": "2 Meter"
+            },
+            {
+              "code": "3METER",
+              "label": "3 Meter"
+            }
+          ]
+        },
+        {
+          "field_code": "DIA",
+          "field_name": "Diameter",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 2,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 2,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "25MM",
+              "label": "25 mm"
+            },
+            {
+              "code": "40MM",
+              "label": "40 mm"
+            },
+            {
+              "code": "48MM",
+              "label": "48 mm"
+            },
+            {
+              "code": "50MM",
+              "label": "50 mm"
+            },
+            {
+              "code": "80MM",
+              "label": "80 mm"
+            }
+          ]
+        },
+        {
+          "field_code": "MAT",
+          "field_name": "Material",
+          "input_type": "dropdown",
+          "mandatory": true,
+          "allow_na": false,
+          "use_in_description": true,
+          "description_order": 3,
+          "description_prefix": "",
+          "description_suffix": "",
+          "use_in_duplicate_check": true,
+          "sort_order": 3,
+          "is_active": true,
+          "proposed_options_from_python": [
+            {
+              "code": "GI",
+              "label": "GI"
+            },
+            {
+              "code": "COPPERBONDED",
+              "label": "Copper Bonded"
+            },
+            {
+              "code": "PURECOPPER",
+              "label": "Pure Copper"
+            },
+            {
+              "code": "STAINLESSSTEEL",
+              "label": "Stainless Steel"
+            }
+          ]
+        }
+      ],
+      "model_required": false
+    }
+  ],
+  "decisions": {
+    "retain_python_option_values": true,
+    "na_satisfies_mandatory": true,
+    "na_description_policy": "omit",
+    "na_identity_policy": "distinct_from_blank"
+  }
+}

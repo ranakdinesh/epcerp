@@ -1,0 +1,13 @@
+BEGIN;
+DO $$BEGIN IF EXISTS(SELECT 1 FROM purchase_technical_cases) OR EXISTS(SELECT 1 FROM purchase_technical_events) OR EXISTS(SELECT 1 FROM purchase_technical_files) OR EXISTS(SELECT 1 FROM purchase_technical_file_events) THEN RAISE EXCEPTION 'Cannot rollback populated technical evidence';END IF;END $$;
+DROP TABLE purchase_technical_file_events;
+DROP TABLE purchase_technical_files;
+DROP TABLE purchase_technical_events;
+DROP TABLE purchase_technical_cases;
+DROP FUNCTION check_purchase_technical_file_event();
+DROP FUNCTION check_purchase_technical_file();
+DROP FUNCTION check_purchase_technical_event();
+DROP FUNCTION check_purchase_technical_write();
+DROP FUNCTION protect_purchase_technical_history();
+DROP FUNCTION protect_purchase_technical();
+COMMIT;

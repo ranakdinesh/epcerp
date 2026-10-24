@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env.*
+*.pem
+*.key
+*.tsbuildinfo
+coverage
+AGENTS.md
+CLAUDE.md
+.codex
+.agents
+.DS_Store

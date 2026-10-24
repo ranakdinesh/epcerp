@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import ts from 'typescript';
+const source=readFileSync(new URL('../src/components/dashboard/dashboard-model.ts',import.meta.url),'utf8');
+const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}});
+const {projectChart,progressCoverage,taskAttention,greetingAt,averagePurchaseProgress}=await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
+test('project charts count only displayed records, with inactivity separate from lifecycle',()=>{const rows=[{is_active:true,lifecycle_status:'draft'},{is_active:true,lifecycle_status:'active'},{is_active:false,lifecycle_status:'active'},{is_active:true,lifecycle_status:'on_hold'}];const counts=Object.fromEntries(projectChart(rows).map(s=>[s.key,s.count]));assert.equal(counts.active,1);assert.equal(counts.inactive,1);assert.equal(counts.draft,1);assert.equal(counts.on_hold,1);assert.equal(Object.values(counts).reduce((a,b)=>a+b,0),rows.length);});
+test('reporting coverage is not completion; zero differs from missing and invalid progress',()=>{assert.deepEqual(progressCoverage([{progress_percent:null},{progress_percent:0},{progress_percent:100},{progress_percent:101},{progress_percent:NaN}]),{recorded:2,missing:3,total:5});assert.deepEqual(progressCoverage([]),{recorded:0,missing:0,total:0});});
+test('task attention uses owner overdue state and sorts without mutating source records',()=>{const rows=[{id:'a',is_overdue:false,coordination_state:'preparing',available:true},{id:'b',is_overdue:true,coordination_state:'not_started',available:true},{id:'c',is_overdue:false,coordination_state:'blocked',available:false}];const output=taskAttention(rows);assert.equal(output.overdue,1);assert.equal(output.blocked,1);assert.deepEqual(output.rows.map(t=>t.id),['b','c','a']);assert.deepEqual(rows.map(t=>t.id),['a','b','c']);});
+test('greeting follows India time instead of the host timezone',()=>{assert.equal(greetingAt(new Date('2026-10-12T02:00:00Z')),'Good morning');assert.equal(greetingAt(new Date('2026-10-12T08:00:00Z')),'Good afternoon');assert.equal(greetingAt(new Date('2026-10-12T14:00:00Z')),'Good evening');});
+
+test('purchase chart averages valid scoped stage credit including zero',()=>{assert.equal(averagePurchaseProgress([{progress_percent:4.1},{progress_percent:0}]),2.05);assert.equal(averagePurchaseProgress([{progress_percent:null},{progress_percent:NaN}]),null);assert.equal(averagePurchaseProgress([{progress_percent:4.1}]),4.1);});

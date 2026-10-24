@@ -1,0 +1,211 @@
+@import "tailwindcss";
+@import "../components/purchasing/purchase-bo-workspace.css";
+@import "./compact-ui.css";
+
+:root {
+  --surface-ink: #162531;
+  --surface-accent: #164fc7;
+  --surface-line: #d4e4f5;
+  --surface-blue: #d8e3fb;
+  --surface-mint: #e8f3ec;
+  --surface-row: #f0f3ff;
+  --surface-hover: #e3ebfc;
+  --surface-green: #588368;
+  --surface-orange: #f25a29;
+}
+
+/* Shared screen treatment; document printing retains its original layout. */
+@media screen {
+  .vtpl-modal {
+    border: 1px solid var(--surface-line);
+    border-top: 4px solid var(--surface-accent);
+    background: linear-gradient(135deg, #f4f8ff, #f4faf6 70%, #ffffff);
+    box-shadow: 0 24px 80px rgb(18 36 54 / 24%);
+  }
+
+  .vtpl-modal > :is(header, div):first-child {
+    border: 1px solid var(--surface-line);
+    border-radius: 0.875rem;
+    background: linear-gradient(110deg, var(--surface-blue), var(--surface-mint));
+    padding: 1rem 1.25rem;
+  }
+
+  .vtpl-modal > fieldset > section {
+    border: 1px solid var(--surface-line);
+    border-radius: 1rem;
+    background: #ffffff;
+    padding: 1.25rem;
+    border-left: 3px solid var(--surface-accent);
+  }
+
+  .vtpl-modal > fieldset > section:nth-child(2) {
+    border-left-color: var(--surface-green);
+  }
+
+  .vtpl-modal > fieldset > section:nth-child(3) {
+    border-left-color: var(--surface-orange);
+  }
+
+  .vtpl-modal :is(h2, h3, h4) {
+    color: var(--surface-ink);
+  }
+
+  .vtpl-modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    background-color: #ffffff;
+  }
+
+  .vtpl-modal :is(input, select, textarea):disabled {
+    background-color: #edf2f7;
+  }
+
+  .vtpl-data-table {
+    border: 1px solid var(--surface-line);
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .vtpl-data-table > thead > tr > th {
+    background: var(--surface-blue);
+    color: var(--surface-ink);
+    border-bottom: 2px solid var(--surface-line);
+  }
+
+  .vtpl-data-table > thead > tr > th > button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    box-shadow: none;
+    text-align: inherit;
+    cursor: pointer;
+  }
+
+  .vtpl-data-table > thead > tr > th > button:hover {
+    background: transparent;
+    color: #1d4ed8;
+  }
+
+  .vtpl-data-table > thead > tr > th > button:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  .vtpl-data-table > :is(thead, tbody, tfoot) > tr > :is(th, td) + :is(th, td) {
+    border-left: 1px solid var(--surface-line);
+  }
+
+  .vtpl-data-table > tbody > tr > :is(td, th) {
+    border-bottom: 1px solid var(--surface-line);
+  }
+
+  .vtpl-data-table > tbody > tr:nth-child(even):not([aria-selected="true"]) {
+    background-color: var(--surface-row);
+  }
+
+  .vtpl-data-table > tbody > tr:not([aria-selected="true"]):is(:hover, :focus-within) {
+    background-color: var(--surface-hover);
+  }
+
+  .vtpl-data-table > tbody > tr[aria-selected="true"] {
+    background-color: #dbeafe;
+  }
+
+  .vtpl-data-table > tfoot {
+    background-color: var(--surface-mint);
+    color: var(--surface-ink);
+  }
+}
+
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.field {
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: 0.375rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  padding: 0.625rem 0.75rem;
+  color: #172554;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 14%);
+}
+
+.field:disabled {
+  cursor: default;
+  background: #f8fafc;
+  color: #475569;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Shared semantic palette for the independent Go workspace, including existing controls. */
+:root { --go-ink: #172c42; --go-muted: #475569; --go-blue: #1e40af; --go-line: #dce4ee; --go-panel: #fff; --go-page: #f8fafc; --go-hover: #edf2fa; color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; --go-ink: #e2e8f0; --go-muted: #a8b6ca; --go-blue: #93b4ff; --go-line: #334155; --go-panel: #172235; --go-page: #0e1726; --go-hover: #24334b; --surface-ink: #e2e8f0; --surface-accent: #93b4ff; --surface-line: #334155; --surface-blue: #203453; --surface-mint: #16352f; --surface-row: #16243a; --surface-hover: #253854; }
+html[data-theme="dark"] body { background: var(--go-page); color: var(--go-ink); }
+html[data-theme="dark"] .go-workspace { --go-ink: #e2e8f0; --go-muted: #a8b6ca; --go-blue: #93b4ff; --go-line: #334155; --go-panel: #172235; --go-page: #0e1726; --go-hover: #24334b; }
+html[data-theme="dark"] .go-navigation a[aria-current="page"] { background: #203453; }
+html[data-theme="dark"] :is(.bg-white,.vtpl-modal,.vtpl-data-table,.vtpl-data-table td,.vtpl-data-table input,.vtpl-data-table select) { background-color: var(--go-panel); color: var(--go-ink); }
+html[data-theme="dark"] :is(.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100) { background-color: var(--go-hover); }
+html[data-theme="dark"] :is(.text-slate-900,.text-slate-800,.text-slate-700,.text-gray-900,.text-gray-800) { color: var(--go-ink); }
+html[data-theme="dark"] :is(.text-slate-600,.text-slate-500,.text-slate-400,.text-gray-500) { color: var(--go-muted); }
+html[data-theme="dark"] :is(.border-slate-100,.border-slate-200,.border-slate-300,.border-gray-200,.divide-slate-100 > :not(:last-child)) { border-color: var(--go-line); }
+html[data-theme="dark"] :is(.bg-blue-50,.bg-blue-100) { background-color: #203453; }
+html[data-theme="dark"] :is(.text-blue-700,.text-blue-600,.text-blue-800) { color: #a5c2ff; }
+html[data-theme="dark"] :is(.bg-emerald-50,.bg-green-50,.bg-emerald-100) { background-color: #143b32; }
+html[data-theme="dark"] :is(.text-emerald-700,.text-green-700,.go-form-success) { color: #6ee7b7; }
+html[data-theme="dark"] :is(.bg-amber-50,.bg-yellow-50) { background-color: #422f16; }
+html[data-theme="dark"] :is(.text-amber-800,.text-amber-700) { color: #fcd34d; }
+html[data-theme="dark"] :is(.bg-red-50,.bg-rose-50) { background-color: #47232c; }
+html[data-theme="dark"] :is(.text-red-600,.text-red-700,.go-form-error) { color: #fda4af; }
+html[data-theme="dark"] :is(.hover\:bg-slate-50:hover,.hover\:bg-slate-100:hover,.hover\:bg-slate-50\/80:hover,.hover\:bg-blue-50:hover) { background-color: var(--go-hover); }
+html[data-theme="dark"] .vtpl-data-table tbody tr:nth-child(even) td { background-color: var(--surface-row); }
+html[data-theme="dark"] .vtpl-data-table tbody tr:hover td { background-color: var(--go-hover); }
+html[data-theme="dark"] .vtpl-modal :is(input,select,textarea),html[data-theme="dark"] .vtpl-data-table :is(input,select,textarea) { background-color: var(--go-panel); color: var(--go-ink); border-color: var(--go-line); }
+html[data-theme="dark"] .go-avatar { background: #203453; color: #c5d7ff; }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+html[data-theme="dark"] .field { background: var(--go-panel); color: var(--go-ink); border-color: var(--go-line); }
+html[data-theme="dark"] .field:disabled { background: var(--go-hover); color: var(--go-muted); }
+html[data-theme="dark"] :is(.bg-emerald-50\/60,.bg-emerald-50\/70) { background-color: #143b32; }
+html[data-theme="dark"] :is(.text-emerald-800,.text-emerald-900) { color: #6ee7b7; }
+html[data-theme="dark"] :is(.bg-slate-100\/70,.bg-slate-50\/80,.bg-slate-50\/70) { background-color: var(--go-hover); }
+html[data-theme="dark"] :is(.border-blue-100,.border-blue-200,.border-emerald-100) { border-color: var(--go-line); }
+html[data-theme="dark"] .hover\:bg-blue-50\/40:hover { background-color: var(--go-hover); }
+html[data-theme="dark"] .vtpl-modal { background: var(--go-panel); }
+html[data-theme="dark"] .vtpl-modal > fieldset > section { background: var(--go-panel); }
+html[data-theme="dark"] .vtpl-modal :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { background-color: var(--go-panel); color: var(--go-ink); }
+html[data-theme="dark"] .vtpl-modal :is(input,select,textarea):disabled { background-color: var(--go-hover); color: var(--go-muted); }
+html[data-theme="dark"] :is(.text-blue-900,.text-blue-950) { color: #a5c2ff; }
+html[data-theme="dark"] section[aria-label="Employee login"] { background: var(--go-panel); border-color: var(--go-line); }
+html[data-theme="dark"] section[aria-label="Employee login"] :is(input:not([type="checkbox"]),select) { background-color: var(--go-hover); color: var(--go-ink); }
+html[data-theme="dark"] section[aria-label="Employee login"] button[type="button"] { color: var(--go-blue); }
