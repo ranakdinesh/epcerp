@@ -26,7 +26,7 @@ const legacyOfficeProfile = `<?xml version="1.0" encoding="UTF-8"?>
 type Parser struct{}
 
 func (Parser) Read(ctx context.Context, data []byte, format, hash string) (domain.Result, error) {
-	r := domain.Result{Schema: domain.ReaderVersion, ReaderVersion: domain.ReaderVersion, SourceSHA256: hash, Segments: []domain.Segment{}, Warnings: []string{}}
+	r := domain.Result{Schema: domain.ReaderVersion, ReaderVersion: "epcerp-reading-v2", SourceSHA256: hash, Segments: []domain.Segment{}, Warnings: []string{}}
 	if e := (Inspector{}).Inspect(data, format); e != nil {
 		return r, e
 	}
@@ -167,6 +167,7 @@ func readExcel(ctx context.Context, data []byte, r *domain.Result) error {
 		r.Segments = append(r.Segments, s)
 	}
 	r.Warnings = append(r.Warnings, "Formula values are stored cached values from the workbook; formulas and external links are not executed.")
+	inventoryOfficeParts(data, "xlsx", r)
 	return embeddedImages(ctx, data, "xl/media/", r)
 }
 func readWord(ctx context.Context, data []byte, r *domain.Result) error {
@@ -175,7 +176,7 @@ func readWord(ctx context.Context, data []byte, r *domain.Result) error {
 		return e
 	}
 	for _, f := range z.File {
-		if f.Name != "word/document.xml" {
+		if f.Name != "word/document.xml" && !strings.HasPrefix(f.Name, "word/header") && !strings.HasPrefix(f.Name, "word/footer") && f.Name != "word/footnotes.xml" && f.Name != "word/endnotes.xml" && f.Name != "word/comments.xml" {
 			continue
 		}
 		rc, e := f.Open()
@@ -200,7 +201,7 @@ func readWord(ctx context.Context, data []byte, r *domain.Result) error {
 			}
 			switch t := token.(type) {
 			case xml.StartElement:
-				if t.Name.Local == "t" {
+				if t.Name.Local == "t" || t.Name.Local == "delText" {
 					inText = true
 				}
 				if t.Name.Local == "tab" {
@@ -210,7 +211,7 @@ func readWord(ctx context.Context, data []byte, r *domain.Result) error {
 					text.WriteString("\n")
 				}
 			case xml.EndElement:
-				if t.Name.Local == "t" {
+				if t.Name.Local == "t" || t.Name.Local == "delText" {
 					inText = false
 				}
 				if t.Name.Local == "p" || t.Name.Local == "tr" {
@@ -230,9 +231,10 @@ func readWord(ctx context.Context, data []byte, r *domain.Result) error {
 			}
 		}
 		rc.Close()
-		r.Segments = append(r.Segments, domain.Segment{Kind: "document", Label: "Word document body", Text: text.String(), Method: "native"})
+		r.Segments = append(r.Segments, domain.Segment{Kind: "document", Label: f.Name, Text: text.String(), Method: "native"})
 	}
-	r.Warnings = append(r.Warnings, "Word paragraphs and table cells retain reading order. Headers, footers, comments and tracked-change metadata are not interpreted.")
+	r.Warnings = append(r.Warnings, "Word body, headers, footers, footnotes, endnotes and comments are listed by source part. Tracked inserted/deleted text may coexist; review revisions in the original. Native Word text has part/paragraph order, not rendered page coordinates.")
+	inventoryOfficeParts(data, "docx", r)
 	return embeddedImages(ctx, data, "word/media/", r)
 }
 func embeddedImages(ctx context.Context, data []byte, prefix string, r *domain.Result) error {
@@ -285,4 +287,30 @@ func embeddedImages(ctx context.Context, data []byte, prefix string, r *domain.R
 		}
 	}
 	return nil
+}
+
+// Every container part is accounted for. Metadata is distinct from content that
+// this reader cannot interpret; the latter remains an explicit review gap.
+func inventoryOfficeParts(data []byte, format string, r *domain.Result) {
+	z, e := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if e != nil {
+		return
+	}
+	for _, f := range z.File {
+		p := f.Name
+		state, reason := "metadata", "Container/style/relationship metadata; retained in original"
+		if f.FileInfo().IsDir() {
+			state, reason = "directory", "Container directory"
+		} else if format == "docx" && (p == "word/document.xml" || strings.HasPrefix(p, "word/header") || strings.HasPrefix(p, "word/footer") || p == "word/comments.xml" || p == "word/footnotes.xml" || p == "word/endnotes.xml") {
+			state, reason = "read", "Text extracted with source-part locator"
+		} else if format == "xlsx" && (strings.HasPrefix(p, "xl/worksheets/sheet") || p == "xl/sharedStrings.xml" || p == "xl/workbook.xml") {
+			state, reason = "read", "Workbook sheets/cells enumerated; cached values, formulas never executed"
+		} else if strings.Contains(p, "/media/") {
+			state, reason = "image_review", "Embedded image OCR attempted separately; inspect result warnings and original"
+		} else if strings.Contains(p, "/charts/") || strings.Contains(p, "/diagrams/") || strings.Contains(p, "/drawings/") || strings.Contains(p, "/comments") || strings.Contains(p, "/pivot") || strings.Contains(p, "/customXml/") || strings.HasPrefix(p, "customXml/") {
+			state, reason = "uninterpreted", "Content not interpreted; manual original-source review required"
+			r.Warnings = append(r.Warnings, "Uninterpreted Office part: "+p+"; review the original")
+		}
+		r.Parts = append(r.Parts, domain.PartCoverage{Path: p, Disposition: state, Reason: reason})
+	}
 }

@@ -40,6 +40,33 @@ func (q *Queries) ActiveUploads(ctx context.Context, actorID pgtype.UUID) (int64
 	return count, err
 }
 
+const addDisposition = `-- name: AddDisposition :exec
+INSERT INTO document_package_manifest(id,receipt_id,file_id,claim_id,path,disposition,error_code) VALUES($1,$2,$3,$4,$5,$6,$7)
+`
+
+type AddDispositionParams struct {
+	ID          pgtype.UUID
+	ReceiptID   pgtype.UUID
+	FileID      pgtype.UUID
+	ClaimID     pgtype.UUID
+	Path        string
+	Disposition string
+	ErrorCode   string
+}
+
+func (q *Queries) AddDisposition(ctx context.Context, arg AddDispositionParams) error {
+	_, err := q.db.Exec(ctx, addDisposition,
+		arg.ID,
+		arg.ReceiptID,
+		arg.FileID,
+		arg.ClaimID,
+		arg.Path,
+		arg.Disposition,
+		arg.ErrorCode,
+	)
+	return err
+}
+
 const addEvent = `-- name: AddEvent :exec
 INSERT INTO document_package_events(id,receipt_id,file_id,action,version,error_code,created_by_id)VALUES($1,$2,$3,$4,$5,$6,$7)
 `
@@ -156,7 +183,7 @@ func (q *Queries) ClaimPurgeObjects(ctx context.Context, claimID pgtype.UUID) ([
 
 const claimReceipt = `-- name: ClaimReceipt :one
 WITH next AS (SELECT id FROM document_package_receipts WHERE state='verifying' AND attempts<3 AND expires_at>clock_timestamp() AND (lease_until IS NULL OR lease_until<clock_timestamp()) ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1)
-UPDATE document_package_receipts r SET claim_id= $1,lease_until=clock_timestamp()+interval '20 minutes',attempts=least(attempts+1,3),updated_at=clock_timestamp(),updated_by_id=NULL FROM next n WHERE r.id=n.id RETURNING r.id, r.owner_id, r.purpose, r.state, r.version, r.limit_profile_revision, r.expires_at, r.consumed_by_tender_id, r.claim_id, r.lease_until, r.attempts, r.error_code, r.created_at, r.updated_at, r.created_by_id, r.updated_by_id
+UPDATE document_package_receipts r SET claim_id= $1,lease_until=clock_timestamp()+interval '1 minute',attempts=least(attempts+1,3),updated_at=clock_timestamp(),updated_by_id=NULL FROM next n WHERE r.id=n.id RETURNING r.id, r.owner_id, r.purpose, r.state, r.version, r.limit_profile_revision, r.expires_at, r.consumed_by_tender_id, r.claim_id, r.lease_until, r.attempts, r.error_code, r.created_at, r.updated_at, r.created_by_id, r.updated_by_id, r.draft_id, r.published_at
 `
 
 func (q *Queries) ClaimReceipt(ctx context.Context, claimID pgtype.UUID) (DocumentPackageReceipt, error) {
@@ -179,6 +206,8 @@ func (q *Queries) ClaimReceipt(ctx context.Context, claimID pgtype.UUID) (Docume
 		&i.UpdatedAt,
 		&i.CreatedByID,
 		&i.UpdatedByID,
+		&i.DraftID,
+		&i.PublishedAt,
 	)
 	return i, err
 }
@@ -209,7 +238,7 @@ func (q *Queries) CompleteUpload(ctx context.Context, arg CompleteUploadParams) 
 }
 
 const consumeReceipt = `-- name: ConsumeReceipt :execrows
-UPDATE document_package_receipts SET state='consumed',consumed_by_tender_id= $1,lease_until=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id= $2 WHERE id= $3 AND version= $4 AND state='ready' AND expires_at>clock_timestamp()
+UPDATE document_package_receipts SET state='consumed',consumed_by_tender_id= $1,lease_until=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id= $2 WHERE id= $3 AND version= $4 AND state='ready' AND draft_id IS NULL AND expires_at>clock_timestamp()
 `
 
 type ConsumeReceiptParams struct {
@@ -275,6 +304,71 @@ func (q *Queries) CreateReceipt(ctx context.Context, arg CreateReceiptParams) er
 	return err
 }
 
+const draftMemberInfo = `-- name: DraftMemberInfo :one
+SELECT m.id,m.receipt_id,m.file_id,m.path,m.filename,m.kind,m.sha256,m.pages,m.sheets,m.cells FROM document_package_members m JOIN document_package_receipts r ON r.id=m.receipt_id WHERE r.id= $1 AND m.id= $2 AND r.draft_id= $3 AND r.state='consumed' AND m.validation_claim_id=r.claim_id
+`
+
+type DraftMemberInfoParams struct {
+	ReceiptID pgtype.UUID
+	ID        pgtype.UUID
+	DraftID   pgtype.UUID
+}
+
+type DraftMemberInfoRow struct {
+	ID        pgtype.UUID
+	ReceiptID pgtype.UUID
+	FileID    pgtype.UUID
+	Path      string
+	Filename  string
+	Kind      string
+	Sha256    string
+	Pages     int32
+	Sheets    int32
+	Cells     int64
+}
+
+func (q *Queries) DraftMemberInfo(ctx context.Context, arg DraftMemberInfoParams) (DraftMemberInfoRow, error) {
+	row := q.db.QueryRow(ctx, draftMemberInfo, arg.ReceiptID, arg.ID, arg.DraftID)
+	var i DraftMemberInfoRow
+	err := row.Scan(
+		&i.ID,
+		&i.ReceiptID,
+		&i.FileID,
+		&i.Path,
+		&i.Filename,
+		&i.Kind,
+		&i.Sha256,
+		&i.Pages,
+		&i.Sheets,
+		&i.Cells,
+	)
+	return i, err
+}
+
+const draftReceipts = `-- name: DraftReceipts :many
+SELECT id FROM document_package_receipts WHERE draft_id= $1 ORDER BY created_at,id
+`
+
+func (q *Queries) DraftReceipts(ctx context.Context, draftID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, draftReceipts, draftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const expireReceipt = `-- name: ExpireReceipt :execrows
 UPDATE document_package_receipts SET state='expired',error_code='receipt_expired',version=version+1,updated_at=clock_timestamp(),updated_by_id=owner_id WHERE id= $1 AND state NOT IN('consumed','expired') AND expires_at<clock_timestamp()
 `
@@ -288,7 +382,7 @@ func (q *Queries) ExpireReceipt(ctx context.Context, id pgtype.UUID) (int64, err
 }
 
 const failExhaustedVerification = `-- name: FailExhaustedVerification :many
-UPDATE document_package_receipts SET state='failed',error_code='verification_attempts_exhausted',lease_until=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id=owner_id WHERE state='verifying' AND attempts>=3 AND lease_until<clock_timestamp() RETURNING id, owner_id, purpose, state, version, limit_profile_revision, expires_at, consumed_by_tender_id, claim_id, lease_until, attempts, error_code, created_at, updated_at, created_by_id, updated_by_id
+UPDATE document_package_receipts SET state='failed',error_code='verification_attempts_exhausted',lease_until=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id=owner_id WHERE state='verifying' AND attempts>=3 AND lease_until<clock_timestamp() RETURNING id, owner_id, purpose, state, version, limit_profile_revision, expires_at, consumed_by_tender_id, claim_id, lease_until, attempts, error_code, created_at, updated_at, created_by_id, updated_by_id, draft_id, published_at
 `
 
 func (q *Queries) FailExhaustedVerification(ctx context.Context) ([]DocumentPackageReceipt, error) {
@@ -317,6 +411,8 @@ func (q *Queries) FailExhaustedVerification(ctx context.Context) ([]DocumentPack
 			&i.UpdatedAt,
 			&i.CreatedByID,
 			&i.UpdatedByID,
+			&i.DraftID,
+			&i.PublishedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -377,7 +473,7 @@ func (q *Queries) FinishPurgeObject(ctx context.Context, arg FinishPurgeObjectPa
 }
 
 const finishVerification = `-- name: FinishVerification :execrows
-UPDATE document_package_receipts SET state= $1,error_code=$2,lease_until=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id=owner_id
+UPDATE document_package_receipts SET state= $1,error_code=$2,lease_until=CASE WHEN $1::text='verifying' THEN clock_timestamp()+interval '30 seconds' ELSE NULL END,version=version+1,updated_at=clock_timestamp(),updated_by_id=owner_id
 WHERE id= $3 AND state='verifying' AND claim_id= $4 AND lease_until>clock_timestamp() AND expires_at>clock_timestamp()
 `
 
@@ -438,7 +534,7 @@ func (q *Queries) GetFile(ctx context.Context, arg GetFileParams) (DocumentPacka
 }
 
 const getMember = `-- name: GetMember :one
-SELECT m.id, m.receipt_id, m.file_id, m.path, m.normalized_path, m.filename, m.kind, m.byte_size, m.expanded_bytes, m.sha256, m.reader_payload, m.reader_payload_sha256, m.validation_claim_id, m.scanner_revision, m.pages, m.sheets, m.cells, m.created_at, m.created_by_id FROM document_package_members m JOIN document_package_receipts r ON r.id=m.receipt_id WHERE r.id= $1 AND m.id= $2 AND m.validation_claim_id= $3 AND r.state='consumed' AND r.consumed_by_tender_id= $4
+SELECT m.id, m.receipt_id, m.file_id, m.path, m.normalized_path, m.filename, m.kind, m.byte_size, m.expanded_bytes, m.sha256, m.reader_payload, m.reader_payload_sha256, m.validation_claim_id, m.scanner_revision, m.pages, m.sheets, m.cells, m.created_at, m.created_by_id FROM document_package_members m JOIN document_package_receipts r ON r.id=m.receipt_id WHERE r.id= $1 AND m.id= $2 AND m.validation_claim_id= $3 AND r.state='consumed' AND (r.consumed_by_tender_id= $4 OR r.draft_id= $4)
 `
 
 type GetMemberParams struct {
@@ -481,7 +577,7 @@ func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (DocumentP
 }
 
 const getReceipt = `-- name: GetReceipt :one
-SELECT id, owner_id, purpose, state, version, limit_profile_revision, expires_at, consumed_by_tender_id, claim_id, lease_until, attempts, error_code, created_at, updated_at, created_by_id, updated_by_id FROM document_package_receipts WHERE id= $1 FOR UPDATE
+SELECT id, owner_id, purpose, state, version, limit_profile_revision, expires_at, consumed_by_tender_id, claim_id, lease_until, attempts, error_code, created_at, updated_at, created_by_id, updated_by_id, draft_id, published_at FROM document_package_receipts WHERE id= $1 FOR UPDATE
 `
 
 func (q *Queries) GetReceipt(ctx context.Context, id pgtype.UUID) (DocumentPackageReceipt, error) {
@@ -504,6 +600,8 @@ func (q *Queries) GetReceipt(ctx context.Context, id pgtype.UUID) (DocumentPacka
 		&i.UpdatedAt,
 		&i.CreatedByID,
 		&i.UpdatedByID,
+		&i.DraftID,
+		&i.PublishedAt,
 	)
 	return i, err
 }
@@ -515,6 +613,44 @@ SELECT pg_advisory_xact_lock_shared(hashtextextended('auth.administration',0))
 func (q *Queries) IdentityGuard(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, identityGuard)
 	return err
+}
+
+const listDispositions = `-- name: ListDispositions :many
+SELECT id, receipt_id, file_id, claim_id, path, disposition, error_code, created_at FROM document_package_manifest WHERE receipt_id= $1 AND claim_id= $2 ORDER BY created_at,id
+`
+
+type ListDispositionsParams struct {
+	ReceiptID pgtype.UUID
+	ClaimID   pgtype.UUID
+}
+
+func (q *Queries) ListDispositions(ctx context.Context, arg ListDispositionsParams) ([]DocumentPackageManifest, error) {
+	rows, err := q.db.Query(ctx, listDispositions, arg.ReceiptID, arg.ClaimID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DocumentPackageManifest{}
+	for rows.Next() {
+		var i DocumentPackageManifest
+		if err := rows.Scan(
+			&i.ID,
+			&i.ReceiptID,
+			&i.FileID,
+			&i.ClaimID,
+			&i.Path,
+			&i.Disposition,
+			&i.ErrorCode,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFiles = `-- name: ListFiles :many
@@ -562,7 +698,7 @@ func (q *Queries) ListFiles(ctx context.Context, receiptID pgtype.UUID) ([]Docum
 }
 
 const memberIDs = `-- name: MemberIDs :many
-SELECT m.id FROM document_package_members m JOIN document_package_receipts r ON r.id=m.receipt_id WHERE r.id= $1 AND m.validation_claim_id= $2 AND r.state='consumed' AND r.consumed_by_tender_id= $3 ORDER BY m.normalized_path,m.id
+SELECT m.id FROM document_package_members m JOIN document_package_receipts r ON r.id=m.receipt_id WHERE r.id= $1 AND m.validation_claim_id= $2 AND r.state='consumed' AND (r.consumed_by_tender_id= $3 OR r.draft_id= $3) ORDER BY m.normalized_path,m.id
 `
 
 type MemberIDsParams struct {
@@ -630,6 +766,52 @@ func (q *Queries) OperationLock(ctx context.Context, operationKey string) error 
 	return err
 }
 
+const publishDraftReceipt = `-- name: PublishDraftReceipt :execrows
+UPDATE document_package_receipts SET state='consumed',published_at=clock_timestamp(),version=version+1,updated_at=clock_timestamp(),updated_by_id=owner_id WHERE id= $1 AND draft_id= $2 AND state='ready'
+`
+
+type PublishDraftReceiptParams struct {
+	ID      pgtype.UUID
+	DraftID pgtype.UUID
+}
+
+func (q *Queries) PublishDraftReceipt(ctx context.Context, arg PublishDraftReceiptParams) (int64, error) {
+	result, err := q.db.Exec(ctx, publishDraftReceipt, arg.ID, arg.DraftID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const readyDrafts = `-- name: ReadyDrafts :many
+SELECT DISTINCT draft_id,owner_id FROM document_package_receipts WHERE draft_id IS NOT NULL AND state='ready' LIMIT 100
+`
+
+type ReadyDraftsRow struct {
+	DraftID pgtype.UUID
+	OwnerID pgtype.UUID
+}
+
+func (q *Queries) ReadyDrafts(ctx context.Context) ([]ReadyDraftsRow, error) {
+	rows, err := q.db.Query(ctx, readyDrafts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReadyDraftsRow{}
+	for rows.Next() {
+		var i ReadyDraftsRow
+		if err := rows.Scan(&i.DraftID, &i.OwnerID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const readyFiles = `-- name: ReadyFiles :exec
 UPDATE document_package_files SET state='ready',version=version+1,updated_at=clock_timestamp(),updated_by_id= $1 WHERE receipt_id= $2 AND state='received'
 `
@@ -657,6 +839,42 @@ type RecordUploadObjectParams struct {
 func (q *Queries) RecordUploadObject(ctx context.Context, arg RecordUploadObjectParams) error {
 	_, err := q.db.Exec(ctx, recordUploadObject, arg.ID, arg.ReceiptID, arg.FileID)
 	return err
+}
+
+const renewVerificationClaim = `-- name: RenewVerificationClaim :execrows
+UPDATE document_package_receipts SET lease_until=clock_timestamp()+interval '1 minute',updated_at=clock_timestamp() WHERE id= $1 AND state='verifying' AND claim_id= $2 AND lease_until>clock_timestamp()
+`
+
+type RenewVerificationClaimParams struct {
+	ID      pgtype.UUID
+	ClaimID pgtype.UUID
+}
+
+func (q *Queries) RenewVerificationClaim(ctx context.Context, arg RenewVerificationClaimParams) (int64, error) {
+	result, err := q.db.Exec(ctx, renewVerificationClaim, arg.ID, arg.ClaimID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const retainDraftReceipt = `-- name: RetainDraftReceipt :execrows
+UPDATE document_package_receipts SET draft_id= $1,expires_at='9999-12-31'::timestamptz,updated_at=clock_timestamp(),updated_by_id= $2
+WHERE id= $3 AND owner_id= $2 AND state IN('receiving','verifying','ready','failed') AND expires_at>clock_timestamp() AND (draft_id IS NULL OR draft_id= $1)
+`
+
+type RetainDraftReceiptParams struct {
+	DraftID pgtype.UUID
+	ActorID pgtype.UUID
+	ID      pgtype.UUID
+}
+
+func (q *Queries) RetainDraftReceipt(ctx context.Context, arg RetainDraftReceiptParams) (int64, error) {
+	result, err := q.db.Exec(ctx, retainDraftReceipt, arg.DraftID, arg.ActorID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const saveOperation = `-- name: SaveOperation :exec

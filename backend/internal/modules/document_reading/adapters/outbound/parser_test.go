@@ -177,3 +177,31 @@ func TestLegacyConversionDisablesAutomaticExternalUpdates(t *testing.T) {
 		}
 	}
 }
+
+func TestWordHeadersFootnotesCommentsAndDeletedTextAccounted(t *testing.T) {
+	var b bytes.Buffer
+	z := zip.NewWriter(&b)
+	for _, part := range []string{"word/document.xml", "word/header1.xml", "word/footer1.xml", "word/footnotes.xml", "word/endnotes.xml", "word/comments.xml"} {
+		f, e := z.Create(part)
+		if e != nil {
+			t.Fatal(e)
+		}
+		f.Write([]byte(`<w:document xmlns:w="urn:word"><w:p><w:r><w:t>` + part + `</w:t><w:delText>revised evidence</w:delText></w:r></w:p></w:document>`))
+	}
+	z.Close()
+	result := domain.Result{}
+	if e := readWord(context.Background(), b.Bytes(), &result); e != nil {
+		t.Fatal(e)
+	}
+	if len(result.Segments) != 6 {
+		t.Fatal("Word parts omitted", len(result.Segments))
+	}
+	for _, s := range result.Segments {
+		if !strings.Contains(s.Text, s.Label) || !strings.Contains(s.Text, "revised evidence") {
+			t.Fatal("part text missing", s)
+		}
+	}
+	if len(result.Parts) != 6 {
+		t.Fatal("part coverage missing", result.Parts)
+	}
+}

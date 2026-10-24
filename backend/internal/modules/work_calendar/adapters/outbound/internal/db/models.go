@@ -492,6 +492,17 @@ type DocumentPackageFile struct {
 	UpdatedByID        pgtype.UUID
 }
 
+type DocumentPackageManifest struct {
+	ID          pgtype.UUID
+	ReceiptID   pgtype.UUID
+	FileID      pgtype.UUID
+	ClaimID     pgtype.UUID
+	Path        string
+	Disposition string
+	ErrorCode   string
+	CreatedAt   pgtype.Timestamptz
+}
+
 type DocumentPackageMember struct {
 	ID                  pgtype.UUID
 	ReceiptID           pgtype.UUID
@@ -551,6 +562,8 @@ type DocumentPackageReceipt struct {
 	UpdatedAt            pgtype.Timestamptz
 	CreatedByID          pgtype.UUID
 	UpdatedByID          pgtype.UUID
+	DraftID              pgtype.UUID
+	PublishedAt          pgtype.Timestamptz
 }
 
 type DocumentReading struct {
@@ -2153,7 +2166,37 @@ type TemplatePublication struct {
 	UpdatedByID        pgtype.UUID
 }
 
-type TenderCaptureOperation struct {
+type TenderDocumentDraft struct {
+	ID           pgtype.UUID
+	Name         string
+	OwnerID      pgtype.UUID
+	Version      int64
+	IsActive     bool
+	OperationKey pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	CreatedByID  pgtype.UUID
+	UpdatedByID  pgtype.UUID
+}
+
+type TenderDraftEvent struct {
+	ID          pgtype.UUID
+	DraftID     pgtype.UUID
+	Action      string
+	ReceiptID   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedByID pgtype.UUID
+}
+
+type TenderDraftSource struct {
+	DraftID     pgtype.UUID
+	MemberID    pgtype.UUID
+	DocumentID  pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedByID pgtype.UUID
+}
+
+type TenderTenderCaptureOperation struct {
 	ActorID        pgtype.UUID
 	Command        string
 	ContextKey     string
@@ -2163,7 +2206,7 @@ type TenderCaptureOperation struct {
 	CreatedAt      pgtype.Timestamptz
 }
 
-type TenderEmailAttempt struct {
+type TenderTenderEmailAttempt struct {
 	ID        pgtype.UUID
 	JobID     pgtype.UUID
 	ClaimID   pgtype.UUID
@@ -2172,7 +2215,7 @@ type TenderEmailAttempt struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-type TenderEmailJob struct {
+type TenderTenderEmailJob struct {
 	ID            pgtype.UUID
 	ActionID      pgtype.UUID
 	RecipientID   pgtype.UUID
@@ -2189,7 +2232,7 @@ type TenderEmailJob struct {
 	UpdatedByID   pgtype.UUID
 }
 
-type TenderFmsEvent struct {
+type TenderTenderFmsEvent struct {
 	ID         pgtype.UUID
 	IntakeID   pgtype.UUID
 	Action     string
@@ -2198,7 +2241,7 @@ type TenderFmsEvent struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
-type TenderFmsIntake struct {
+type TenderTenderFmsIntake struct {
 	ID                  pgtype.UUID
 	Title               string
 	OwnerID             pgtype.UUID
@@ -2221,7 +2264,7 @@ type TenderFmsIntake struct {
 	SourceUrl           pgtype.Text
 }
 
-type TenderFmsManagerAssignment struct {
+type TenderTenderFmsManagerAssignment struct {
 	ID          pgtype.UUID
 	IntakeID    pgtype.UUID
 	ManagerID   pgtype.UUID
@@ -2231,7 +2274,7 @@ type TenderFmsManagerAssignment struct {
 	CreatedByID pgtype.UUID
 }
 
-type TenderFmsOwnerChange struct {
+type TenderTenderFmsOwnerChange struct {
 	ID              pgtype.UUID
 	IntakeID        pgtype.UUID
 	PreviousOwnerID pgtype.UUID
@@ -2242,7 +2285,7 @@ type TenderFmsOwnerChange struct {
 	CreatedByID     pgtype.UUID
 }
 
-type TenderFmsParticipantGrant struct {
+type TenderTenderFmsParticipantGrant struct {
 	ID          pgtype.UUID
 	IntakeID    pgtype.UUID
 	UserID      pgtype.UUID
@@ -2254,7 +2297,7 @@ type TenderFmsParticipantGrant struct {
 	CreatedByID pgtype.UUID
 }
 
-type TenderFmsRecordEvent struct {
+type TenderTenderFmsRecordEvent struct {
 	ID              pgtype.UUID
 	IntakeID        pgtype.UUID
 	BusinessVersion int64
@@ -2263,7 +2306,7 @@ type TenderFmsRecordEvent struct {
 	CreatedAt       pgtype.Timestamptz
 }
 
-type TenderProvisionOperation struct {
+type TenderTenderProvisionOperation struct {
 	ID          pgtype.UUID
 	TenderID    pgtype.UUID
 	State       string
@@ -2277,7 +2320,7 @@ type TenderProvisionOperation struct {
 	UpdatedByID pgtype.UUID
 }
 
-type TenderSourceAction struct {
+type TenderTenderSourceAction struct {
 	ID                pgtype.UUID
 	TenderID          pgtype.UUID
 	AssignmentID      pgtype.UUID
@@ -2294,7 +2337,7 @@ type TenderSourceAction struct {
 	UpdatedByID       pgtype.UUID
 }
 
-type TenderSourceLink struct {
+type TenderTenderSourceLink struct {
 	MemberID    pgtype.UUID
 	TenderID    pgtype.UUID
 	DocumentID  pgtype.UUID

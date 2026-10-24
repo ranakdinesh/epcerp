@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ranakdinesh/epcERP/internal/config"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
@@ -50,7 +51,16 @@ func main() {
 	}
 	worker := application.NewWorker(outbound.NewUnitOfWork(pool, journal), cipher, outbound.Values{}, outbound.ProcessEngine{Binary: "/app/document-reader"}, outbound.Codec{})
 	logger.Info().Str("event", "document_worker.started").Msg("Document worker started")
-	if e = inbound.Run(ctx, worker, logger); e != nil {
+	if e = inbound.Run(ctx, serialWorker{pool: pool, worker: worker}, logger); e != nil {
 		os.Exit(1)
 	}
+}
+
+type serialWorker struct {
+	pool   *pgxpool.Pool
+	worker *application.Worker
+}
+
+func (s serialWorker) Once(ctx context.Context) (bool, error) {
+	return infrastructure.WithDocumentSlot(ctx, s.pool, s.worker.Once)
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/ranakdinesh/epcERP/internal/infrastructure"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
 	"github.com/ranakdinesh/epcERP/internal/modules/document_reading/adapters/outbound/internal/db"
 	"github.com/ranakdinesh/epcERP/internal/modules/document_reading/domain"
@@ -163,4 +164,19 @@ func sourceSize(in domain.Input) int64 {
 		return in.SizeBytes
 	}
 	return int64(len(in.Original))
+}
+
+func (u *UnitOfWork) KeepClaim(ctx context.Context, job domain.Document) (context.Context, func()) {
+	return infrastructure.KeepClaim(ctx, func(ctx context.Context) error {
+		return u.m.Within(ctx, func(ctx context.Context, c database.Connection) error {
+			n, e := db.New(c).RenewReadingClaim(ctx, db.RenewReadingClaimParams{ID: uuid(job.ID), ClaimID: uuid(job.ClaimID)})
+			if e != nil {
+				return e
+			}
+			if n != 1 {
+				return domain.Conflict
+			}
+			return nil
+		})
+	})
 }

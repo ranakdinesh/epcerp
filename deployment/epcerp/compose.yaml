@@ -127,6 +127,60 @@ services:
       timeout: 5s
       retries: 15
 
+  # Signatures persist across restarts. No scanner port is published to the host.
+  clamav:
+    image: clamav/clamav:1.4@sha256:3bba6dd5ac6663d55b80f86a3126e146612d93b593cc2617188d13f637d91260
+    restart: unless-stopped
+    volumes:
+      - clamav_signatures:/var/lib/clamav
+    networks: [default, reading_internal]
+    mem_limit: 4g
+    cpus: 1.0
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, clamdcheck.sh]
+      interval: 20s
+      timeout: 10s
+      start_period: 180s
+      retries: 15
+
+  document-package-worker:
+    image: epcerp-document-worker:local
+    build:
+      context: ../../backend
+      dockerfile: ../deployment/epcerp/worker.Dockerfile
+    command: [/app/document-package-worker]
+    restart: unless-stopped
+    init: true
+    environment:
+      EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
+      EPCERP_DOCUMENT_PACKAGE_ROOT: /var/lib/epcerp/document-packages
+      EPCERP_CLAMD_SOCKET: tcp://clamav:3310
+      VTPL_ENVIRONMENT: development
+      VTPL_LOG_LEVEL: info
+    networks: [reading_internal]
+    volumes:
+      - document_packages_data:/var/lib/epcerp/document-packages
+    read_only: true
+    tmpfs:
+      - /tmp:size=768m,uid=10001,gid=10001,mode=0700
+    mem_limit: 2g
+    cpus: 1.0
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'kill -0 1 && pgrep -f /app/document-package-worker >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
   frontend:
     image: epcerp-frontend:local
     build:
@@ -149,6 +203,7 @@ services:
       retries: 15
 
 volumes:
+  clamav_signatures:
   document_packages_data:
   postgres_data:
   storage_data:

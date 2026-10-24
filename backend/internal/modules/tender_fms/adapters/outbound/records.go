@@ -29,7 +29,7 @@ func (r *recordsRepository) LockIdentity(ctx context.Context) error {
 	}
 	return r.q.LockTenderIdentity(ctx)
 }
-func namedRecord(v db.TenderFmsIntake) domain.Record {
+func namedRecord(v db.TenderTenderFmsIntake) domain.Record {
 	return domain.Record{ID: v.ID.String(), Name: v.Title, SalesCreatorID: v.SalesCreatorID.String(), ManagerID: v.OwnerID.String(), ManagerAssignmentID: v.ManagerAssignmentID.String(), BusinessVersion: v.BusinessVersion, ContentRevision: v.ContentRevision, AssignmentVersion: v.AssignmentVersion, Active: v.IsActive, CreatedAt: v.CreatedAt.Time, UpdatedAt: v.UpdatedAt.Time, CreatedBy: actor(v.CreatedByID), UpdatedBy: actor(v.UpdatedByID)}
 }
 func (r *recordsRepository) GetNamed(ctx context.Context, id string) (domain.Record, error) {

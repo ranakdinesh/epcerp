@@ -20,6 +20,7 @@ import (
 )
 
 type Dependencies struct {
+	DraftPackages    func(database.Connection) packages.DraftConsumer
 	Packages         func(database.Connection) packages.Consumer
 	PreparedReader   func(database.Connection) reading.PreparedReader
 	Notices          func(database.Connection) notices.TenderWriter
@@ -42,6 +43,9 @@ func New(dependencies Dependencies) *Module {
 	}
 	service := application.New(outbound.NewUnitOfWork(dependencies.Database, documents, dependencies.Events).WithUsers(dependencies.Users), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{})
 	inbound.Register(dependencies.Router, service)
+	if dependencies.DraftPackages != nil {
+		inbound.RegisterDrafts(dependencies.Router, application.NewDrafts(outbound.NewDraftUnit(dependencies.Database, dependencies.Users, dependencies.DraftPackages, dependencies.Reader, dependencies.PreparedReader), outbound.NewAuthBridge(dependencies.Identity)).WithLimits(infrastructure.NewTenderLimits()))
+	}
 	if dependencies.Packages != nil && dependencies.PreparedReader != nil && dependencies.Notices != nil {
 		foundation := func(c database.Connection) contracts.Records {
 			return Records(c, dependencies.Users(c), dependencies.Bundles(c), dependencies.ManagerBundleIDs, dependencies.Events(c))

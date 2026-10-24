@@ -12,7 +12,7 @@ import (
 )
 
 const bindCapture = `-- name: BindCapture :exec
-UPDATE tender_fms_intakes SET receipt_id= $1,external_reference=$2,source_url=$3,updated_by_id= $4 WHERE id= $5
+UPDATE tender.tender_fms_intakes SET receipt_id= $1,external_reference=$2,source_url=$3,updated_by_id= $4 WHERE id= $5
 `
 
 type BindCaptureParams struct {
@@ -35,8 +35,8 @@ func (q *Queries) BindCapture(ctx context.Context, arg BindCaptureParams) error 
 }
 
 const cancelOldManagerMail = `-- name: CancelOldManagerMail :exec
-UPDATE tender_email_jobs SET state='cancelled_obsolete',version=version+1,claim_id=NULL,lease_until=NULL,updated_at=clock_timestamp(),updated_by_id= $1
-WHERE action_id IN(SELECT id FROM tender_source_actions WHERE tender_id= $2) AND state IN('queued','attempting')
+UPDATE tender.tender_email_jobs SET state='cancelled_obsolete',version=version+1,claim_id=NULL,lease_until=NULL,updated_at=clock_timestamp(),updated_by_id= $1
+WHERE action_id IN(SELECT id FROM tender.tender_source_actions WHERE tender_id= $2) AND state IN('queued','attempting')
 `
 
 type CancelOldManagerMailParams struct {
@@ -50,7 +50,7 @@ func (q *Queries) CancelOldManagerMail(ctx context.Context, arg CancelOldManager
 }
 
 const cancelOldManagerWork = `-- name: CancelOldManagerWork :exec
-UPDATE tender_source_actions SET state='cancelled_obsolete',is_active=false,updated_at=clock_timestamp(),updated_by_id= $1 WHERE tender_id= $2 AND state='pending'
+UPDATE tender.tender_source_actions SET state='cancelled_obsolete',is_active=false,updated_at=clock_timestamp(),updated_by_id= $1 WHERE tender_id= $2 AND state='pending'
 `
 
 type CancelOldManagerWorkParams struct {
@@ -64,7 +64,7 @@ func (q *Queries) CancelOldManagerWork(ctx context.Context, arg CancelOldManager
 }
 
 const captureDeliveries = `-- name: CaptureDeliveries :many
-SELECT a.id,a.notice_id,j.id AS email_job_id,j.state AS email_state FROM tender_source_actions a JOIN tender_email_jobs j ON j.action_id=a.id WHERE a.tender_id= $1 AND a.state='pending' ORDER BY a.created_at DESC LIMIT 10
+SELECT a.id,a.notice_id,j.id AS email_job_id,j.state AS email_state FROM tender.tender_source_actions a JOIN tender.tender_email_jobs j ON j.action_id=a.id WHERE a.tender_id= $1 AND a.state='pending' ORDER BY a.created_at DESC LIMIT 10
 `
 
 type CaptureDeliveriesRow struct {
@@ -109,12 +109,12 @@ func (q *Queries) CaptureOperationLock(ctx context.Context, operationKey string)
 }
 
 const captureProvision = `-- name: CaptureProvision :one
-SELECT id, tender_id, state, version, blocker_code, project_id, estimate_id, created_at, updated_at, created_by_id, updated_by_id FROM tender_provision_operations WHERE tender_id= $1
+SELECT id, tender_id, state, version, blocker_code, project_id, estimate_id, created_at, updated_at, created_by_id, updated_by_id FROM tender.tender_provision_operations WHERE tender_id= $1
 `
 
-func (q *Queries) CaptureProvision(ctx context.Context, tenderID pgtype.UUID) (TenderProvisionOperation, error) {
+func (q *Queries) CaptureProvision(ctx context.Context, tenderID pgtype.UUID) (TenderTenderProvisionOperation, error) {
 	row := q.db.QueryRow(ctx, captureProvision, tenderID)
-	var i TenderProvisionOperation
+	var i TenderTenderProvisionOperation
 	err := row.Scan(
 		&i.ID,
 		&i.TenderID,
@@ -131,8 +131,24 @@ func (q *Queries) CaptureProvision(ctx context.Context, tenderID pgtype.UUID) (T
 	return i, err
 }
 
+const countDocumentDrafts = `-- name: CountDocumentDrafts :one
+SELECT count(*) FROM tender.document_drafts WHERE owner_id= $1 AND is_active AND strpos(lower(name),lower($2::text))>0
+`
+
+type CountDocumentDraftsParams struct {
+	ActorID pgtype.UUID
+	Search  string
+}
+
+func (q *Queries) CountDocumentDrafts(ctx context.Context, arg CountDocumentDraftsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countDocumentDrafts, arg.ActorID, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countNamedCaptures = `-- name: CountNamedCaptures :one
-SELECT count(*) FROM tender_fms_intakes i WHERE i.record_kind='named' AND i.receipt_id IS NOT NULL AND ($1::text='' OR position(lower($1::text) in lower(i.title))>0) AND ($2::boolean OR i.sales_creator_id= $3 OR i.owner_id= $3 OR COALESCE((SELECT g.is_active AND (g.valid_until IS NULL OR g.valid_until>clock_timestamp()) FROM tender_fms_participant_grants g WHERE g.intake_id=i.id AND g.user_id= $3 ORDER BY version DESC LIMIT 1),false))
+SELECT count(*) FROM tender.tender_fms_intakes i WHERE i.record_kind='named' AND i.receipt_id IS NOT NULL AND ($1::text='' OR position(lower($1::text) in lower(i.title))>0) AND ($2::boolean OR i.sales_creator_id= $3 OR i.owner_id= $3 OR COALESCE((SELECT g.is_active AND (g.valid_until IS NULL OR g.valid_until>clock_timestamp()) FROM tender.tender_fms_participant_grants g WHERE g.intake_id=i.id AND g.user_id= $3 ORDER BY version DESC LIMIT 1),false))
 `
 
 type CountNamedCapturesParams struct {
@@ -148,8 +164,43 @@ func (q *Queries) CountNamedCaptures(ctx context.Context, arg CountNamedCaptures
 	return count, err
 }
 
+const createDocumentDraft = `-- name: CreateDocumentDraft :one
+INSERT INTO tender.document_drafts(id,name,owner_id,operation_key,created_by_id,updated_by_id)VALUES($1,$2,$3,$4,$3,$3)
+ON CONFLICT(owner_id,operation_key) DO UPDATE SET operation_key=excluded.operation_key RETURNING id, name, owner_id, version, is_active, operation_key, created_at, updated_at, created_by_id, updated_by_id
+`
+
+type CreateDocumentDraftParams struct {
+	ID           pgtype.UUID
+	Name         string
+	ActorID      pgtype.UUID
+	OperationKey pgtype.UUID
+}
+
+func (q *Queries) CreateDocumentDraft(ctx context.Context, arg CreateDocumentDraftParams) (TenderDocumentDraft, error) {
+	row := q.db.QueryRow(ctx, createDocumentDraft,
+		arg.ID,
+		arg.Name,
+		arg.ActorID,
+		arg.OperationKey,
+	)
+	var i TenderDocumentDraft
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.OwnerID,
+		&i.Version,
+		&i.IsActive,
+		&i.OperationKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByID,
+		&i.UpdatedByID,
+	)
+	return i, err
+}
+
 const createManagerAction = `-- name: CreateManagerAction :one
-INSERT INTO tender_source_actions(id,tender_id,assignment_id,recipient_id,source_event_id,assignment_version,created_at,updated_at,created_by_id,updated_by_id)
+INSERT INTO tender.tender_source_actions(id,tender_id,assignment_id,recipient_id,source_event_id,assignment_version,created_at,updated_at,created_by_id,updated_by_id)
  VALUES($1,$2,$3,$4,$5,$6,clock_timestamp(),clock_timestamp(),$7,$7) RETURNING id, tender_id, assignment_id, recipient_id, source_event_id, assignment_version, notice_id, kind, state, is_active, created_at, updated_at, created_by_id, updated_by_id
 `
 
@@ -163,7 +214,7 @@ type CreateManagerActionParams struct {
 	ActorID           pgtype.UUID
 }
 
-func (q *Queries) CreateManagerAction(ctx context.Context, arg CreateManagerActionParams) (TenderSourceAction, error) {
+func (q *Queries) CreateManagerAction(ctx context.Context, arg CreateManagerActionParams) (TenderTenderSourceAction, error) {
 	row := q.db.QueryRow(ctx, createManagerAction,
 		arg.ID,
 		arg.TenderID,
@@ -173,7 +224,7 @@ func (q *Queries) CreateManagerAction(ctx context.Context, arg CreateManagerActi
 		arg.AssignmentVersion,
 		arg.ActorID,
 	)
-	var i TenderSourceAction
+	var i TenderTenderSourceAction
 	err := row.Scan(
 		&i.ID,
 		&i.TenderID,
@@ -194,7 +245,7 @@ func (q *Queries) CreateManagerAction(ctx context.Context, arg CreateManagerActi
 }
 
 const createManagerEmail = `-- name: CreateManagerEmail :exec
-INSERT INTO tender_email_jobs(id,action_id,recipient_id,created_by_id,updated_by_id)VALUES($1,$2,$3,$4,$4)
+INSERT INTO tender.tender_email_jobs(id,action_id,recipient_id,created_by_id,updated_by_id)VALUES($1,$2,$3,$4,$4)
 `
 
 type CreateManagerEmailParams struct {
@@ -215,7 +266,7 @@ func (q *Queries) CreateManagerEmail(ctx context.Context, arg CreateManagerEmail
 }
 
 const createProvisionOperation = `-- name: CreateProvisionOperation :exec
-INSERT INTO tender_provision_operations(id,tender_id,created_by_id,updated_by_id)VALUES($1,$2,$3,$3)
+INSERT INTO tender.tender_provision_operations(id,tender_id,created_by_id,updated_by_id)VALUES($1,$2,$3,$3)
 `
 
 type CreateProvisionOperationParams struct {
@@ -230,7 +281,7 @@ func (q *Queries) CreateProvisionOperation(ctx context.Context, arg CreateProvis
 }
 
 const currentNamedGrantVersion = `-- name: CurrentNamedGrantVersion :one
-SELECT COALESCE(max(version),0)::bigint AS version FROM tender_fms_participant_grants WHERE intake_id= $1 AND user_id= $2
+SELECT COALESCE(max(version),0)::bigint AS version FROM tender.tender_fms_participant_grants WHERE intake_id= $1 AND user_id= $2
 `
 
 type CurrentNamedGrantVersionParams struct {
@@ -245,8 +296,60 @@ func (q *Queries) CurrentNamedGrantVersion(ctx context.Context, arg CurrentNamed
 	return version, err
 }
 
+const draftEvent = `-- name: DraftEvent :exec
+INSERT INTO tender.draft_events(id,draft_id,action,receipt_id,created_by_id)VALUES($1,$2,$3,$4,$5)
+`
+
+type DraftEventParams struct {
+	ID        pgtype.UUID
+	DraftID   pgtype.UUID
+	Action    string
+	ReceiptID pgtype.UUID
+	ActorID   pgtype.UUID
+}
+
+func (q *Queries) DraftEvent(ctx context.Context, arg DraftEventParams) error {
+	_, err := q.db.Exec(ctx, draftEvent,
+		arg.ID,
+		arg.DraftID,
+		arg.Action,
+		arg.ReceiptID,
+		arg.ActorID,
+	)
+	return err
+}
+
+const draftSourceLinks = `-- name: DraftSourceLinks :many
+SELECT s.member_id,s.document_id FROM tender.draft_sources s WHERE s.draft_id= $1
+`
+
+type DraftSourceLinksRow struct {
+	MemberID   pgtype.UUID
+	DocumentID pgtype.UUID
+}
+
+func (q *Queries) DraftSourceLinks(ctx context.Context, draftID pgtype.UUID) ([]DraftSourceLinksRow, error) {
+	rows, err := q.db.Query(ctx, draftSourceLinks, draftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DraftSourceLinksRow{}
+	for rows.Next() {
+		var i DraftSourceLinksRow
+		if err := rows.Scan(&i.MemberID, &i.DocumentID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const existingAttachment = `-- name: ExistingAttachment :one
-SELECT EXISTS(SELECT 1 FROM tender_fms_events WHERE intake_id= $1 AND document_id= $2 AND action='source_attached')
+SELECT EXISTS(SELECT 1 FROM tender.tender_fms_events WHERE intake_id= $1 AND document_id= $2 AND action='source_attached')
 `
 
 type ExistingAttachmentParams struct {
@@ -262,7 +365,7 @@ func (q *Queries) ExistingAttachment(ctx context.Context, arg ExistingAttachment
 }
 
 const findCaptureOperation = `-- name: FindCaptureOperation :one
-SELECT actor_id, command, context_key, idempotency_key, fingerprint, tender_id, created_at FROM tender_capture_operations WHERE actor_id= $1 AND command= $2 AND context_key= $3 AND idempotency_key= $4
+SELECT actor_id, command, context_key, idempotency_key, fingerprint, tender_id, created_at FROM tender.tender_capture_operations WHERE actor_id= $1 AND command= $2 AND context_key= $3 AND idempotency_key= $4
 `
 
 type FindCaptureOperationParams struct {
@@ -272,14 +375,14 @@ type FindCaptureOperationParams struct {
 	IdempotencyKey pgtype.UUID
 }
 
-func (q *Queries) FindCaptureOperation(ctx context.Context, arg FindCaptureOperationParams) (TenderCaptureOperation, error) {
+func (q *Queries) FindCaptureOperation(ctx context.Context, arg FindCaptureOperationParams) (TenderTenderCaptureOperation, error) {
 	row := q.db.QueryRow(ctx, findCaptureOperation,
 		arg.ActorID,
 		arg.Command,
 		arg.ContextKey,
 		arg.IdempotencyKey,
 	)
-	var i TenderCaptureOperation
+	var i TenderTenderCaptureOperation
 	err := row.Scan(
 		&i.ActorID,
 		&i.Command,
@@ -293,7 +396,7 @@ func (q *Queries) FindCaptureOperation(ctx context.Context, arg FindCaptureOpera
 }
 
 const findIntake = `-- name: FindIntake :one
-SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender_fms_intakes WHERE record_kind='legacy' AND owner_id= $1 AND initial_sha256= $2
+SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender.tender_fms_intakes WHERE record_kind='legacy' AND owner_id= $1 AND initial_sha256= $2
 `
 
 type FindIntakeParams struct {
@@ -301,9 +404,9 @@ type FindIntakeParams struct {
 	Sha256  pgtype.Text
 }
 
-func (q *Queries) FindIntake(ctx context.Context, arg FindIntakeParams) (TenderFmsIntake, error) {
+func (q *Queries) FindIntake(ctx context.Context, arg FindIntakeParams) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, findIntake, arg.OwnerID, arg.Sha256)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -329,13 +432,40 @@ func (q *Queries) FindIntake(ctx context.Context, arg FindIntakeParams) (TenderF
 	return i, err
 }
 
-const getIntake = `-- name: GetIntake :one
-SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender_fms_intakes WHERE id= $1
+const getDocumentDraft = `-- name: GetDocumentDraft :one
+SELECT id, name, owner_id, version, is_active, operation_key, created_at, updated_at, created_by_id, updated_by_id FROM tender.document_drafts WHERE id= $1 AND owner_id= $2 AND is_active FOR UPDATE
 `
 
-func (q *Queries) GetIntake(ctx context.Context, id pgtype.UUID) (TenderFmsIntake, error) {
+type GetDocumentDraftParams struct {
+	ID      pgtype.UUID
+	ActorID pgtype.UUID
+}
+
+func (q *Queries) GetDocumentDraft(ctx context.Context, arg GetDocumentDraftParams) (TenderDocumentDraft, error) {
+	row := q.db.QueryRow(ctx, getDocumentDraft, arg.ID, arg.ActorID)
+	var i TenderDocumentDraft
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.OwnerID,
+		&i.Version,
+		&i.IsActive,
+		&i.OperationKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByID,
+		&i.UpdatedByID,
+	)
+	return i, err
+}
+
+const getIntake = `-- name: GetIntake :one
+SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender.tender_fms_intakes WHERE id= $1
+`
+
+func (q *Queries) GetIntake(ctx context.Context, id pgtype.UUID) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, getIntake, id)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -362,7 +492,7 @@ func (q *Queries) GetIntake(ctx context.Context, id pgtype.UUID) (TenderFmsIntak
 }
 
 const handoverTenderOwner = `-- name: HandoverTenderOwner :one
-UPDATE tender_fms_intakes SET owner_id=$2,version=version+1,updated_at=clock_timestamp(),updated_by_id=$3 WHERE id=$1 AND version=$4 AND is_active RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
+UPDATE tender.tender_fms_intakes SET owner_id=$2,version=version+1,updated_at=clock_timestamp(),updated_by_id=$3 WHERE id=$1 AND version=$4 AND is_active RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
 `
 
 type HandoverTenderOwnerParams struct {
@@ -372,14 +502,14 @@ type HandoverTenderOwnerParams struct {
 	Version     int32
 }
 
-func (q *Queries) HandoverTenderOwner(ctx context.Context, arg HandoverTenderOwnerParams) (TenderFmsIntake, error) {
+func (q *Queries) HandoverTenderOwner(ctx context.Context, arg HandoverTenderOwnerParams) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, handoverTenderOwner,
 		arg.ID,
 		arg.OwnerID,
 		arg.UpdatedByID,
 		arg.Version,
 	)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -406,7 +536,7 @@ func (q *Queries) HandoverTenderOwner(ctx context.Context, arg HandoverTenderOwn
 }
 
 const insertIntake = `-- name: InsertIntake :one
-INSERT INTO tender_fms_intakes(id,title,legacy_title,owner_id,initial_sha256,created_by_id,updated_by_id)VALUES($1,$2::text,$2::text,$3,$4,$3,$3) RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
+INSERT INTO tender.tender_fms_intakes(id,title,legacy_title,owner_id,initial_sha256,created_by_id,updated_by_id)VALUES($1,$2::text,$2::text,$3,$4,$3,$3) RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
 `
 
 type InsertIntakeParams struct {
@@ -416,14 +546,14 @@ type InsertIntakeParams struct {
 	Sha256  pgtype.Text
 }
 
-func (q *Queries) InsertIntake(ctx context.Context, arg InsertIntakeParams) (TenderFmsIntake, error) {
+func (q *Queries) InsertIntake(ctx context.Context, arg InsertIntakeParams) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, insertIntake,
 		arg.ID,
 		arg.Title,
 		arg.ActorID,
 		arg.Sha256,
 	)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -450,7 +580,7 @@ func (q *Queries) InsertIntake(ctx context.Context, arg InsertIntakeParams) (Ten
 }
 
 const insertIntakeEvent = `-- name: InsertIntakeEvent :exec
-INSERT INTO tender_fms_events(id,intake_id,document_id,action,actor_id)VALUES($1,$2,$3,$4,$5)
+INSERT INTO tender.tender_fms_events(id,intake_id,document_id,action,actor_id)VALUES($1,$2,$3,$4,$5)
 `
 
 type InsertIntakeEventParams struct {
@@ -473,7 +603,7 @@ func (q *Queries) InsertIntakeEvent(ctx context.Context, arg InsertIntakeEventPa
 }
 
 const insertManagerAssignment = `-- name: InsertManagerAssignment :exec
-INSERT INTO tender_fms_manager_assignments(id,intake_id,manager_id,version,reason,created_by_id)VALUES($1,$2,$3,$4,$5,$6)
+INSERT INTO tender.tender_fms_manager_assignments(id,intake_id,manager_id,version,reason,created_by_id)VALUES($1,$2,$3,$4,$5,$6)
 `
 
 type InsertManagerAssignmentParams struct {
@@ -498,7 +628,7 @@ func (q *Queries) InsertManagerAssignment(ctx context.Context, arg InsertManager
 }
 
 const insertNamedManagerAssignment = `-- name: InsertNamedManagerAssignment :exec
-INSERT INTO tender_fms_manager_assignments(id,intake_id,manager_id,version,reason,created_by_id)
+INSERT INTO tender.tender_fms_manager_assignments(id,intake_id,manager_id,version,reason,created_by_id)
  VALUES($1,$2,$3,1,'Initial named Tender Manager assignment',$4)
 `
 
@@ -520,7 +650,7 @@ func (q *Queries) InsertNamedManagerAssignment(ctx context.Context, arg InsertNa
 }
 
 const insertNamedRecordEvent = `-- name: InsertNamedRecordEvent :exec
-INSERT INTO tender_fms_record_events(id,intake_id,business_version,action,actor_id)
+INSERT INTO tender.tender_fms_record_events(id,intake_id,business_version,action,actor_id)
  VALUES($1,$2,1,'named_record_created',$3)
 `
 
@@ -536,7 +666,7 @@ func (q *Queries) InsertNamedRecordEvent(ctx context.Context, arg InsertNamedRec
 }
 
 const insertNamedTender = `-- name: InsertNamedTender :one
-INSERT INTO tender_fms_intakes(id,title,owner_id,record_kind,sales_creator_id,manager_assignment_id,created_by_id,updated_by_id)
+INSERT INTO tender.tender_fms_intakes(id,title,owner_id,record_kind,sales_creator_id,manager_assignment_id,created_by_id,updated_by_id)
  VALUES($1,$2,$3,'named',$4,$5,$4,$4) RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
 `
 
@@ -548,7 +678,7 @@ type InsertNamedTenderParams struct {
 	AssignmentID pgtype.UUID
 }
 
-func (q *Queries) InsertNamedTender(ctx context.Context, arg InsertNamedTenderParams) (TenderFmsIntake, error) {
+func (q *Queries) InsertNamedTender(ctx context.Context, arg InsertNamedTenderParams) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, insertNamedTender,
 		arg.ID,
 		arg.Title,
@@ -556,7 +686,7 @@ func (q *Queries) InsertNamedTender(ctx context.Context, arg InsertNamedTenderPa
 		arg.ActorID,
 		arg.AssignmentID,
 	)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -583,9 +713,9 @@ func (q *Queries) InsertNamedTender(ctx context.Context, arg InsertNamedTenderPa
 }
 
 const intakeHistory = `-- name: IntakeHistory :many
-SELECT e.id,e.document_id,e.action,e.actor_id,e.created_at,0::integer AS version,''::text AS reason FROM tender_fms_events e WHERE e.intake_id= $1
+SELECT e.id,e.document_id,e.action,e.actor_id,e.created_at,0::integer AS version,''::text AS reason FROM tender.tender_fms_events e WHERE e.intake_id= $1
 UNION ALL
-SELECT h.id,NULL::uuid AS document_id,'owner_handover'::varchar(40) AS action,h.created_by_id AS actor_id,h.created_at,h.version,h.reason FROM tender_fms_owner_changes h WHERE h.intake_id= $1 ORDER BY created_at DESC,id
+SELECT h.id,NULL::uuid AS document_id,'owner_handover'::varchar(40) AS action,h.created_by_id AS actor_id,h.created_at,h.version,h.reason FROM tender.tender_fms_owner_changes h WHERE h.intake_id= $1 ORDER BY created_at DESC,id
 `
 
 type IntakeHistoryRow struct {
@@ -626,8 +756,29 @@ func (q *Queries) IntakeHistory(ctx context.Context, subjectID pgtype.UUID) ([]I
 	return items, nil
 }
 
+const linkDraftSource = `-- name: LinkDraftSource :exec
+INSERT INTO tender.draft_sources(draft_id,member_id,document_id,created_by_id)VALUES($1,$2,$3,$4) ON CONFLICT(member_id) DO NOTHING
+`
+
+type LinkDraftSourceParams struct {
+	DraftID    pgtype.UUID
+	MemberID   pgtype.UUID
+	DocumentID pgtype.UUID
+	ActorID    pgtype.UUID
+}
+
+func (q *Queries) LinkDraftSource(ctx context.Context, arg LinkDraftSourceParams) error {
+	_, err := q.db.Exec(ctx, linkDraftSource,
+		arg.DraftID,
+		arg.MemberID,
+		arg.DocumentID,
+		arg.ActorID,
+	)
+	return err
+}
+
 const linkManagerNotice = `-- name: LinkManagerNotice :exec
-UPDATE tender_source_actions SET notice_id= $1 WHERE id= $2
+UPDATE tender.tender_source_actions SET notice_id= $1 WHERE id= $2
 `
 
 type LinkManagerNoticeParams struct {
@@ -641,7 +792,7 @@ func (q *Queries) LinkManagerNotice(ctx context.Context, arg LinkManagerNoticePa
 }
 
 const linkTenderSource = `-- name: LinkTenderSource :exec
-INSERT INTO tender_source_links(member_id,tender_id,document_id,created_by_id)VALUES($1,$2,$3,$4)
+INSERT INTO tender.tender_source_links(member_id,tender_id,document_id,created_by_id)VALUES($1,$2,$3,$4)
 `
 
 type LinkTenderSourceParams struct {
@@ -661,19 +812,71 @@ func (q *Queries) LinkTenderSource(ctx context.Context, arg LinkTenderSourcePara
 	return err
 }
 
-const listIntakes = `-- name: ListIntakes :many
-SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender_fms_intakes WHERE record_kind='legacy' AND ($1::text='' OR owner_id::text= $1::text) ORDER BY created_at DESC,id
+const listDocumentDrafts = `-- name: ListDocumentDrafts :many
+SELECT id, name, owner_id, version, is_active, operation_key, created_at, updated_at, created_by_id, updated_by_id FROM tender.document_drafts WHERE owner_id= $1 AND is_active AND strpos(lower(name),lower($2::text))>0
+ORDER BY CASE WHEN $3::boolean AND $4::boolean THEN name END ASC,CASE WHEN $3::boolean AND NOT $4::boolean THEN name END DESC,CASE WHEN NOT $3::boolean AND $4::boolean THEN created_at END ASC,CASE WHEN NOT $3::boolean AND NOT $4::boolean THEN created_at END DESC,id LIMIT $6 OFFSET $5
 `
 
-func (q *Queries) ListIntakes(ctx context.Context, owner string) ([]TenderFmsIntake, error) {
+type ListDocumentDraftsParams struct {
+	ActorID    pgtype.UUID
+	Search     string
+	SortName   bool
+	Ascending  bool
+	PageOffset int32
+	PageSize   int32
+}
+
+func (q *Queries) ListDocumentDrafts(ctx context.Context, arg ListDocumentDraftsParams) ([]TenderDocumentDraft, error) {
+	rows, err := q.db.Query(ctx, listDocumentDrafts,
+		arg.ActorID,
+		arg.Search,
+		arg.SortName,
+		arg.Ascending,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TenderDocumentDraft{}
+	for rows.Next() {
+		var i TenderDocumentDraft
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.OwnerID,
+			&i.Version,
+			&i.IsActive,
+			&i.OperationKey,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedByID,
+			&i.UpdatedByID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listIntakes = `-- name: ListIntakes :many
+SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender.tender_fms_intakes WHERE record_kind='legacy' AND ($1::text='' OR owner_id::text= $1::text) ORDER BY created_at DESC,id
+`
+
+func (q *Queries) ListIntakes(ctx context.Context, owner string) ([]TenderTenderFmsIntake, error) {
 	rows, err := q.db.Query(ctx, listIntakes, owner)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []TenderFmsIntake{}
+	items := []TenderTenderFmsIntake{}
 	for rows.Next() {
-		var i TenderFmsIntake
+		var i TenderTenderFmsIntake
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -707,7 +910,7 @@ func (q *Queries) ListIntakes(ctx context.Context, owner string) ([]TenderFmsInt
 }
 
 const listNamedCaptures = `-- name: ListNamedCaptures :many
-SELECT i.id FROM tender_fms_intakes i WHERE i.record_kind='named' AND i.receipt_id IS NOT NULL AND ($1::text='' OR position(lower($1::text) in lower(i.title))>0) AND ($2::boolean OR i.sales_creator_id= $3 OR i.owner_id= $3 OR COALESCE((SELECT g.is_active AND (g.valid_until IS NULL OR g.valid_until>clock_timestamp()) FROM tender_fms_participant_grants g WHERE g.intake_id=i.id AND g.user_id= $3 ORDER BY version DESC LIMIT 1),false)) ORDER BY CASE WHEN $4::text='name' AND NOT $5::boolean THEN i.title END ASC,CASE WHEN $4::text='name' AND $5::boolean THEN i.title END DESC,CASE WHEN $4::text='created' AND NOT $5::boolean THEN i.created_at END ASC,i.created_at DESC,i.id LIMIT $7::integer OFFSET $6::bigint
+SELECT i.id FROM tender.tender_fms_intakes i WHERE i.record_kind='named' AND i.receipt_id IS NOT NULL AND ($1::text='' OR position(lower($1::text) in lower(i.title))>0) AND ($2::boolean OR i.sales_creator_id= $3 OR i.owner_id= $3 OR COALESCE((SELECT g.is_active AND (g.valid_until IS NULL OR g.valid_until>clock_timestamp()) FROM tender.tender_fms_participant_grants g WHERE g.intake_id=i.id AND g.user_id= $3 ORDER BY version DESC LIMIT 1),false)) ORDER BY CASE WHEN $4::text='name' AND NOT $5::boolean THEN i.title END ASC,CASE WHEN $4::text='name' AND $5::boolean THEN i.title END DESC,CASE WHEN $4::text='created' AND NOT $5::boolean THEN i.created_at END ASC,i.created_at DESC,i.id LIMIT $7::integer OFFSET $6::bigint
 `
 
 type ListNamedCapturesParams struct {
@@ -758,12 +961,12 @@ func (q *Queries) LockIntakeUploads(ctx context.Context) error {
 }
 
 const lockNamedTender = `-- name: LockNamedTender :one
-SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender_fms_intakes WHERE id= $1 FOR UPDATE
+SELECT id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url FROM tender.tender_fms_intakes WHERE id= $1 FOR UPDATE
 `
 
-func (q *Queries) LockNamedTender(ctx context.Context, id pgtype.UUID) (TenderFmsIntake, error) {
+func (q *Queries) LockNamedTender(ctx context.Context, id pgtype.UUID) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, lockNamedTender, id)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -799,7 +1002,7 @@ func (q *Queries) LockTenderIdentity(ctx context.Context) error {
 }
 
 const namedParticipantActive = `-- name: NamedParticipantActive :one
-SELECT COALESCE((SELECT is_active AND (valid_until IS NULL OR valid_until>clock_timestamp()) FROM tender_fms_participant_grants WHERE intake_id= $1 AND user_id= $2 ORDER BY version DESC LIMIT 1),false)::boolean AS active
+SELECT COALESCE((SELECT is_active AND (valid_until IS NULL OR valid_until>clock_timestamp()) FROM tender.tender_fms_participant_grants WHERE intake_id= $1 AND user_id= $2 ORDER BY version DESC LIMIT 1),false)::boolean AS active
 `
 
 type NamedParticipantActiveParams struct {
@@ -815,7 +1018,7 @@ func (q *Queries) NamedParticipantActive(ctx context.Context, arg NamedParticipa
 }
 
 const patchNamedTender = `-- name: PatchNamedTender :one
-UPDATE tender_fms_intakes SET title= $1,external_reference=CASE WHEN $2::boolean THEN $3::text ELSE external_reference END,source_url=CASE WHEN $4::boolean THEN $5::text ELSE source_url END,business_version=business_version+1,version=version+1,updated_at=clock_timestamp(),updated_by_id= $6
+UPDATE tender.tender_fms_intakes SET title= $1,external_reference=CASE WHEN $2::boolean THEN $3::text ELSE external_reference END,source_url=CASE WHEN $4::boolean THEN $5::text ELSE source_url END,business_version=business_version+1,version=version+1,updated_at=clock_timestamp(),updated_by_id= $6
 WHERE id= $7 AND business_version= $8 AND record_kind='named' AND is_active RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
 `
 
@@ -830,7 +1033,7 @@ type PatchNamedTenderParams struct {
 	ExpectedVersion   int64
 }
 
-func (q *Queries) PatchNamedTender(ctx context.Context, arg PatchNamedTenderParams) (TenderFmsIntake, error) {
+func (q *Queries) PatchNamedTender(ctx context.Context, arg PatchNamedTenderParams) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, patchNamedTender,
 		arg.Name,
 		arg.SetReference,
@@ -841,7 +1044,7 @@ func (q *Queries) PatchNamedTender(ctx context.Context, arg PatchNamedTenderPara
 		arg.ID,
 		arg.ExpectedVersion,
 	)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -868,12 +1071,12 @@ func (q *Queries) PatchNamedTender(ctx context.Context, arg PatchNamedTenderPara
 }
 
 const readAssignmentAction = `-- name: ReadAssignmentAction :one
-SELECT id, tender_id, assignment_id, recipient_id, source_event_id, assignment_version, notice_id, kind, state, is_active, created_at, updated_at, created_by_id, updated_by_id FROM tender_source_actions WHERE id= $1
+SELECT id, tender_id, assignment_id, recipient_id, source_event_id, assignment_version, notice_id, kind, state, is_active, created_at, updated_at, created_by_id, updated_by_id FROM tender.tender_source_actions WHERE id= $1
 `
 
-func (q *Queries) ReadAssignmentAction(ctx context.Context, id pgtype.UUID) (TenderSourceAction, error) {
+func (q *Queries) ReadAssignmentAction(ctx context.Context, id pgtype.UUID) (TenderTenderSourceAction, error) {
 	row := q.db.QueryRow(ctx, readAssignmentAction, id)
-	var i TenderSourceAction
+	var i TenderTenderSourceAction
 	err := row.Scan(
 		&i.ID,
 		&i.TenderID,
@@ -895,7 +1098,7 @@ func (q *Queries) ReadAssignmentAction(ctx context.Context, id pgtype.UUID) (Ten
 
 const readWorkInventory = `-- name: ReadWorkInventory :many
 WITH assignments AS (
-SELECT 'tender_owner'::text AS kind,p.id::text AS id,p.owner_id::text AS owner_id,CASE WHEN p.record_kind='named' THEN p.assignment_version ELSE p.version::bigint END AS version,p.title::text AS title,'active'::text AS state,'/dashboard?screen=tender-fms'::text AS link,CASE WHEN p.record_kind='named' THEN jsonb_build_array('tenders.register.view','tenders.register.read','tenders.register.write','tenders.processing.read','tenders.processing.write','tenders.register.assign','tenders.evaluation.read','tenders.evaluation.write','communication.inbox.read','communication.inbox.write') ELSE jsonb_build_array('tenders.register.view','tenders.register.read','tenders.register.write','tenders.processing.read','tenders.processing.write') END::jsonb AS required_permissions,''::text AS due_date FROM tender_fms_intakes p WHERE p.is_active
+SELECT 'tender_owner'::text AS kind,p.id::text AS id,p.owner_id::text AS owner_id,CASE WHEN p.record_kind='named' THEN p.assignment_version ELSE p.version::bigint END AS version,p.title::text AS title,'active'::text AS state,'/dashboard?screen=tender-fms'::text AS link,CASE WHEN p.record_kind='named' THEN jsonb_build_array('tenders.register.view','tenders.register.read','tenders.register.write','tenders.processing.read','tenders.processing.write','tenders.register.assign','tenders.evaluation.read','tenders.evaluation.write','communication.inbox.read','communication.inbox.write') ELSE jsonb_build_array('tenders.register.view','tenders.register.read','tenders.register.write','tenders.processing.read','tenders.processing.write') END::jsonb AS required_permissions,''::text AS due_date FROM tender.tender_fms_intakes p WHERE p.is_active
 ) SELECT jsonb_build_object('Source','tender_fms','Kind',kind,'ID',id,'OwnerID',owner_id,'Version',version,'Title',title,'State',state,'Link',link,'RequiredPermissions',required_permissions,'DueDate',due_date)::jsonb AS payload FROM assignments WHERE ($1::text='' OR owner_id=$1) AND ($2::text='' OR id=$2) AND ($3::text='' OR kind=$3) ORDER BY kind,id,owner_id LIMIT 10001
 `
 
@@ -926,7 +1129,7 @@ func (q *Queries) ReadWorkInventory(ctx context.Context, arg ReadWorkInventoryPa
 }
 
 const recordNamedChange = `-- name: RecordNamedChange :exec
-INSERT INTO tender_fms_record_events(id,intake_id,business_version,action,actor_id)VALUES($1,$2,$3,$4,$5)
+INSERT INTO tender.tender_fms_record_events(id,intake_id,business_version,action,actor_id)VALUES($1,$2,$3,$4,$5)
 `
 
 type RecordNamedChangeParams struct {
@@ -949,7 +1152,7 @@ func (q *Queries) RecordNamedChange(ctx context.Context, arg RecordNamedChangePa
 }
 
 const recordNamedGrant = `-- name: RecordNamedGrant :one
-INSERT INTO tender_fms_participant_grants(id,intake_id,user_id,version,is_active,valid_until,reason,created_by_id)
+INSERT INTO tender.tender_fms_participant_grants(id,intake_id,user_id,version,is_active,valid_until,reason,created_by_id)
  VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING created_at
 `
 
@@ -981,7 +1184,7 @@ func (q *Queries) RecordNamedGrant(ctx context.Context, arg RecordNamedGrantPara
 }
 
 const recordTenderOwnerChange = `-- name: RecordTenderOwnerChange :exec
-INSERT INTO tender_fms_owner_changes(id,intake_id,previous_owner_id,owner_id,version,reason,created_by_id,created_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+INSERT INTO tender.tender_fms_owner_changes(id,intake_id,previous_owner_id,owner_id,version,reason,created_by_id,created_at)VALUES($1,$2,$3,$4,$5,$6,$7,$8)
 `
 
 type RecordTenderOwnerChangeParams struct {
@@ -1010,7 +1213,7 @@ func (q *Queries) RecordTenderOwnerChange(ctx context.Context, arg RecordTenderO
 }
 
 const replaceNamedManager = `-- name: ReplaceNamedManager :one
-UPDATE tender_fms_intakes SET owner_id= $1,manager_assignment_id= $2,assignment_version=assignment_version+1,business_version=business_version+1,version=version+1,updated_at=clock_timestamp(),updated_by_id= $3
+UPDATE tender.tender_fms_intakes SET owner_id= $1,manager_assignment_id= $2,assignment_version=assignment_version+1,business_version=business_version+1,version=version+1,updated_at=clock_timestamp(),updated_by_id= $3
  WHERE id= $4 AND business_version= $5 AND assignment_version= $6 AND record_kind='named' AND is_active RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
 `
 
@@ -1023,7 +1226,7 @@ type ReplaceNamedManagerParams struct {
 	ExpectedAssignmentVersion int64
 }
 
-func (q *Queries) ReplaceNamedManager(ctx context.Context, arg ReplaceNamedManagerParams) (TenderFmsIntake, error) {
+func (q *Queries) ReplaceNamedManager(ctx context.Context, arg ReplaceNamedManagerParams) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, replaceNamedManager,
 		arg.ManagerID,
 		arg.AssignmentID,
@@ -1032,7 +1235,7 @@ func (q *Queries) ReplaceNamedManager(ctx context.Context, arg ReplaceNamedManag
 		arg.ExpectedVersion,
 		arg.ExpectedAssignmentVersion,
 	)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -1059,7 +1262,7 @@ func (q *Queries) ReplaceNamedManager(ctx context.Context, arg ReplaceNamedManag
 }
 
 const saveCaptureOperation = `-- name: SaveCaptureOperation :exec
-INSERT INTO tender_capture_operations(actor_id,command,context_key,idempotency_key,fingerprint,tender_id)VALUES($1,$2,$3,$4,$5,$6)
+INSERT INTO tender.tender_capture_operations(actor_id,command,context_key,idempotency_key,fingerprint,tender_id)VALUES($1,$2,$3,$4,$5,$6)
 `
 
 type SaveCaptureOperationParams struct {
@@ -1083,8 +1286,22 @@ func (q *Queries) SaveCaptureOperation(ctx context.Context, arg SaveCaptureOpera
 	return err
 }
 
+const touchDocumentDraft = `-- name: TouchDocumentDraft :exec
+UPDATE tender.document_drafts SET version=version+1,updated_at=clock_timestamp(),updated_by_id= $1 WHERE id= $2
+`
+
+type TouchDocumentDraftParams struct {
+	ActorID pgtype.UUID
+	ID      pgtype.UUID
+}
+
+func (q *Queries) TouchDocumentDraft(ctx context.Context, arg TouchDocumentDraftParams) error {
+	_, err := q.db.Exec(ctx, touchDocumentDraft, arg.ActorID, arg.ID)
+	return err
+}
+
 const updateIntake = `-- name: UpdateIntake :one
-UPDATE tender_fms_intakes SET version=version+1,updated_at=clock_timestamp(),updated_by_id= $1 WHERE id= $2 RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
+UPDATE tender.tender_fms_intakes SET version=version+1,updated_at=clock_timestamp(),updated_by_id= $1 WHERE id= $2 RETURNING id, title, owner_id, initial_sha256, version, is_active, created_at, updated_at, created_by_id, updated_by_id, record_kind, legacy_title, sales_creator_id, business_version, content_revision, assignment_version, manager_assignment_id, receipt_id, external_reference, source_url
 `
 
 type UpdateIntakeParams struct {
@@ -1092,9 +1309,9 @@ type UpdateIntakeParams struct {
 	ID      pgtype.UUID
 }
 
-func (q *Queries) UpdateIntake(ctx context.Context, arg UpdateIntakeParams) (TenderFmsIntake, error) {
+func (q *Queries) UpdateIntake(ctx context.Context, arg UpdateIntakeParams) (TenderTenderFmsIntake, error) {
 	row := q.db.QueryRow(ctx, updateIntake, arg.ActorID, arg.ID)
-	var i TenderFmsIntake
+	var i TenderTenderFmsIntake
 	err := row.Scan(
 		&i.ID,
 		&i.Title,

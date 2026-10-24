@@ -70,12 +70,18 @@ type Segment struct {
 	Cells          []Cell   `json:"cells,omitempty"`
 	Merges         []string `json:"merged_ranges,omitempty"`
 }
+type PartCoverage struct {
+	Path        string `json:"path"`
+	Disposition string `json:"disposition"`
+	Reason      string `json:"reason"`
+}
 type Result struct {
-	Schema        string    `json:"schema"`
-	ReaderVersion string    `json:"reader_version"`
-	SourceSHA256  string    `json:"source_sha256"`
-	Segments      []Segment `json:"segments"`
-	Warnings      []string  `json:"warnings"`
+	Parts         []PartCoverage `json:"parts,omitempty"`
+	Schema        string         `json:"schema"`
+	ReaderVersion string         `json:"reader_version"`
+	SourceSHA256  string         `json:"source_sha256"`
+	Segments      []Segment      `json:"segments"`
+	Warnings      []string       `json:"warnings"`
 }
 type Event struct {
 	ID         string    `json:"id"`

@@ -106,7 +106,9 @@ func (a *App) bindModules(ctx context.Context) error {
 		return err
 	}
 	a.PackageStore = packages.Store
-	tendermodule.New(tendermodule.Dependencies{Packages: func(c database.Connection) packagecontracts.Consumer {
+	tendermodule.New(tendermodule.Dependencies{DraftPackages: func(c database.Connection) packagecontracts.DraftConsumer {
+		return packagemodule.DraftConsumer(c, auth.Assignments(c))
+	}, Packages: func(c database.Connection) packagecontracts.Consumer {
 		return packagemodule.Consumer(c, auth.Assignments(c))
 	}, PreparedReader: reader.PreparedReader, Notices: func(c database.Connection) inboxcontracts.TenderWriter {
 		return inboxmodule.TenderWriter(c, events.Writer(c), tendermodule.AssignmentActions(c, events.Writer(c)))

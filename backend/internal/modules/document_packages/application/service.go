@@ -16,7 +16,7 @@ type Service struct {
 }
 
 func New(u ports.Unit, a ports.Auth, v ports.Values, o ports.Objects) *Service {
-	return &Service{u:u,a:a,v:v,objects:o}
+	return &Service{u: u, a: a, v: v, objects: o}
 }
 func Live(ctx context.Context, r ports.Repository, id string, write bool) error {
 	if e := r.Guard(ctx); e != nil {
@@ -359,12 +359,29 @@ func (w *Worker) Once(ctx context.Context) (worked bool, e error) {
 		return false, e
 	}
 	worked = true
-	err := w.verify.Verify(ctx, domain.Verification{Receipt: *claim, Files: claim.Files}, func(m domain.Member) error {
+	parentCtx := ctx
+	stopClaim := func() {}
+	if keeper, ok := w.u.(ports.LeaseKeeper); ok {
+		ctx, stopClaim = keeper.KeepClaim(ctx, *claim)
+		defer stopClaim()
+	}
+	emit := func(m domain.Member) error {
 		m.ID = w.v.ID()
 		m.ReceiptID = claim.ID
 		m.ClaimID = claim.ClaimID
 		return w.u.Within(ctx, func(ctx context.Context, r ports.Repository) error { return r.AddMember(ctx, *claim, m) })
-	})
+	}
+	var err error
+	if verifier, ok := w.verify.(ports.ManifestVerifier); ok {
+		err = verifier.VerifyManifest(ctx, domain.Verification{Receipt: *claim, Files: claim.Files}, emit, func(d domain.Disposition) error {
+			return w.u.Within(ctx, func(ctx context.Context, r ports.Repository) error { return r.AddDisposition(ctx, *claim, d) })
+		})
+	} else {
+		err = w.verify.Verify(ctx, domain.Verification{Receipt: *claim, Files: claim.Files}, emit)
+	}
+	if ctx.Err() != nil {
+		return worked, ctx.Err()
+	}
 	code := ""
 	if err != nil {
 		code = "verification_failed"
@@ -373,6 +390,8 @@ func (w *Worker) Once(ctx context.Context) (worked bool, e error) {
 			code = d.Code
 		}
 	}
+	stopClaim()
+	ctx = parentCtx
 	e = w.u.Within(ctx, func(ctx context.Context, r ports.Repository) error { return r.FinishVerification(ctx, *claim, code) })
 	return worked, e
 }
@@ -414,4 +433,99 @@ func (s *Service) limit(actor, operation string) error {
 		return domain.Fail(429, "rate_limited", "Too many document receipt requests")
 	}
 	return nil
+}
+
+func (c *Consumer) Retain(ctx context.Context, actor, id, draft string) error {
+	if e := Live(ctx, c.r, actor, true); e != nil {
+		return e
+	}
+	v, e := owned(ctx, c.r, id, actor)
+	if e != nil {
+		return e
+	}
+	if e = available(v); e != nil {
+		return e
+	}
+	return c.r.RetainDraft(ctx, id, actor, draft)
+}
+func (c *Consumer) Receipts(ctx context.Context, actor, draft string) ([]domain.Receipt, error) {
+	if e := Live(ctx, c.r, actor, false); e != nil {
+		return nil, e
+	}
+	return c.r.DraftReceipts(ctx, draft)
+}
+func (c *Consumer) Publish(ctx context.Context, actor, id, draft string) (domain.Receipt, error) {
+	if e := Live(ctx, c.r, actor, true); e != nil {
+		return domain.Receipt{}, e
+	}
+	v, e := owned(ctx, c.r, id, actor)
+	if e != nil {
+		return v, e
+	}
+	if v.DraftID != draft || v.State != "ready" {
+		return v, domain.Stale
+	}
+	if e = c.r.PublishDraft(ctx, v, draft); e != nil {
+		return v, e
+	}
+	v.ConsumedBy = draft
+	v.State = "consumed"
+	return v, nil
+}
+
+func (c *Consumer) MemberInfo(ctx context.Context, r domain.Receipt, id string) (domain.Member, error) {
+	if e := c.r.Guard(ctx); e != nil {
+		return domain.Member{}, e
+	}
+	return c.r.MemberInfo(ctx, r, id)
+}
+
+func (c *Consumer) Dispositions(ctx context.Context, v domain.Receipt) ([]domain.Disposition, error) {
+	if e := c.r.Guard(ctx); e != nil {
+		return nil, e
+	}
+	return c.r.Dispositions(ctx, v)
+}
+
+func (s *Service) Original(ctx context.Context, token, id, fileID string) (out []byte, name string, e error) {
+	actor, e := s.a.Subject(ctx, token)
+	if e != nil {
+		return nil, "", e
+	}
+	if e = s.limit(actor, "read"); e != nil {
+		return nil, "", e
+	}
+	if e = domain.UUID(id); e != nil {
+		return nil, "", e
+	}
+	if e = domain.UUID(fileID); e != nil {
+		return nil, "", e
+	}
+	var file domain.File
+	e = s.u.Within(ctx, func(ctx context.Context, r ports.Repository) error {
+		if e := Live(ctx, r, actor, false); e != nil {
+			return e
+		}
+		if _, e := owned(ctx, r, id, actor); e != nil {
+			return e
+		}
+		var e error
+		file, e = r.File(ctx, id, fileID)
+		return e
+	})
+	if e != nil {
+		return nil, "", e
+	}
+	if file.ObjectKey == "" || file.State == "declared" || file.State == "uploading" {
+		return nil, "", domain.Missing
+	}
+	out, e = s.objects.Original(ctx, file.ObjectKey, file.Size, file.SHA256)
+	return out, file.Filename, e
+}
+
+func (c *Consumer) ReadyDrafts(ctx context.Context) ([]domain.Receipt, error) {
+	if e := c.r.Guard(ctx); e != nil {
+		return nil, e
+	}
+	return c.r.ReadyDrafts(ctx)
 }

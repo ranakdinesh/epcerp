@@ -84,14 +84,16 @@ sql:
       - internal/modules/auth/sql/migrations/000079_auth_credential_onboarding.up.sql
       - internal/modules/auth/sql/migrations/000080_auth_organisation.up.sql
       - internal/modules/auth/sql/migrations/000081_auth_offboarding.up.sql
-      - sql/migrations/000082_tender_owner_handover.up.sql
+      - internal/modules/tender_fms/sql/migrations/000082_tender_owner_handover.up.sql
       - internal/modules/auth/sql/migrations/000083_auth_personal_contact.up.sql
       - internal/modules/auth/sql/migrations/000084_auth_username_history.up.sql
-      - sql/migrations/000085_named_tender_foundation.up.sql
+      - internal/modules/tender_fms/sql/migrations/000085_named_tender_foundation.up.sql
       - sql/migrations/000086_document_packages.up.sql
-      - sql/migrations/000087_tender_capture.up.sql
+      - internal/modules/tender_fms/sql/migrations/000087_tender_capture.up.sql
       - sql/migrations/000088_tender_assignment_notices.up.sql
       - internal/modules/auth/sql/migrations/000089_auth_schema.up.sql
+      - internal/modules/tender_fms/sql/migrations/000090_tender_schema.up.sql
+      - internal/modules/tender_fms/sql/migrations/000091_document_drafts.up.sql
     queries: "internal/modules/health/adapters/outbound/sql/queries.sql"
     gen:
       go:
@@ -177,7 +179,7 @@ sql:
   - name: "tender_fms"
     engine: "postgresql"
     schema: *migration_history
-    queries: "internal/modules/tender_fms/adapters/outbound/sql/queries.sql"
+    queries: "internal/modules/tender_fms/sql/queries"
     gen:
       go:
         package: "db"

@@ -30,6 +30,17 @@ type DocumentPackageFile struct {
 	UpdatedByID        pgtype.UUID
 }
 
+type DocumentPackageManifest struct {
+	ID          pgtype.UUID
+	ReceiptID   pgtype.UUID
+	FileID      pgtype.UUID
+	ClaimID     pgtype.UUID
+	Path        string
+	Disposition string
+	ErrorCode   string
+	CreatedAt   pgtype.Timestamptz
+}
+
 type DocumentPackageMember struct {
 	ID                  pgtype.UUID
 	ReceiptID           pgtype.UUID
@@ -89,4 +100,6 @@ type DocumentPackageReceipt struct {
 	UpdatedAt            pgtype.Timestamptz
 	CreatedByID          pgtype.UUID
 	UpdatedByID          pgtype.UUID
+	DraftID              pgtype.UUID
+	PublishedAt          pgtype.Timestamptz
 }

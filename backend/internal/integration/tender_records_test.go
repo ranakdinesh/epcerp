@@ -75,7 +75,7 @@ func TestNamedTenderFoundationAccessEligibilityAndAtomicity(t *testing.T) {
 		t.Fatal("identity separation", one, two)
 	}
 	for _, id := range []string{one.ID, two.ID} {
-		execFixture(t, pool, "UPDATE tender_fms_intakes SET initial_sha256=$2 WHERE id=$1", id, strings.Repeat("a", 64))
+		execFixture(t, pool, "UPDATE tender.tender_fms_intakes SET initial_sha256=$2 WHERE id=$1", id, strings.Repeat("a", 64))
 	}
 	for _, id := range []string{sales, manager} {
 		if e := run(func(ctx context.Context, r contracts.Records) error { _, e := r.Read(ctx, id, one.ID); return e }); e != nil {
@@ -236,7 +236,7 @@ func TestNamedTenderFoundationAccessEligibilityAndAtomicity(t *testing.T) {
 	execFixture(t, pool, "UPDATE auth.users SET must_change_password=false WHERE id=$1", sales)
 	// Audit failure rolls back identity plus assignment and record history together.
 	var count, before int
-	if e := pool.QueryRow(ctx, "SELECT count(*) FROM tender_fms_intakes").Scan(&before); e != nil {
+	if e := pool.QueryRow(ctx, "SELECT count(*) FROM tender.tender_fms_intakes").Scan(&before); e != nil {
 		t.Fatal(e)
 	}
 	execFixture(t, pool, "UPDATE auth.users SET is_active=true WHERE id=$1", sales)
@@ -249,20 +249,20 @@ func TestNamedTenderFoundationAccessEligibilityAndAtomicity(t *testing.T) {
 	if e == nil {
 		t.Fatal("journal failure accepted")
 	}
-	if e = pool.QueryRow(ctx, "SELECT count(*) FROM tender_fms_intakes").Scan(&count); e != nil || count != before {
+	if e = pool.QueryRow(ctx, "SELECT count(*) FROM tender.tender_fms_intakes").Scan(&count); e != nil || count != before {
 		t.Fatal("partial capture", e, count, before)
 	}
 	// Old source/handover routes cannot treat named-manager ownership as a source grant.
-	if e = pool.QueryRow(ctx, "SELECT count(*) FROM tender_fms_intakes WHERE record_kind='legacy'").Scan(&count); e != nil || count != 0 {
+	if e = pool.QueryRow(ctx, "SELECT count(*) FROM tender.tender_fms_intakes WHERE record_kind='legacy'").Scan(&count); e != nil || count != 0 {
 		t.Fatal(e)
 	}
-	for _, q := range []string{"UPDATE tender_fms_manager_assignments SET reason='Tamper with evidence'", "DELETE FROM tender_fms_record_events", "TRUNCATE tender_fms_participant_grants"} {
+	for _, q := range []string{"UPDATE tender.tender_fms_manager_assignments SET reason='Tamper with evidence'", "DELETE FROM tender.tender_fms_record_events", "TRUNCATE tender.tender_fms_participant_grants"} {
 		if _, e = pool.Exec(ctx, q); e == nil {
 			t.Fatal("mutable evidence", q)
 		}
 	}
 	// Database constraints defend the current-manager reference and version floor.
-	for _, q := range []string{"UPDATE tender_fms_intakes SET business_version=0 WHERE id=$1", "UPDATE tender_fms_intakes SET owner_id='00000000-0000-0000-0000-000000000000' WHERE id=$1"} {
+	for _, q := range []string{"UPDATE tender.tender_fms_intakes SET business_version=0 WHERE id=$1", "UPDATE tender.tender_fms_intakes SET owner_id='00000000-0000-0000-0000-000000000000' WHERE id=$1"} {
 		if _, e = pool.Exec(ctx, q, one.ID); e == nil {
 			t.Fatal("invalid identity state accepted")
 		}
@@ -282,7 +282,7 @@ func TestNamedTenderFoundationAccessEligibilityAndAtomicity(t *testing.T) {
 		t.Fatal("inactive manager", e)
 	}
 	// Record reads did not advance business/content revisions.
-	if e = pool.QueryRow(ctx, "SELECT business_version FROM tender_fms_intakes WHERE id=$1", one.ID).Scan(&count); e != nil || count != 1 {
+	if e = pool.QueryRow(ctx, "SELECT business_version FROM tender.tender_fms_intakes WHERE id=$1", one.ID).Scan(&count); e != nil || count != 1 {
 		t.Fatal("read mutated revision", e, count)
 	}
 }

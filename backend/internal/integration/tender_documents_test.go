@@ -72,7 +72,7 @@ func TestTenderDocumentOwnershipQueueAndAtomicJournal(t *testing.T) {
 		t.Fatal("audit failure committed")
 	}
 	var count int
-	pool.QueryRow(ctx, "SELECT count(*) FROM tender_fms_intakes").Scan(&count)
+	pool.QueryRow(ctx, "SELECT count(*) FROM tender.tender_fms_intakes").Scan(&count)
 	if count != 0 {
 		t.Fatal("audit rollback")
 	}

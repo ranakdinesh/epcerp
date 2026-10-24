@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -32,6 +33,9 @@ type Objects struct {
 
 func (o Objects) Upload(ctx context.Context, key string, body domain.ByteStream, size int64, hash string) error {
 	e := o.Store.Upload(ctx, key, body, size, hash)
+	if errors.Is(e, infrastructure.ErrDocumentStorageFull) || errors.Is(e, syscall.ENOSPC) {
+		return domain.Fail(507, "storage_capacity", "Document storage is full; ask the administrator to free or increase capacity, then resume this upload")
+	}
 	if errors.Is(e, infrastructure.ErrDocumentIntegrity) {
 		return domain.Fail(422, "checksum_mismatch", "Uploaded bytes do not match the declared size and checksum")
 	}
@@ -48,7 +52,11 @@ func (s ClamdScanner) Scan(ctx context.Context, f *os.File) (string, error) {
 		return "", domain.Unavailable
 	}
 	dial := net.Dialer{Timeout: 3 * time.Second}
-	c, e := dial.DialContext(ctx, "unix", s.Socket)
+	network, address := "unix", s.Socket
+	if strings.HasPrefix(address, "tcp://") {
+		network, address = "tcp", strings.TrimPrefix(address, "tcp://")
+	}
+	c, e := dial.DialContext(ctx, network, address)
 	if e != nil {
 		return "", domain.Unavailable
 	}
@@ -96,7 +104,7 @@ func (s ClamdScanner) Scan(ctx context.Context, f *os.File) (string, error) {
 	if result != "stream: OK" {
 		return "", domain.Unavailable
 	}
-	version, e := dial.DialContext(ctx, "unix", s.Socket)
+	version, e := dial.DialContext(ctx, network, address)
 	if e != nil {
 		return "", domain.Unavailable
 	}
@@ -199,6 +207,26 @@ func safePath(p string) (string, error) {
 	return strings.ToLower(norm.NFC.String(path.Clean(trimmed))), nil
 }
 func (v Verifier) Verify(ctx context.Context, in domain.Verification, emit func(domain.Member) error) error {
+	return v.VerifyManifest(ctx, in, emit, func(domain.Disposition) error { return nil })
+}
+func (v Verifier) VerifyManifest(ctx context.Context, in domain.Verification, emit func(domain.Member) error, record func(domain.Disposition) error) (result error) {
+	current := domain.Disposition{}
+	note := func(file, path, state, code string) error {
+		return record(domain.Disposition{FileID: file, Path: strings.ToValidUTF8(strings.ReplaceAll(path, "\x00", "\\x00"), "?"), State: state, Code: code})
+	}
+	defer func() {
+		if result != nil && current.FileID != "" {
+			code := "verification_failed"
+			var d *domain.Error
+			if errors.As(result, &d) {
+				code = d.Code
+			}
+			if e := note(current.FileID, current.Path, "blocked", code); e != nil {
+				result = e
+			}
+		}
+	}()
+
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
 	seen := map[string]bool{}
@@ -279,9 +307,16 @@ func (v Verifier) Verify(ctx context.Context, in domain.Verification, emit func(
 		m.Payload = prepared.Ciphertext
 		m.PayloadSHA256 = prepared.CipherSHA256
 		m.SHA256 = prepared.SHA256
-		return emit(m)
+		if e = emit(m); e != nil {
+			return e
+		}
+		return note(f.ID, original, "verified", "")
 	}
 	for _, f := range in.Files {
+		current = domain.Disposition{FileID: f.ID, Path: f.Filename}
+		if e := note(f.ID, f.Filename, "listed", ""); e != nil {
+			return e
+		}
 		if e := v.Store.WithPlain(ctx, f.ObjectKey, f.Size, f.SHA256, func(source *os.File) error {
 			if _, e := v.Scanner.Scan(ctx, source); e != nil {
 				return e
@@ -299,8 +334,14 @@ func (v Verifier) Verify(ctx context.Context, in domain.Verification, emit func(
 			if len(z.File) == 0 || len(z.File) > 200 {
 				return domain.Fail(413, "member_limit", "ZIP has too many entries or is empty")
 			}
+			for _, entry := range z.File {
+				if e := note(f.ID, f.Filename+"/"+entry.Name, "listed", ""); e != nil {
+					return e
+				}
+			}
 			paths := map[string]bool{}
 			for _, entry := range z.File {
+				current = domain.Disposition{FileID: f.ID, Path: f.Filename + "/" + entry.Name}
 				n, e := safePath(entry.Name)
 				if e != nil {
 					return e
@@ -313,6 +354,9 @@ func (v Verifier) Verify(ctx context.Context, in domain.Verification, emit func(
 					return domain.Fail(422, "unsafe_archive_entry", "Encrypted archives, links and special entries are not supported")
 				}
 				if entry.Mode().IsDir() {
+					if e := note(f.ID, f.Filename+"/"+entry.Name, "directory", ""); e != nil {
+						return e
+					}
 					continue
 				}
 				if entry.UncompressedSize64 > uint64(domain.LeafBytes) || entry.CompressedSize64 == 0 || entry.UncompressedSize64 > entry.CompressedSize64*100 {
@@ -459,4 +503,13 @@ func (o Objects) Remove(ctx context.Context, key string) error {
 		return e
 	}
 	return o.Store.Remove(key)
+}
+
+func (o Objects) Original(ctx context.Context, key string, size int64, hash string) (out []byte, e error) {
+	e = o.Store.WithPlain(ctx, key, size, hash, func(f *os.File) error {
+		var e error
+		out, e = io.ReadAll(io.LimitReader(f, domain.ZipBytes+1))
+		return e
+	})
+	return
 }

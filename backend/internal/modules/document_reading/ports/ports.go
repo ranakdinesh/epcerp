@@ -33,3 +33,7 @@ type Codec interface {
 type UnitOfWork interface {
 	Within(context.Context, func(context.Context, Repository) error) error
 }
+
+type LeaseKeeper interface {
+	KeepClaim(context.Context, domain.Document) (context.Context, func())
+}

@@ -3,10 +3,14 @@ package app
 import (
 	"context"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure"
+	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
 	auth "github.com/ranakdinesh/epcERP/internal/modules/auth"
 	packages "github.com/ranakdinesh/epcERP/internal/modules/document_packages"
+	packagecontracts "github.com/ranakdinesh/epcERP/internal/modules/document_packages/contracts"
 	reading "github.com/ranakdinesh/epcERP/internal/modules/document_reading"
 	events "github.com/ranakdinesh/epcERP/internal/modules/event_delivery"
+	tenderout "github.com/ranakdinesh/epcERP/internal/modules/tender_fms/adapters/outbound"
+	tenderapp "github.com/ranakdinesh/epcERP/internal/modules/tender_fms/application"
 	"os"
 	"time"
 )
@@ -37,7 +41,13 @@ func RunPackageWorker(ctx context.Context) error {
 		if ctx.Err() != nil {
 			return nil
 		}
-		worked, e := module.Worker.Once(ctx)
+		worked, e := infrastructure.WithDocumentSlot(ctx, pool, func(job context.Context) (bool, error) { return module.Worker.Once(job) })
+		if e == nil {
+			unit := tenderout.NewDraftUnit(pool, auth.Assignments, func(c database.Connection) packagecontracts.DraftConsumer {
+				return packages.DraftConsumer(c, auth.Assignments(c))
+			}, reader.Reader, reader.PreparedReader)
+			e = tenderapp.NewDraftPublisher(unit).Once(ctx)
+		}
 		if e == nil {
 			e = module.Worker.Maintain(ctx, module.Objects)
 		}
