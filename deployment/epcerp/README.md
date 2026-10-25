@@ -1,5 +1,26 @@
 # Independent local epcERP Docker stack
 
+## Synthetic company AI evaluator
+
+The standalone `tsc-test.compose.yaml` builds the company/TSC fixture runner in a
+non-root, read-only, resource-bounded container. It has a separate network/results
+volume, no application credentials or database mounts, and no published ports.
+It does not add a Common administration or TSC generation screen to the frontend.
+
+From the repository root:
+
+```powershell
+docker compose -f deployment/epcerp/tsc-test.compose.yaml build
+docker compose -f deployment/epcerp/tsc-test.compose.yaml run --rm tsc-ai-test
+```
+
+The default command validates fixture data without inference. For an explicitly
+selected model already running on the host, use `--ollama-host host.docker.internal`
+with `--model`, `--case` and `--output /results/NEW_FILENAME.json`. See
+`backend/testdata/tsc_company/README.md` for the complete command and result copying.
+No cloud fallback, model download or operational seed is performed.
+
+
 The object-storage image uses `storage.Dockerfile` in this directory. Its Compose
 build context is `.`; the Go stack no longer needs `deployment/docker/`.
 

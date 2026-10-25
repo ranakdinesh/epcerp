@@ -1,0 +1,83 @@
+{
+  "fixture_version": "1.0",
+  "synthetic": true,
+  "purpose": "Offline AI evaluation only; never import as operational company data",
+  "evaluation_date": "2026-10-25",
+  "company": {
+    "id": "SAMPLE-COMPANY-001",
+    "legal_name": "SAMPLE ONLY Example Electrical EPC Private Limited",
+    "business": ["Electrical EPC", "Illumination", "Solar installation"],
+    "registered_state": "Maharashtra",
+    "registered_city": "Pune",
+    "gstin": null,
+    "pan": null,
+    "cin": null,
+    "is_active": true,
+    "created_by_id": null,
+    "updated_by_id": null,
+    "provenance": "Invented test company; no connection to any real legal entity"
+  },
+  "credentials": [
+    {
+      "id": "CREDENTIAL-MSME-001",
+      "kind": "udyam",
+      "number": "SAMPLE-NOT-A-VALID-REGISTRATION",
+      "enterprise_category": "small",
+      "activity": "services",
+      "effective_from": "2024-04-01",
+      "valid_until": null,
+      "review_state": "fixture_reviewed",
+      "evidence_id": "COMPANY-REGISTRATION",
+      "locator": "section 1"
+    },
+    {
+      "id": "LICENCE-MH-001",
+      "kind": "electrical_contractor_licence",
+      "number": "SAMPLE-MH-LICENCE-001",
+      "state": "Maharashtra",
+      "maximum_voltage_kv": "33.00",
+      "effective_from": "2025-04-01",
+      "valid_until": "2027-03-31",
+      "review_state": "fixture_reviewed",
+      "evidence_id": "COMPANY-LICENCES",
+      "locator": "section 1"
+    },
+    {
+      "id": "LICENCE-UP-001",
+      "kind": "electrical_contractor_licence",
+      "number": "SAMPLE-UP-LICENCE-001",
+      "state": "Uttar Pradesh",
+      "maximum_voltage_kv": "11.00",
+      "effective_from": "2024-04-01",
+      "valid_until": "2026-03-31",
+      "review_state": "fixture_reviewed",
+      "evidence_id": "COMPANY-LICENCES",
+      "locator": "section 2"
+    }
+  ],
+  "financial_years": [
+    {"year": "2022-2023", "currency": "INR", "turnover_excluding_gst": "120000000.00", "net_worth": "30000000.00", "review_state": "fixture_reviewed", "evidence_id": "COMPANY-ACCOUNTS", "locator": "row FY2022-2023"},
+    {"year": "2023-2024", "currency": "INR", "turnover_excluding_gst": "150000000.00", "net_worth": "38000000.00", "review_state": "fixture_reviewed", "evidence_id": "COMPANY-ACCOUNTS", "locator": "row FY2023-2024"},
+    {"year": "2024-2025", "currency": "INR", "turnover_excluding_gst": "180000000.00", "net_worth": "45000000.00", "review_state": "fixture_reviewed", "evidence_id": "COMPANY-ACCOUNTS", "locator": "row FY2024-2025"}
+  ],
+  "financial_certificates": [
+    {"id": "SOLVENCY-001", "kind": "solvency", "currency": "INR", "amount": "40000000.00", "issued_on": "2026-06-01", "valid_until": "2027-05-31", "review_state": "fixture_reviewed", "evidence_id": "COMPANY-BANK", "locator": "section 1"}
+  ],
+  "work_experience": [
+    {"id": "WORK-001", "description": "Completed LED street-light supply installation testing and commissioning", "state": "Maharashtra", "completed_on": "2025-02-15", "currency": "INR", "executed_value_excluding_gst": "48000000.00", "company_share_percent": "100.00", "completion_evidence_available": true, "review_state": "fixture_reviewed", "evidence_id": "COMPANY-EXPERIENCE", "locator": "work 1"},
+    {"id": "WORK-002", "description": "Completed LED street-light supply installation testing and commissioning", "state": "Gujarat", "completed_on": "2024-08-20", "currency": "INR", "executed_value_excluding_gst": "33000000.00", "company_share_percent": "100.00", "completion_evidence_available": true, "review_state": "fixture_reviewed", "evidence_id": "COMPANY-EXPERIENCE", "locator": "work 2"},
+    {"id": "WORK-003", "description": "Completed rooftop solar installation", "state": "Maharashtra", "completed_on": "2023-12-10", "currency": "INR", "executed_value_excluding_gst": "18000000.00", "company_share_percent": "100.00", "completion_evidence_available": true, "review_state": "fixture_reviewed", "evidence_id": "COMPANY-EXPERIENCE", "locator": "work 3"}
+  ],
+  "oem_authorisations": [
+    {"id": "OEM-001", "manufacturer": "SAMPLE ONLY Luminaire Manufacturer", "scope": "LED street lights", "issued_on": "2025-10-01", "valid_until": "2026-09-30", "review_state": "fixture_reviewed", "evidence_id": "COMPANY-OEM", "locator": "section 1"}
+  ],
+  "missing_evidence": ["Startup registration", "FY2025-2026 annual accounts", "Working-capital certificate", "Current Uttar Pradesh licence", "Current OEM authorisation", "Site safety assessment", "Client payment regularity evidence"],
+  "evidence": [
+    {"id": "COMPANY-REGISTRATION", "revision": "1", "synthetic": true, "text": "Section 1. SAMPLE ONLY company has a synthetic Udyam registration categorised as small enterprise, services activity, effective 2024-04-01. This does not establish an exemption for any particular tender. No Startup registration evidence is supplied."},
+    {"id": "COMPANY-LICENCES", "revision": "1", "synthetic": true, "text": "Section 1. Maharashtra electrical contractor licence SAMPLE-MH-LICENCE-001 covers up to 33 kV, effective 2025-04-01 through 2027-03-31. Section 2. Uttar Pradesh licence SAMPLE-UP-LICENCE-001 covers up to 11 kV, effective 2024-04-01 through 2026-03-31. No renewal evidence is supplied."},
+    {"id": "COMPANY-ACCOUNTS", "revision": "1", "synthetic": true, "text": "Synthetic reviewed annual accounts. FY2022-2023: turnover excluding GST INR 120000000.00; net worth INR 30000000.00. FY2023-2024: turnover excluding GST INR 150000000.00; net worth INR 38000000.00. FY2024-2025: turnover excluding GST INR 180000000.00; net worth INR 45000000.00. FY2025-2026 accounts are not supplied. Figures must not be substituted across financial years."},
+    {"id": "COMPANY-BANK", "revision": "1", "synthetic": true, "text": "Section 1. Synthetic solvency certificate amount INR 40000000.00, issued 2026-06-01, valid through 2027-05-31. This is a solvency certificate, not a working-capital certificate. No working-capital certificate is supplied."},
+    {"id": "COMPANY-EXPERIENCE", "revision": "1", "synthetic": true, "text": "Work 1: LED street-light supply installation testing and commissioning in Maharashtra, completed 2025-02-15; executed value excluding GST INR 48000000.00; company share 100 percent; synthetic completion certificate supplied. Work 2: LED street-light supply installation testing and commissioning in Gujarat, completed 2024-08-20; executed value excluding GST INR 33000000.00; company share 100 percent; synthetic completion certificate supplied. Work 3: rooftop solar installation in Maharashtra, completed 2023-12-10; executed value excluding GST INR 18000000.00; company share 100 percent; synthetic completion certificate supplied."},
+    {"id": "COMPANY-OEM", "revision": "1", "synthetic": true, "text": "Section 1. Synthetic OEM authorisation for LED street lights issued 2025-10-01 expires 2026-09-30. No renewed authorisation is supplied."}
+  ]
+}
