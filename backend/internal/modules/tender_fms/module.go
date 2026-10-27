@@ -2,9 +2,11 @@
 package tender_fms
 
 import (
+	"fmt"
 	notices "github.com/ranakdinesh/epcERP/internal/modules/communication_inbox/contracts"
 	packages "github.com/ranakdinesh/epcERP/internal/modules/document_packages/contracts"
 	"net/http"
+	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure"
@@ -37,7 +39,7 @@ type Dependencies struct {
 
 type Module struct{}
 
-func New(dependencies Dependencies) *Module {
+func New(dependencies Dependencies) (*Module, error) {
 	documents := func(connection database.Connection) ports.Documents {
 		return outbound.NewDocuments(dependencies.Reader(connection), dependencies.Validator)
 	}
@@ -45,6 +47,11 @@ func New(dependencies Dependencies) *Module {
 	inbound.Register(dependencies.Router, service)
 	if dependencies.DraftPackages != nil {
 		inbound.RegisterDrafts(dependencies.Router, application.NewDrafts(outbound.NewDraftUnit(dependencies.Database, dependencies.Users, dependencies.DraftPackages, dependencies.Reader, dependencies.PreparedReader), outbound.NewAuthBridge(dependencies.Identity)).WithLimits(infrastructure.NewTenderLimits()))
+		tsc, e := NewTSC(dependencies)
+		if e != nil {
+			return nil, e
+		}
+		inbound.RegisterTSC(dependencies.Router, tsc.WithLimits(infrastructure.NewTSCLimits()))
 	}
 	if dependencies.Packages != nil && dependencies.PreparedReader != nil && dependencies.Notices != nil {
 		foundation := func(c database.Connection) contracts.Records {
@@ -60,7 +67,34 @@ func New(dependencies Dependencies) *Module {
 	dependencies.Router.AddPayloadPolicy(func(request *http.Request) bool {
 		return request.Method == http.MethodPost && inbound.IsUploadPath(request.URL.Path)
 	}, inbound.UploadBytes+(64<<10), inbound.UploadGuard(service))
-	return &Module{}
+	return &Module{}, nil
+}
+
+// NewTSC composes the same capability for HTTP and the dedicated durable worker.
+func NewTSC(d Dependencies) (*application.TSC, error) {
+	cipher, e := infrastructure.NewDocumentCipher(os.Getenv("EPCERP_DOCUMENT_READING_KEY"))
+	if e != nil {
+		return nil, e
+	}
+	provider, e := outbound.NewTSCOllama(os.Getenv("EPCERP_TSC_OLLAMA_URL"), os.Getenv("EPCERP_TSC_MODEL"), os.Getenv("EPCERP_TSC_MODEL_DIGEST"))
+	if e != nil {
+		return nil, e
+	}
+	if provider.Model() != "" && os.Getenv("VTPL_ENVIRONMENT") != "development" {
+		return nil, fmt.Errorf("local TSC inference is development only")
+	}
+	drafts := outbound.NewDraftUnit(d.Database, d.Users, d.DraftPackages, d.Reader, d.PreparedReader)
+	providers := map[string]ports.TSCProvider{}
+	if os.Getenv("EPCERP_TSC_CLOUD_APPROVED") == "true" {
+		for mode, key := range map[string]string{"gemini": os.Getenv("EPCERP_TSC_GEMINI_API_KEY"), "openai": os.Getenv("EPCERP_TSC_OPENAI_API_KEY")} {
+			cloud, err := outbound.NewTSCCloud(mode, key)
+			if err != nil {
+				return nil, err
+			}
+			providers[mode] = cloud
+		}
+	}
+	return application.NewTSC(outbound.NewTSCUnit(drafts, cipher, d.Events), outbound.NewAuthBridge(d.Identity), provider, outbound.TSCExporter{}).WithProviders(providers), nil
 }
 
 func WorkInventory(c database.Connection) auth.WorkSource { return outbound.NewWorkInventory(c) }

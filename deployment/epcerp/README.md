@@ -1,5 +1,26 @@
 # Independent local epcERP Docker stack
 
+## TSC draft worker
+
+Migration 92 and matching API/frontend images provide unapproved 70-question TSC
+drafts in each document draft's reading panel. Start the separate `tsc-worker`
+service alongside existing document workers. Manual mode works without an LLM;
+all retained sources must finish reading before generation. The Auth registry
+adds tenders.tsc.read/write/export without expanding ordinary roles.
+
+Optional development inference requires an already installed local model with
+`EPCERP_TSC_MODEL` set to its exact tagged name and `EPCERP_TSC_MODEL_DIGEST` to its
+SHA256 weight digest. `EPCERP_TSC_OLLAMA_URL` defaults to Docker's local host alias;
+no model is downloaded and no cloud fallback is enabled. Missing model configuration
+returns a visible error; users can explicitly choose manual mode. Preserve the
+existing document-reading encryption key for TSC snapshots too.
+
+The API image includes `/app/tsc-worker`. It shares the database-backed heavy job
+slot, uses bounded claims/attempts and retains restart recovery. A new source
+revision blocks editing/export of the previous snapshot. Exported DOCX files are
+drafts; company eligibility, actual BOQ population and final approval are separate.
+See `docs/GO_TSC_DRAFT_SLICE.md` for limits, test evidence and pending work.
+
 ## Synthetic company AI evaluator
 
 The standalone `tsc-test.compose.yaml` builds the company/TSC fixture runner in a
@@ -206,3 +227,92 @@ before writing reconciliation manifests. A source snapshot containing document b
 is sensitive: keep it outside Git and use the existing private snapshot handling.
 Historical source names in older snapshot files/manifests describe provenance only;
 they are not live connections. No import or new approval was run during this repair.
+# Local ingestion verification update (26 October 2026)
+
+The local ingestion-v1 API, frontend and document-worker images include structured
+source preparation and TSC retrieval diagnostics. Generate a **new** TSC with
+Local AI proposals to apply normalization to retained readings; existing snapshots
+are preserved. Inspect Source preparation and Evidence retrieved, and download
+the source evidence Markdown alongside the draft DOCX. No migration is required.
+See `docs/GO_TSC_INGESTION_IMPROVEMENT.md` from the repository root. Local rollback
+images retain the `before-ingestion-v1` tag for all three services. Production
+semantic accuracy/capacity acceptance remains pending; no cloud fallback is enabled.
+# Low-cost TSC providers and question research (27 October 2026)
+
+Source search is CPU-only and free of model charges. Production does not require
+Ollama. The current development weights (20/40 GiB) cannot fit an 8-GiB server.
+Keep `EPCERP_TSC_MODEL` and `EPCERP_TSC_MODEL_DIGEST` empty in production.
+
+Cloud proposals use fixed HTTPS endpoints, no tools/web search, no automatic
+provider switch or paid retry, at most 32 KiB/request and 2048 output tokens.
+The allowlist is Gemini `gemini-3.1-flash-lite` and OpenAI `gpt-6-luna`.
+OpenAI API billing is separate from a ChatGPT subscription.
+
+Configure secrets in the private deployment environment/secret store, never in
+Git or browser components:
+
+- `EPCERP_TSC_GEMINI_API_KEY`: Gemini API key with an approved paid/private data policy.
+- `EPCERP_TSC_OPENAI_API_KEY`: optional separate OpenAI API key.
+- `EPCERP_TSC_CLOUD_APPROVED=true`: explicit approval for sending authorised
+  retained source excerpts to configured providers. Default false; leave false
+  until the organisation has approved the provider, document scope and retention.
+
+Apply matching environment to API and TSC worker; recreate both after changing
+configuration. Keys are never returned by the options API. Absent keys leave their
+choices visibly unavailable. Manual completion and source search still work.
+
+Migration 93 adds a transactionally reserved INR 100 ceiling per tender draft,
+shared across all generations/research requests and source revisions. Each Gemini
+request retains INR 1.50; OpenAI retains INR 0.60. These are conservative allowances,
+not invoiced spend. Unknown/failed outcomes retain allowances and are not resent
+on replay. Successful validated responses are encrypted and reused for the same
+operation. Review prices/FX before enabling; the bounds use published standard
+text pricing on 27 October and INR 100/USD. Larger/new models are intentionally
+not configurable until their budget bounds are reviewed. Cloud OCR is separate
+and is not enabled by this flag.
+
+Question flow: open Generate TSC -> question -> Search sources for this question
+-> optional extra terms -> free source search -> optional provider proposal ->
+Use proposal in answer -> review citations -> check Accepted to save and lock.
+Uncheck Accepted to reopen for editing/re-query; the application records the actor
+and audit reason automatically.
+No proposal auto-saves or approves a decision. Existing source/answer versions and
+live permissions are checked before and after provider I/O. Completed-checklist
+filenames are excluded from new TSC snapshots; historical snapshots are immutable.
+
+Before migration, stop source writers and take/validate a private full backup.
+Migration 93 preserves historical rows; downgrade refuses retained cloud evidence.
+Native disposable tests cover upgrade/rollback, budget concurrency, encrypted
+replay, request rollback, live revocation and stale sources. A full 8-GiB stack
+load/ClamAV signature-reload test is still required before a client deployment;
+an isolated OCR pass is not full-stack capacity acceptance.
+
+
+## TSC review and export completion (27 October 2026)
+
+The upload area supports visible Add documents, incremental file selection,
+drag/drop, removal and the Upload action. Step 2 provides side-by-side question
+editing and consolidated source Markdown, per-question source search/model
+proposals, exact citations, answer filters and draft DOCX/source-MD downloads.
+Accepted answers are persisted and locked server-side until explicitly reopened;
+source changes invalidate editing/export of previous snapshots.
+
+Generated answers request concise checklist lines, with explanations retained in
+supporting evidence. DOCX cells contain actual supported answer text or remain
+blank; status-only responses such as answered/Not found/Needs review are never
+printed as answers, and future status-only answered proposals are rejected.
+App theme switching controls dark/light utilities independently of OS preference.
+
+Native Go tests cover scope, versions, rollback, encryption, worker leases,
+accept/reopen audit, cloud reservation concurrency and encrypted replay. Frontend
+types/lint/tests, production builds, desktop/mobile browser checks and rendered
+DOCX verification were performed locally. Company test fixtures remain invented
+and disconnected from operations. Real Common/company evidence matching, BOQ
+population and final review/approval are unfinished.
+
+An authorised Gemini comparison showed useful completion/pre-bid retrieval
+improvements, but provider failures and fee-versus-EMD confusion remain limitations.
+Reserved allowances are not actual invoices. Provider HTTP error classification,
+request pacing and persisted token-usage accounting are pending; do not advertise
+this sample as production accuracy or measured invoice cost. Operational sample
+files, API keys and private local deployment configuration are excluded from Git.

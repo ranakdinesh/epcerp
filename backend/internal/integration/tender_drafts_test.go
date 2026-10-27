@@ -219,6 +219,7 @@ func TestDocumentDraftRetentionPublicationRecoveryAndScope(t *testing.T) {
 	if _, e = service.Artifact(ctx, "outsider", draft.ID, doc.ID, "original"); !errors.Is(e, tenderdomain.Missing) {
 		t.Fatal("original leaked", e)
 	}
+	verifyTSCNative(t, ctx, pool, unit, identity, journal, cipher, loaded, owner, role)
 	// A second immutable batch is independently retained. Identical bytes reuse
 	// the same scoped reading while preserving both source occurrences and names.
 	second, _, e := ps.Create(ctx, "owner", ids.ID(), []packagedomain.Declaration{{ClientKey: ids.ID(), Filename: "reissued.pdf", Kind: "pdf", Size: int64(len(data)), SHA256: packageHash(data)}})

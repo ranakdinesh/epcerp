@@ -84,3 +84,43 @@ type TenderTenderSourceAction struct {
 	CreatedByID       pgtype.UUID
 	UpdatedByID       pgtype.UUID
 }
+
+type TenderTscCloudCall struct {
+	ID            pgtype.UUID
+	DraftID       pgtype.UUID
+	JobID         pgtype.UUID
+	ActorID       pgtype.UUID
+	RequestKey    string
+	Fingerprint   string
+	Provider      string
+	Model         string
+	ReservedPaise int64
+	State         string
+	ErrorCode     string
+	ResultCipher  []byte
+	ResultHash    pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type TenderTscJob struct {
+	ID           pgtype.UUID
+	DraftID      pgtype.UUID
+	DraftVersion int64
+	ActorID      pgtype.UUID
+	OperationKey pgtype.UUID
+	Mode         string
+	Model        string
+	State        string
+	Version      int64
+	Attempts     int32
+	ClaimID      pgtype.UUID
+	LeaseUntil   pgtype.Timestamptz
+	ErrorCode    string
+	InputCipher  []byte
+	InputHash    string
+	ResultCipher []byte
+	ResultHash   pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}

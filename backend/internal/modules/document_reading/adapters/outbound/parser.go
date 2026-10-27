@@ -26,7 +26,7 @@ const legacyOfficeProfile = `<?xml version="1.0" encoding="UTF-8"?>
 type Parser struct{}
 
 func (Parser) Read(ctx context.Context, data []byte, format, hash string) (domain.Result, error) {
-	r := domain.Result{Schema: domain.ReaderVersion, ReaderVersion: "epcerp-reading-v2", SourceSHA256: hash, Segments: []domain.Segment{}, Warnings: []string{}}
+	r := domain.Result{Schema: domain.ReaderVersion, ReaderVersion: "epcerp-reading-v3", SourceSHA256: hash, Segments: []domain.Segment{}, Warnings: []string{}}
 	if e := (Inspector{}).Inspect(data, format); e != nil {
 		return r, e
 	}

@@ -64,6 +64,8 @@ type Segment struct {
 	Label          string   `json:"label"`
 	Text           string   `json:"text"`
 	NativeText     string   `json:"native_text,omitempty"`
+	OCRText        string   `json:"ocr_text,omitempty"`
+	OCRConfidence  *float64 `json:"ocr_confidence,omitempty"`
 	Method         string   `json:"method"`
 	Confidence     *float64 `json:"confidence,omitempty"`
 	Words          []Word   `json:"words,omitempty"`

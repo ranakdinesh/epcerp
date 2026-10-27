@@ -1,7 +1,9 @@
 # Common company evidence and answered TSC documents
 
-Date: 25 October 2026. Status: implementation specification. Common, company
-evidence administration and answered TSC generation are not yet implemented.
+Date: 25 October 2026. Status: Common/company implementation specification with
+the first unapproved TSC draft increment implemented in source. See
+`GO_TSC_DRAFT_SLICE.md` for actual scope and verification; company administration,
+BOQ extraction and final review remain unfinished.
 
 Synthetic evaluation data is available at `backend/testdata/tsc_company`: an
 invented company profile/evidence set, ten independent tender-clause cases and
@@ -185,12 +187,14 @@ one shared transaction/context. No network/model/render work inside that transac
   links, permissions, migrations/sqlc, audit, native DB tests and frozen grid/drawers.
 - [ ] C2: transfer existing state/city service/query ownership with compatibility
   routes and published Common references; prove unchanged data/FKs/permissions.
-- [ ] T1: deliver the versioned 70-question/eight-row registry, manually editable
-  source-linked answers and template-preserving draft DOCX export.
+- [x] T1a: implement the versioned 70-question registry, persistent jobs, manual
+  source-linked draft correction and company-template DOCX export.
+- [ ] T1b: complete actual BOQ item/make extraction and continuation acceptance.
 - [ ] T2: add bounded optional provider proposals, validated source citations,
   persistent work/recovery, cross-document conflicts and revision invalidation.
-  Local Ollama versus manual-first is awaiting the user's answer. No cloud
-  transmission follows from the presence of an environment variable.
+  The first local Ollama adapter is implemented with manual fallback by explicit
+  user selection; real-model benchmark and semantic extraction acceptance remain.
+  No cloud transmission follows from the presence of an environment variable.
 - [ ] T3: deliver accountable Manager review/finalisation, approved snapshots and
   complete browser/real-tender acceptance without bypassing assignment contracts.
 

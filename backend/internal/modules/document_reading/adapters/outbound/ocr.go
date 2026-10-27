@@ -83,6 +83,20 @@ func readPDF(ctx context.Context, path, dir string, r *domain.Result) error {
 			if segment.Confidence != nil && *segment.Confidence < 70 {
 				r.Warnings = append(r.Warnings, segment.Label+": low OCR confidence; compare with the original before using figures or dates.")
 			}
+			if domain.PreferNativeText(text, segment.Text, segment.Confidence) {
+				segment.OCRText = segment.Text
+				segment.OCRConfidence = segment.Confidence
+				segment.Text = text
+				segment.Method = "native_with_ocr_alternative"
+				segment.Confidence = nil
+				segment.Words = nil
+				segment.CoordinateUnit = ""
+				if bbox, err := command(ctx, 8<<20, "pdftotext", "-f", n, "-l", n, "-bbox-layout", path, "-"); err == nil {
+					segment.Words = pdfWords(bbox)
+					segment.CoordinateUnit = "pdf_points"
+				}
+				r.Warnings = append(r.Warnings, segment.Label+": clean native text retained as primary; low-confidence OCR preserved as an alternative.")
+			}
 		} else {
 			bbox, e := command(ctx, 8<<20, "pdftotext", "-f", n, "-l", n, "-bbox-layout", path, "-")
 			if e == nil {

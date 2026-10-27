@@ -94,6 +94,8 @@ sql:
       - internal/modules/auth/sql/migrations/000089_auth_schema.up.sql
       - internal/modules/tender_fms/sql/migrations/000090_tender_schema.up.sql
       - internal/modules/tender_fms/sql/migrations/000091_document_drafts.up.sql
+      - internal/modules/tender_fms/sql/migrations/000092_tsc_drafts.up.sql
+      - internal/modules/tender_fms/sql/migrations/000093_tsc_cloud_budget.up.sql
     queries: "internal/modules/health/adapters/outbound/sql/queries.sql"
     gen:
       go:

@@ -7,7 +7,7 @@ import { EnvelopeIcon, HomeIcon, FolderIcon, BuildingOfficeIcon, TagIcon, GlobeA
 import { PersonalAccountDialog, UserIdentity } from "@/components/personal-profile";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import "./go-workspace.css";
 import { ProcessNavigation } from "@/components/processes/process-navigation";
@@ -76,6 +76,7 @@ export default function DashboardPage() {
   function toggleTheme() { const theme = dark ? "light" : "dark"; document.documentElement.dataset.theme = theme; savePreference("epcerp-theme", theme); }
   useEffect(() => { function dismiss(e: MouseEvent | KeyboardEvent) { if (e instanceof KeyboardEvent ? e.key === "Escape" : !accountMenu.current?.contains(e.target as Node)) accountMenu.current?.removeAttribute("open"); } document.addEventListener("click", dismiss); document.addEventListener("keydown", dismiss); return () => { document.removeEventListener("click", dismiss); document.removeEventListener("keydown", dismiss); }; }, []);
   const params = useSearchParams();
+  const router = useRouter();
   const permissions = new Set(user.permissions);
   const visible = navigation.filter(item => permissions.has("system:admin") || (permissions.has(item.permission) || (item.screen === "suppliers" && permissions.has("accounts.vendor_verification.view"))));
   const selected = visible.find(item => item.screen === params.get("screen"));
@@ -90,7 +91,7 @@ export default function DashboardPage() {
     if (response.ok) window.location.assign("/login?session=signed-out");
   }
   function navLinks(mobile = false) {
-    if (process) return <ProcessNavigation key={process.screen} process={process} selected={processStep} mapSelected={mapSelected} workPackages={workPackages} projectId={params.get("project") ?? undefined} close={() => { if (mobile) mobileNav.current?.close(); }} />;
+    if (process) return <ProcessNavigation key={process.screen} process={process} selected={processStep} mapSelected={mapSelected} workPackages={workPackages} projectId={params.get("project") ?? undefined} draftId={params.get("draft") ?? undefined} close={() => { if (mobile) mobileNav.current?.close(); }} />;
     return <>
     <Link href="/dashboard" title="Workspace" aria-label="Workspace" aria-current={screen === "overview" ? "page" : undefined} onClick={() => { if (mobile) mobileNav.current?.close(); }}><HomeIcon aria-hidden="true" /><span>Workspace</span></Link>
     {[...new Set(visible.map(item => item.group))].map(group => <div key={group}><p>{group}</p>{visible.filter(item => item.group === group).map(item => { const Icon=icons[item.screen]; return <Link key={item.screen} href={`/dashboard?screen=${item.screen}`} title={item.label} aria-label={item.label} aria-current={screen === item.screen ? "page" : undefined} onClick={() => { if (mobile) mobileNav.current?.close(); }}><Icon aria-hidden="true" /><span>{item.label}</span></Link>; })}</div>)}
@@ -117,7 +118,7 @@ export default function DashboardPage() {
           : screen === "clients" ? <Clients />
           : screen === "holidays" ? <HolidayCalendar/>
           : screen === "suppliers" ? <Suppliers />
-          : screen === "tender-fms" ? <TenderFMS />
+          : screen === "tender-fms" ? <TenderFMS step={processStep?.code} draftID={params.get("draft") ?? undefined} onSelectStep={step=>{const next=new URLSearchParams(params.toString());next.set("step",step);router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} onSelectDraft={id=>{const next=new URLSearchParams(params.toString());if(id)next.set("draft",id);else next.delete("draft");router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} />
           : screen === "items" ? <Items />
           : screen === "manufacturers" ? <Manufacturers />
           : screen === "categories" ? <Categories />

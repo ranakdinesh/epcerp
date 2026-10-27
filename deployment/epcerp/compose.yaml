@@ -28,6 +28,12 @@ x-api: &api
     VTPL_CORS_ORIGINS: http://localhost:9092,http://127.0.0.1:9092
     VTPL_FORCE_HTTPS: "false"
     VTPL_LOG_LEVEL: info
+    EPCERP_TSC_OLLAMA_URL: ${EPCERP_TSC_OLLAMA_URL:-http://host.docker.internal:11434}
+    EPCERP_TSC_MODEL: ${EPCERP_TSC_MODEL:-}
+    EPCERP_TSC_MODEL_DIGEST: ${EPCERP_TSC_MODEL_DIGEST:-}
+    EPCERP_TSC_CLOUD_APPROVED: ${EPCERP_TSC_CLOUD_APPROVED:-false}
+    EPCERP_TSC_GEMINI_API_KEY: ${EPCERP_TSC_GEMINI_API_KEY:-}
+    EPCERP_TSC_OPENAI_API_KEY: ${EPCERP_TSC_OPENAI_API_KEY:-}
     VTPL_STORAGE_ENDPOINT: storage:9000
     VTPL_STORAGE_ACCESS_KEY: epcerp_storage
     VTPL_STORAGE_SECRET_KEY: ${EPCERP_STORAGE_SECRET:?Run setup.sh first}
@@ -177,6 +183,40 @@ services:
         condition: service_healthy
     healthcheck:
       test: [CMD-SHELL, 'kill -0 1 && pgrep -f /app/document-package-worker >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  tsc-worker:
+    image: epcerp-api:local
+    command: [/app/tsc-worker]
+    restart: unless-stopped
+    init: true
+    read_only: true
+    environment:
+      EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
+      EPCERP_TSC_OLLAMA_URL: ${EPCERP_TSC_OLLAMA_URL:-http://host.docker.internal:11434}
+      EPCERP_TSC_MODEL: ${EPCERP_TSC_MODEL:-}
+      EPCERP_TSC_MODEL_DIGEST: ${EPCERP_TSC_MODEL_DIGEST:-}
+      EPCERP_TSC_CLOUD_APPROVED: ${EPCERP_TSC_CLOUD_APPROVED:-false}
+      EPCERP_TSC_GEMINI_API_KEY: ${EPCERP_TSC_GEMINI_API_KEY:-}
+      EPCERP_TSC_OPENAI_API_KEY: ${EPCERP_TSC_OPENAI_API_KEY:-}
+      VTPL_ENVIRONMENT: development
+      VTPL_LOG_LEVEL: info
+    networks: [default, reading_internal]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD-SHELL, 'kill -0 1 && grep -q tsc-worker /proc/1/cmdline']
       interval: 10s
       timeout: 5s
       retries: 15

@@ -2,6 +2,9 @@
 @import "../components/purchasing/purchase-bo-workspace.css";
 @import "./compact-ui.css";
 
+/* The app toggle owns the theme, independently of the operating-system theme. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   --surface-ink: #162531;
   --surface-accent: #164fc7;

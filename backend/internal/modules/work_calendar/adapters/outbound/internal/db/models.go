@@ -2345,6 +2345,58 @@ type TenderTenderSourceLink struct {
 	CreatedByID pgtype.UUID
 }
 
+type TenderTscCloudCall struct {
+	ID            pgtype.UUID
+	DraftID       pgtype.UUID
+	JobID         pgtype.UUID
+	ActorID       pgtype.UUID
+	RequestKey    string
+	Fingerprint   string
+	Provider      string
+	Model         string
+	ReservedPaise int64
+	State         string
+	ErrorCode     string
+	ResultCipher  []byte
+	ResultHash    pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type TenderTscEvent struct {
+	ID           pgtype.UUID
+	JobID        pgtype.UUID
+	Action       string
+	Version      int64
+	Reason       string
+	ResultCipher []byte
+	ResultHash   pgtype.Text
+	CreatedByID  pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+type TenderTscJob struct {
+	ID           pgtype.UUID
+	DraftID      pgtype.UUID
+	DraftVersion int64
+	ActorID      pgtype.UUID
+	OperationKey pgtype.UUID
+	Mode         string
+	Model        string
+	State        string
+	Version      int64
+	Attempts     int32
+	ClaimID      pgtype.UUID
+	LeaseUntil   pgtype.Timestamptz
+	ErrorCode    string
+	InputCipher  []byte
+	InputHash    string
+	ResultCipher []byte
+	ResultHash   pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
 type WorkCalendarChange struct {
 	ID          pgtype.UUID
 	HolidayID   pgtype.UUID
