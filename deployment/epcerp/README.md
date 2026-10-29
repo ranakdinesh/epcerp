@@ -316,3 +316,27 @@ Reserved allowances are not actual invoices. Provider HTTP error classification,
 request pacing and persisted token-usage accounting are pending; do not advertise
 this sample as production accuracy or measured invoice cost. Operational sample
 files, API keys and private local deployment configuration are excluded from Git.
+
+## Combined local development preview
+
+During development, build this stack from `codex/development`, which integrates
+the current feature branches for application testing. Keep `main` as the reviewed
+merge target. Fetch and integrate new feature commits before rebuilding; verify
+that each intended remote branch tip is an ancestor of the integration checkout.
+A healthy combined stack is a smoke check, not feature acceptance or merge approval.
+Keep branch-specific tests and real-source TSC review as separate acceptance evidence.
+
+The local integration established on 29 October 2026 includes Auth/main baseline
+`7563358` and Tender FMS `1c7c4f6`, with Go migration head 93. It requires the API,
+frontend, document reader, document-package worker, TSC worker and ClamAV scanner.
+The pinned ClamAV image is amd64-only; Compose explicitly selects that platform
+so Docker Desktop can emulate it on Apple Silicon. Initial image/signature downloads
+and scanner startup may take several minutes; package processing waits for scanner
+health. Scanning remains required.
+
+Use the existing `setup.sh` to rebuild the checked-out integration code. Preserve
+credentials/encryption keys and volumes, stop application writers and verify a
+private backup before schema upgrades. Do not run older main images against the
+newer integration schema without a separately planned compatible restore/rollback.
+Paid-provider/private-source transmission controls remain opt-in; combining code
+does not enable providers or prove end-to-end model accuracy.
