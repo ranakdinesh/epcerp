@@ -22,7 +22,7 @@ func (s *TSC) Options(ctx context.Context, token, id string) (out domain.TSCOpti
 		if e != nil {
 			return e
 		}
-		out.Providers = []domain.TSCProviderOption{{Mode: "manual", Available: true}}
+		out.Providers = []domain.TSCProviderOption{{Mode: "local", Available: true}, {Mode: "manual", Available: true}}
 		for _, mode := range []string{"gemini", "openai", "ollama"} {
 			p := s.providerFor(mode)
 			model := ""
@@ -87,10 +87,25 @@ func (s *TSC) Research(ctx context.Context, token, id, jobID, question, query, m
 	}
 	q = domain.TSCResearchQuestion(q, query)
 	out.QuestionID = question
-	out.Passages = domain.RetrieveTSCEvidence(q, snapshot.Input.Passages)
+	selection := s.selectEvidence(ctx, q, snapshot.Input)
+	out.Passages = selection.Passages
+	out.Diagnostic = selection.Diagnostic
 	out.Warning = "Search covers the retained reading snapshot. Missing excerpts do not establish absence; inspect original pages, referenced documents and conflicting clauses."
 	if mode == "search" {
-		return out, nil
+		e = s.within(ctx, token, id, "read", func(ctx context.Context, r ports.TSCRepository, d domain.DocumentDraft, _ string) error {
+			now, err := r.Get(ctx, id, jobID)
+			if err != nil {
+				return err
+			}
+			if now.Version != version || d.Version != snapshot.DraftVersion {
+				return domain.CaptureFailure(409, "stale_source", "Sources changed during search")
+			}
+			return nil
+		})
+		return out, e
+	}
+	if selection.Diagnostic.ContextGap {
+		return out, domain.Invalid("Selected evidence has a context gap; inspect full sources before requesting a proposal")
 	}
 	if domain.TSCRequiresHumanReview(q) {
 		a := domain.EmptyTSCAnswer(q)
@@ -103,9 +118,9 @@ func (s *TSC) Research(ctx context.Context, token, id, jobID, question, query, m
 	}
 	var answer domain.TSCAnswer
 	if domain.TSCCloudAllowance(mode) > 0 {
-		answer, e = s.cloudPropose(ctx, snapshot, q, mode, "research:"+snapshot.ActorID+":"+key, version)
+		answer, e = s.cloudPropose(ctx, snapshot, q, mode, "research:"+snapshot.ActorID+":"+key, version, selection)
 	} else {
-		answer, e = provider.Propose(ctx, q, snapshot.Input.Passages)
+		answer, e = provider.Propose(ctx, q, selection.Passages)
 	}
 	if e != nil {
 		return out, e
@@ -133,17 +148,17 @@ func (s *TSC) Research(ctx context.Context, token, id, jobID, question, query, m
 	return
 }
 
-func (s *TSC) cloudPropose(ctx context.Context, j domain.TSCJob, q domain.TSCQuestion, mode, key string, expectedVersion int64) (domain.TSCAnswer, error) {
+func (s *TSC) cloudPropose(ctx context.Context, j domain.TSCJob, q domain.TSCQuestion, mode, key string, expectedVersion int64, selection domain.TSCSelection) (domain.TSCAnswer, error) {
 	fallback := domain.EmptyTSCAnswer(q)
 	p := s.providerFor(mode)
 	if p == nil || p.Model() == "" {
 		return fallback, domain.CaptureFailure(503, "provider_not_configured", "Cloud provider is not configured")
 	}
-	selected := domain.RetrieveTSCEvidence(q, j.Input.Passages)
+	selected := selection.Passages
 	if len(selected) == 0 {
 		return fallback, nil
 	}
-	call := domain.TSCCloudCall{DraftID: j.DraftID, JobID: j.ID, ActorID: j.ActorID, Key: key, Input: domain.TSCCloudIdentity{DraftVersion: j.DraftVersion, AnswerVersion: expectedVersion, Question: q, Passages: selected}, Provider: mode, Model: p.Model(), ReservedPaise: domain.TSCCloudAllowance(mode)}
+	call := domain.TSCCloudCall{DraftID: j.DraftID, JobID: j.ID, ActorID: j.ActorID, Key: key, Input: domain.TSCCloudIdentity{DraftVersion: j.DraftVersion, AnswerVersion: expectedVersion, Question: q, Retrieval: selection.Diagnostic, Passages: selected}, Provider: mode, Model: p.Model(), ReservedPaise: domain.TSCCloudAllowance(mode)}
 	var fresh bool
 	e := s.unit.Within(ctx, func(ctx context.Context, r ports.TSCRepository, d ports.DraftRepository) error {
 		if e := tscLiveJob(ctx, r, d, j, expectedVersion); e != nil {
@@ -162,11 +177,11 @@ func (s *TSC) cloudPropose(ctx context.Context, j domain.TSCJob, q domain.TSCQue
 		}
 		return fallback, domain.CaptureFailure(409, "cloud_outcome_unavailable", "This request may already have been charged. Its allowance is retained; use source search or start a deliberate new request")
 	}
-	answer, providerError := p.Propose(ctx, q, j.Input.Passages)
+	answer, providerError := p.Propose(ctx, q, selected)
 	code := ""
 	if providerError != nil {
 		code = domain.TSCProviderFailure(providerError)
-	} else if domain.ValidateTSCAnswer(answer, j.Input) != nil {
+	} else if domain.ValidateTSCAnswer(answer, domain.TSCInput{Questions: j.Input.Questions, Passages: selected}) != nil {
 		providerError = domain.TSCProviderInvalidProposal
 		code = "invalid_provider_evidence"
 	}

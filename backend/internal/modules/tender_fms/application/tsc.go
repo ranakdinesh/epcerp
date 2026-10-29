@@ -9,6 +9,7 @@ import (
 
 // TSC owns draft answers only. It cannot approve eligibility or a bid.
 type TSC struct {
+	evidence  *TSCEvidence
 	unit      ports.TSCUnit
 	auth      ports.Authorizer
 	provider  ports.TSCProvider
@@ -53,7 +54,7 @@ func (s *TSC) Create(ctx context.Context, token, id, key, mode string, version i
 	if _, e = domain.ID(key); e != nil {
 		return out, e
 	}
-	if mode != "manual" && mode != "ollama" && mode != "gemini" && mode != "openai" {
+	if mode != "local" && mode != "manual" && mode != "ollama" && mode != "gemini" && mode != "openai" {
 		return out, domain.Invalid("Choose an available draft preparation provider")
 	}
 	model := ""
@@ -73,7 +74,7 @@ func (s *TSC) Create(ctx context.Context, token, id, key, mode string, version i
 			out = *old
 			return nil
 		}
-		if mode != "manual" && model == "" {
+		if mode != "manual" && mode != "local" && model == "" {
 			return domain.CaptureFailure(503, "provider_not_configured", "Selected provider is not enabled and configured; use a manual draft")
 		}
 		if d.Version != version {
@@ -84,6 +85,7 @@ func (s *TSC) Create(ctx context.Context, token, id, key, mode string, version i
 			return e
 		}
 		if mode != "manual" {
+			in.RetrievalModel = s.evidence.Model()
 			in.ProposalVersion = domain.TSCProposalVersion
 			if domain.TSCCloudAllowance(mode) > 0 {
 				in.ProposalVersion += "/" + domain.TSCCloudProposalVersion
@@ -218,8 +220,11 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 	result := domain.TSCResult{Schema: domain.TSCVersion, Answers: []domain.TSCAnswer{}, Warnings: job.Input.Warnings}
 	code := ""
 	provider := s.providerFor(job.Mode)
-	if job.Mode != "manual" && (provider == nil || job.Model != provider.Model()) {
+	if job.Mode != "manual" && job.Mode != "local" && (provider == nil || job.Model != provider.Model()) {
 		code = "configured_model_changed"
+	}
+	if job.Input.RetrievalModel != "" && job.Input.RetrievalModel != s.evidence.Model() {
+		code = "retrieval_model_changed"
 	}
 	candidates := domain.CollectTSCCandidates(job.Input)
 	for _, q := range job.Input.Questions {
@@ -247,16 +252,27 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 			break
 		}
 		a := domain.EmptyTSCAnswer(q)
-		diagnostic := domain.TSCSearchDiagnostic(q, job.Input.Passages)
 		candidate, hasCandidate := candidates[q.ID]
+		selection := (*TSCEvidence)(nil).Select(ctx, q, job.Input.Passages)
+		if job.Mode != "manual" && !hasCandidate {
+			selection = s.selectEvidence(ctx, q, job.Input)
+		}
+		diagnostic := selection.Diagnostic
+		if diagnostic.Fallback != "" {
+			result.Warnings = append(result.Warnings, q.ID+": local ranking unavailable; BM25 evidence retained")
+		}
+		result.Evidence = append(result.Evidence, domain.TSCQuestionEvidence{QuestionID: q.ID, Passages: selection.Passages})
 		if job.Mode != "manual" && hasCandidate {
 			a = candidate
 		}
-		if job.Mode != "manual" && !hasCandidate && !domain.TSCRequiresHumanReview(q) {
+		if job.Mode == "local" && !hasCandidate {
+			a.Origin = "local_evidence_ready"
+		}
+		if job.Mode != "manual" && job.Mode != "local" && !hasCandidate && !domain.TSCRequiresHumanReview(q) && !diagnostic.ContextGap {
 			if domain.TSCCloudAllowance(job.Mode) > 0 {
-				a, e = s.cloudPropose(ctx, *job, q, job.Mode, "generation:"+job.ID+":"+q.ID, 0)
+				a, e = s.cloudPropose(ctx, *job, q, job.Mode, "generation:"+job.ID+":"+q.ID, 0, selection)
 			} else {
-				a, e = provider.Propose(ctx, q, job.Input.Passages)
+				a, e = provider.Propose(ctx, q, selection.Passages)
 			}
 			if e != nil {
 				if domain.TSCCloudAllowance(job.Mode) > 0 {
@@ -287,6 +303,11 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 				code = "invalid_provider_evidence"
 				break
 			}
+		}
+		if diagnostic.ContextGap {
+			a = domain.EmptyTSCAnswer(q)
+			a.Origin = "context_review_required"
+			result.Warnings = append(result.Warnings, q.ID+": required source context exceeds the selected-evidence budget; inspect full sources")
 		}
 		a = domain.ConciseTSCAnswer(a)
 		diagnostic.Outcome = a.Origin + ":" + a.Status

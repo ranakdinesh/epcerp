@@ -6,7 +6,7 @@ import (
 )
 
 const TSCVersion = "tsc-v1"
-const TSCProposalVersion = "tsc-structured-retrieval-v3"
+const TSCProposalVersion = "tsc-local-rag-v4"
 
 // Only reviewed, non-sensitive categories cross the provider boundary.
 type TSCProviderError string
@@ -81,6 +81,7 @@ type TSCAnswer struct {
 }
 type TSCInput struct {
 	Schema               string              `json:"schema"`
+	RetrievalModel       string              `json:"retrieval_model,omitempty"`
 	ProposalVersion      string              `json:"proposal_version,omitempty"`
 	Coverage             TSCCoverage         `json:"coverage"`
 	TemplateHash         string              `json:"template_hash"`
@@ -124,14 +125,21 @@ type TSCResult struct {
 	Schema      string                  `json:"schema"`
 	Answers     []TSCAnswer             `json:"answers"`
 	Warnings    []string                `json:"warnings"`
+	Evidence    []TSCQuestionEvidence   `json:"question_evidence,omitempty"`
 	Diagnostics []TSCQuestionDiagnostic `json:"diagnostics,omitempty"`
 }
 
 type TSCQuestionDiagnostic struct {
-	QuestionID string `json:"question_id"`
-	Candidates int    `json:"candidates"`
-	Documents  int    `json:"documents"`
-	Outcome    string `json:"outcome"`
+	Method        string `json:"method,omitempty"`
+	Model         string `json:"model,omitempty"`
+	Fallback      string `json:"fallback,omitempty"`
+	BaselineBytes int    `json:"baseline_bytes,omitempty"`
+	SelectedBytes int    `json:"selected_bytes,omitempty"`
+	ContextGap    bool   `json:"context_gap,omitempty"`
+	QuestionID    string `json:"question_id"`
+	Candidates    int    `json:"candidates"`
+	Documents     int    `json:"documents"`
+	Outcome       string `json:"outcome"`
 }
 type TSCJob struct {
 	ID           string    `json:"id"`

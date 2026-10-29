@@ -46,13 +46,16 @@ const tscCloudPrompt = `Extract one unapproved Tender Selection Checklist answer
 
 func (p *TSCCloud) Propose(ctx context.Context, q domain.TSCQuestion, all []domain.TSCPassage) (domain.TSCAnswer, error) {
 	fallback := domain.EmptyTSCAnswer(q)
+	if len(all) > 16 || domain.TSCEvidenceBytes(all) > 14000 {
+		return fallback, domain.TSCProviderInvalidProposal
+	}
 	if p.Model() == "" {
 		return fallback, domain.TSCProviderModelUnavailable
 	}
 	if domain.TSCRequiresHumanReview(q) {
 		return fallback, nil
 	}
-	passages := domain.RetrieveTSCEvidence(q, all)
+	passages := all
 	if len(passages) == 0 {
 		fallback.Origin = "retrieval_gap"
 		return fallback, nil

@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+type documentSlotContextKey struct{}
+
+// A nested local adapter may reuse a slot already held by this worker context.
+func DocumentSlotHeld(ctx context.Context) bool {
+	held, _ := ctx.Value(documentSlotContextKey{}).(bool)
+	return held
+}
+
 const documentSlotKey int64 = 735841920001
 
 func WithDocumentSlot(ctx context.Context, pool *pgxpool.Pool, work func(context.Context) (bool, error)) (bool, error) {
@@ -44,7 +52,7 @@ func WithDocumentSlot(ctx context.Context, pool *pgxpool.Pool, work func(context
 			}
 		}
 	}()
-	worked, err := work(child)
+	worked, err := work(context.WithValue(child, documentSlotContextKey{}, true))
 	close(done)
 	<-stopped
 	cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)

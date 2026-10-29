@@ -96,6 +96,7 @@ sql:
       - internal/modules/tender_fms/sql/migrations/000091_document_drafts.up.sql
       - internal/modules/tender_fms/sql/migrations/000092_tsc_drafts.up.sql
       - internal/modules/tender_fms/sql/migrations/000093_tsc_cloud_budget.up.sql
+      - internal/modules/tender_fms/sql/migrations/000094_tsc_local_mode.up.sql
     queries: "internal/modules/health/adapters/outbound/sql/queries.sql"
     gen:
       go:

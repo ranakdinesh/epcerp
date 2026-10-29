@@ -88,6 +88,22 @@ func verifyTSCNative(t *testing.T, ctx context.Context, pool *pgxpool.Pool, draf
 			t.Fatalf("TSC HTTP %s expected %d got %d", tc.path, tc.status, response.Code)
 		}
 	}
+
+	local, err := service.Create(ctx, "owner", draft.ID, tenderout.Values{}.ID(), "local", draft.Version)
+	if err != nil {
+		t.Fatal("native local extraction create", err)
+	}
+	if worked, err := service.Once(ctx); err != nil || !worked {
+		t.Fatal("native local extraction worker", err)
+	}
+	local, err = service.Get(ctx, "owner", draft.ID, local.ID)
+	if err != nil || local.State != "ready" || len(local.Result.Answers) != 70 || len(local.Result.Evidence) != 70 {
+		t.Fatal("native local extraction result", err)
+	}
+	var localCalls int
+	if err = pool.QueryRow(ctx, "SELECT count(*) FROM tender.tsc_cloud_calls WHERE job_id=$1", local.ID).Scan(&localCalls); err != nil || localCalls != 0 {
+		t.Fatal("local extraction made cloud reservations", err)
+	}
 	passage := job.Input.Passages[0]
 	verifyTSCCloudNative(t, ctx, pool, unit, service, job, owner, role)
 	quote := passage.Text

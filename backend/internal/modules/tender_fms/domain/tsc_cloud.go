@@ -15,6 +15,7 @@ type TSCCloudCall struct {
 type TSCCloudIdentity struct {
 	DraftVersion, AnswerVersion int64
 	Question                    TSCQuestion
+	Retrieval                   TSCQuestionDiagnostic
 	Passages                    []TSCPassage
 }
 
@@ -33,10 +34,11 @@ type TSCOptions struct {
 }
 
 type TSCResearch struct {
-	QuestionID string       `json:"question_id"`
-	Passages   []TSCPassage `json:"passages"`
-	Proposal   *TSCAnswer   `json:"proposal,omitempty"`
-	Warning    string       `json:"warning,omitempty"`
+	Diagnostic TSCQuestionDiagnostic `json:"retrieval"`
+	QuestionID string                `json:"question_id"`
+	Passages   []TSCPassage          `json:"passages"`
+	Proposal   *TSCAnswer            `json:"proposal,omitempty"`
+	Warning    string                `json:"warning,omitempty"`
 }
 
 func TSCCloudAllowance(mode string) int64 {

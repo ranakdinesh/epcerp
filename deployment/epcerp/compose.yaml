@@ -29,6 +29,7 @@ x-api: &api
     VTPL_FORCE_HTTPS: "false"
     VTPL_LOG_LEVEL: info
     EPCERP_TSC_OLLAMA_URL: ${EPCERP_TSC_OLLAMA_URL:-http://host.docker.internal:11434}
+    EPCERP_TSC_RETRIEVAL: ${EPCERP_TSC_RETRIEVAL:-minilm}
     EPCERP_TSC_MODEL: ${EPCERP_TSC_MODEL:-}
     EPCERP_TSC_MODEL_DIGEST: ${EPCERP_TSC_MODEL_DIGEST:-}
     EPCERP_TSC_CLOUD_APPROVED: ${EPCERP_TSC_CLOUD_APPROVED:-false}
@@ -69,6 +70,7 @@ services:
 
   api:
     <<: *api
+    networks: [default, reading_internal]
     restart: unless-stopped
     volumes:
       - document_packages_data:/var/lib/epcerp/document-packages
@@ -199,6 +201,7 @@ services:
       EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
       EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
       EPCERP_TSC_OLLAMA_URL: ${EPCERP_TSC_OLLAMA_URL:-http://host.docker.internal:11434}
+      EPCERP_TSC_RETRIEVAL: ${EPCERP_TSC_RETRIEVAL:-minilm}
       EPCERP_TSC_MODEL: ${EPCERP_TSC_MODEL:-}
       EPCERP_TSC_MODEL_DIGEST: ${EPCERP_TSC_MODEL_DIGEST:-}
       EPCERP_TSC_CLOUD_APPROVED: ${EPCERP_TSC_CLOUD_APPROVED:-false}
@@ -222,6 +225,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 15
+
+  tsc-reranker:
+    image: epcerp-tsc-reranker:local
+    build:
+      context: .
+      dockerfile: reranker.Dockerfile
+    restart: unless-stopped
+    networks: [reading_internal]
+    read_only: true
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 32
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=3).close()"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
 
   frontend:
     image: epcerp-frontend:local

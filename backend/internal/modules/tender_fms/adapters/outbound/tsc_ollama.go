@@ -99,13 +99,16 @@ func TSCRetrieve(q domain.TSCQuestion, passages []domain.TSCPassage) []domain.TS
 }
 func (p *TSCOllama) Propose(ctx context.Context, q domain.TSCQuestion, all []domain.TSCPassage) (domain.TSCAnswer, error) {
 	fallback := domain.EmptyTSCAnswer(q)
+	if len(all) > 16 || domain.TSCEvidenceBytes(all) > 14000 {
+		return fallback, domain.TSCProviderInvalidProposal
+	}
 	if p.Model() == "" {
 		return fallback, domain.TSCProviderModelUnavailable
 	}
 	if e := p.verifyLocal(ctx); e != nil {
 		return fallback, e
 	}
-	passages := TSCRetrieve(q, all)
+	passages := all
 	if len(passages) == 0 {
 		fallback.Origin = "retrieval_gap"
 		fallback.Text = ""

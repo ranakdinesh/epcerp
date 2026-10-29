@@ -94,7 +94,13 @@ func NewTSC(d Dependencies) (*application.TSC, error) {
 			providers[mode] = cloud
 		}
 	}
-	return application.NewTSC(outbound.NewTSCUnit(drafts, cipher, d.Events), outbound.NewAuthBridge(d.Identity), provider, outbound.TSCExporter{}).WithProviders(providers), nil
+	var ranker ports.TSCReranker
+	if os.Getenv("EPCERP_TSC_RETRIEVAL") == "minilm" {
+		ranker = outbound.NewTSCReranker(d.Database)
+	} else if value := os.Getenv("EPCERP_TSC_RETRIEVAL"); value != "" && value != "bm25" {
+		return nil, fmt.Errorf("unsupported TSC retrieval configuration")
+	}
+	return application.NewTSC(outbound.NewTSCUnit(drafts, cipher, d.Events), outbound.NewAuthBridge(d.Identity), provider, outbound.TSCExporter{}).WithProviders(providers).WithEvidence(application.NewTSCEvidence(ranker)), nil
 }
 
 func WorkInventory(c database.Connection) auth.WorkSource { return outbound.NewWorkInventory(c) }

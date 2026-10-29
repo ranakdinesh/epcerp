@@ -35,14 +35,14 @@ const { chromium } = playwright;
       window.fetch = async (input, init) => {
         const url = new URL(typeof input === "string" ? input : input.url, location.href), p = url.pathname.replace("/api/tender-fms/", ""), method = init?.method || "GET";
         if (!p.startsWith("drafts")) return original(input, init);
-        if (p.endsWith("/tsc/options")) return response({ providers: [{ mode: "manual", available: true, cloud: false }, { mode: "ollama", model: "synthetic-local-model", available: true, cloud: false, allowance_paise: 0 }, { mode: "gemini", model: "gemini-3.1-flash-lite", available: true, cloud: true, allowance_paise: 150 }, { mode: "openai", available: false, cloud: true, allowance_paise: 60 }], limit_paise: 10000, reserved_paise: 0 });
+        if (p.endsWith("/tsc/options")) return response({ providers: [{ mode: "local", available: true, cloud: false }, { mode: "manual", available: true, cloud: false }, { mode: "ollama", model: "synthetic-local-model", available: true, cloud: false, allowance_paise: 0 }, { mode: "gemini", model: "gemini-3.1-flash-lite", available: true, cloud: true, allowance_paise: 150 }, { mode: "openai", available: false, cloud: true, allowance_paise: 60 }], limit_paise: 10000, reserved_paise: 0 });
         if (p.endsWith("/research")) { const body = JSON.parse(init.body); return response({ question_id: "particulars.q01", passages: [passage], warning: "Synthetic source snapshot only.", ...(body.mode !== "search" ? { proposal: { question_id: "particulars.q01", status: "answered", answer: "Synthetic Department of Electrical Works", citations: [{ source_id: passage.id, quote: passage.text }], origin: "synthetic" } } : {}) }); }
         if (p === "drafts") return response({ items: [draft], total: 1 });
         if (p === `drafts/${id}`) return response(draft);
         if (p === `drafts/${id}/batches` && method === "POST") return new Response(null, { status: 204 });
         if (p === `drafts/${id}/tsc` && method === "POST") {
           const body = JSON.parse(init.body); if (body.expected_version !== draft.version || !new Headers(init.headers).get("Idempotency-Key")) return response({ detail: "Invalid generation context" }, 409);
-          job = { id: jobID, draft_id: id, draft_version: draft.version, state: "queued", error: "", version: 1, mode: body.mode, model: body.mode === "ollama" ? "synthetic-local-model" : "", attempts: 0, created_at: "2026-10-25T00:00:00Z", stale: false, input: { questions, passages: [passage, { ...passage, id: "source:2:1", document_id: "abcd0000-0000-4000-8000-000000000009", filename: "synthetic-conditions.pdf", locator: "page 2", text: "Synthetic second document payment conditions. <script>window.evidenceExecuted = true</script>" }], coverage: { version: "document-evidence-v1", documents: 1, segments: 1, empty_segments: 0, blocks: 1, suppressed: 0, low_confidence: 0 } }, result: { answers: [], warnings: ["Synthetic browser evidence only; no operational approval."], diagnostics: questions.map(q => ({ question_id: q.id, candidates: 1, documents: 1, outcome: "manual_draft:needs_review" })) } };
+          job = { id: jobID, draft_id: id, draft_version: draft.version, state: "queued", error: "", version: 1, mode: body.mode, model: body.mode === "ollama" ? "synthetic-local-model" : "", attempts: 0, created_at: "2026-10-25T00:00:00Z", stale: false, input: { questions, passages: [passage, { ...passage, id: "source:2:1", document_id: "abcd0000-0000-4000-8000-000000000009", filename: "synthetic-conditions.pdf", locator: "page 2", text: "Synthetic second document payment conditions. <script>window.evidenceExecuted = true</script>" }], coverage: { version: "document-evidence-v1", documents: 1, segments: 1, empty_segments: 0, blocks: 1, suppressed: 0, low_confidence: 0 } }, result: { question_evidence: [{ question_id: "particulars.q01", passages: [passage] }], answers: [], warnings: ["Synthetic browser evidence only; no operational approval."], diagnostics: questions.map(q => ({ question_id: q.id, method: "bm25_minilm", selected_bytes: 61, baseline_bytes: 100, candidates: 1, documents: 1, outcome: "manual_draft:needs_review" })) } };
           return response(job, 202);
         }
         if (p === `drafts/${id}/tsc`) return response({ items: job ? [job] : [] });
@@ -98,7 +98,7 @@ const { chromium } = playwright;
     await selection.getByRole("button", { name: "Remove next-batch.pdf", exact: true }).click();
 
     await panel.getByRole("button", { name: "2. Generate TSC", exact: true }).click();
-    await panel.getByLabel("Draft preparation", { exact: true }).selectOption("ollama");
+    await panel.getByLabel("Draft preparation", { exact: true }).selectOption("local");
     await panel.getByRole("button", { name: "Generate TSC draft", exact: true }).click();
     await panel.getByText(/Generation: (queued|processing)/).waitFor();
     await panel.getByRole("button", { name: "Close panel", exact: true }).click();
@@ -132,6 +132,11 @@ const { chromium } = playwright;
     await page.screenshot({path:path.join(output,"tsc-one-line-auction.png")});
     await checklist.getByLabel("Filter TSC questions").fill("Name of Department");
     const question = checklist.getByRole("form", { name: "TSC question particulars.q01", exact: true });
+    await question.getByText("Prepared source excerpts", { exact: true }).click();
+    await question.getByText("Evidence: Local relevance ranking · 61 bytes", { exact: true }).waitFor();
+    await panel.getByText(/It makes no LLM calls/).waitFor();
+    assert.equal(await panel.getByLabel("Draft preparation", {exact:true}).inputValue(), "local");
+    await page.screenshot({path:path.join(output,"tsc-local-extraction-desktop.png")});
     assert.equal(await checklist.getByRole("combobox", { name: "Answer state" }).count(), 0);
     await question.getByRole("button", { name: "Search sources for this question", exact: true }).click();
     await question.getByRole("button", { name: "Search sources · no cloud cost", exact: true }).click();

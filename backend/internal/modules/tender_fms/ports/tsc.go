@@ -31,3 +31,9 @@ type TSCProvider interface {
 type TSCExporter interface {
 	Export(domain.TSCJob) ([]byte, error)
 }
+
+// TSCReranker is inference only; the caller supplies already authorised passages.
+type TSCReranker interface {
+	Model() string
+	Rank(context.Context, domain.TSCQuestion, []domain.TSCPassage) ([]domain.TSCRank, error)
+}

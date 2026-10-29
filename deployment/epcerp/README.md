@@ -340,3 +340,21 @@ private backup before schema upgrades. Do not run older main images against the
 newer integration schema without a separately planned compatible restore/rollback.
 Paid-provider/private-source transmission controls remain opt-in; combining code
 does not enable providers or prove end-to-end model accuracy.
+
+## Local TSC extraction and MiniLM (migration 94)
+
+The combined preview includes `tsc-reranker`, a private, offline INT8 MiniLM service
+limited to one CPU/1 GiB. Model/tokenizer files are pinned and fetched at image
+build only. The amd64 model artifact targets AVX2; verify the target PC CPU supports
+it. Runtime uses only the internal reading network and has no database credentials
+or host port. API/worker use `EPCERP_TSC_RETRIEVAL=minilm` by default in this local
+Compose file; `bm25` is the visible-fallback/disable option. Do not infer target-PC
+capacity from this Mac's checks. Preserve antivirus/resource controls.
+
+After readings finish, choose Local extraction (no LLM) in Step 2. Go fills
+explicitly labelled facts and keeps prepared excerpts for pending questions.
+Ranking relevance is not correctness, completeness or approval. Configured cloud
+providers remain explicit and gated; selected evidence is bounded and tied to
+the same paid-call identity. No automatic provider activation or paid retry occurs.
+Run `docker compose --env-file .env -f compose.yaml exec tsc-reranker python smoke.py`
+for the synthetic real-model check. See ../../docs/GO_TSC_LOCAL_RAG_SLICE.md.

@@ -2,3 +2,9 @@
 *
 !storage.Dockerfile
 !.dockerignore
+
+# Public inference code/model build inputs only; private .env/backups stay excluded.
+!reranker.Dockerfile
+!reranker/
+!reranker/*.py
+!reranker/requirements.txt

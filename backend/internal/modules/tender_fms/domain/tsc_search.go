@@ -73,6 +73,15 @@ func tscWords(text string) []string {
 // clauses. Context expansion retains neighbouring conditions and table notes.
 // It never treats a retrieval miss as proof of absence from the tender package.
 func RetrieveTSCEvidence(q TSCQuestion, all []TSCPassage) []TSCPassage {
+	return retrieveTSC(q, all, 16, 14000, 12, true)
+}
+
+// Candidates are wider than the final prompt; ranking never searches other drafts.
+func TSCEvidenceCandidates(q TSCQuestion, all []TSCPassage) []TSCPassage {
+	return retrieveTSC(q, all, 30, 60000, 30, false)
+}
+
+func retrieveTSC(q TSCQuestion, all []TSCPassage, maxCount, maxBytes, anchors int, expand bool) []TSCPassage {
 	if len(all) == 0 {
 		return []TSCPassage{}
 	}
@@ -157,7 +166,7 @@ func RetrieveTSCEvidence(q TSCQuestion, all []TSCPassage) []TSCPassage {
 			return false
 		}
 		key := strings.Join(strings.Fields(p.Text), " ")
-		if key == "" || seen[key] || indices[index] || len(out) >= 16 || budget+len(p.Text) > 14000 {
+		if key == "" || seen[key] || indices[index] || len(out) >= maxCount || budget+len(p.Text) > maxBytes {
 			return false
 		}
 		out = append(out, p)
@@ -180,14 +189,17 @@ func RetrieveTSCEvidence(q TSCQuestion, all []TSCPassage) []TSCPassage {
 		if r.score > 0 {
 			add(r.index)
 		}
-		if len(out) >= 12 {
+		if len(out) >= anchors {
 			break
 		}
 	}
 	// Add adjacent fragments in original document order, including split clauses
 	// and table continuations. Expansion is still inside the same source revision.
-	anchors := append([]TSCPassage{}, out...)
-	for _, anchor := range anchors {
+	if !expand {
+		return out
+	}
+	contextAnchors := append([]TSCPassage{}, out...)
+	for _, anchor := range contextAnchors {
 		for i, p := range all {
 			if p.ID != anchor.ID {
 				continue
