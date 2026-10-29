@@ -8,7 +8,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type TenderCaptureOperation struct {
+type TenderDocumentDraft struct {
+	ID           pgtype.UUID
+	Name         string
+	OwnerID      pgtype.UUID
+	Version      int64
+	IsActive     bool
+	OperationKey pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	CreatedByID  pgtype.UUID
+	UpdatedByID  pgtype.UUID
+}
+
+type TenderTenderCaptureOperation struct {
 	ActorID        pgtype.UUID
 	Command        string
 	ContextKey     string
@@ -18,7 +31,7 @@ type TenderCaptureOperation struct {
 	CreatedAt      pgtype.Timestamptz
 }
 
-type TenderFmsIntake struct {
+type TenderTenderFmsIntake struct {
 	ID                  pgtype.UUID
 	Title               string
 	OwnerID             pgtype.UUID
@@ -41,7 +54,7 @@ type TenderFmsIntake struct {
 	SourceUrl           pgtype.Text
 }
 
-type TenderProvisionOperation struct {
+type TenderTenderProvisionOperation struct {
 	ID          pgtype.UUID
 	TenderID    pgtype.UUID
 	State       string
@@ -55,7 +68,7 @@ type TenderProvisionOperation struct {
 	UpdatedByID pgtype.UUID
 }
 
-type TenderSourceAction struct {
+type TenderTenderSourceAction struct {
 	ID                pgtype.UUID
 	TenderID          pgtype.UUID
 	AssignmentID      pgtype.UUID
@@ -70,4 +83,44 @@ type TenderSourceAction struct {
 	UpdatedAt         pgtype.Timestamptz
 	CreatedByID       pgtype.UUID
 	UpdatedByID       pgtype.UUID
+}
+
+type TenderTscCloudCall struct {
+	ID            pgtype.UUID
+	DraftID       pgtype.UUID
+	JobID         pgtype.UUID
+	ActorID       pgtype.UUID
+	RequestKey    string
+	Fingerprint   string
+	Provider      string
+	Model         string
+	ReservedPaise int64
+	State         string
+	ErrorCode     string
+	ResultCipher  []byte
+	ResultHash    pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type TenderTscJob struct {
+	ID           pgtype.UUID
+	DraftID      pgtype.UUID
+	DraftVersion int64
+	ActorID      pgtype.UUID
+	OperationKey pgtype.UUID
+	Mode         string
+	Model        string
+	State        string
+	Version      int64
+	Attempts     int32
+	ClaimID      pgtype.UUID
+	LeaseUntil   pgtype.Timestamptz
+	ErrorCode    string
+	InputCipher  []byte
+	InputHash    string
+	ResultCipher []byte
+	ResultHash   pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }

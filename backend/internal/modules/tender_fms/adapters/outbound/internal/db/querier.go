@@ -16,41 +16,65 @@ type Querier interface {
 	CancelOldManagerWork(ctx context.Context, arg CancelOldManagerWorkParams) error
 	CaptureDeliveries(ctx context.Context, tenderID pgtype.UUID) ([]CaptureDeliveriesRow, error)
 	CaptureOperationLock(ctx context.Context, operationKey string) error
-	CaptureProvision(ctx context.Context, tenderID pgtype.UUID) (TenderProvisionOperation, error)
+	CaptureProvision(ctx context.Context, tenderID pgtype.UUID) (TenderTenderProvisionOperation, error)
+	ClaimTSCJob(ctx context.Context, claimID pgtype.UUID) (TenderTscJob, error)
+	CompleteTSCCloudCall(ctx context.Context, arg CompleteTSCCloudCallParams) (int64, error)
+	CountDocumentDrafts(ctx context.Context, arg CountDocumentDraftsParams) (int64, error)
 	CountNamedCaptures(ctx context.Context, arg CountNamedCapturesParams) (int64, error)
-	CreateManagerAction(ctx context.Context, arg CreateManagerActionParams) (TenderSourceAction, error)
+	CountTSCJobs(ctx context.Context, draftID pgtype.UUID) (int64, error)
+	CreateDocumentDraft(ctx context.Context, arg CreateDocumentDraftParams) (TenderDocumentDraft, error)
+	CreateManagerAction(ctx context.Context, arg CreateManagerActionParams) (TenderTenderSourceAction, error)
 	CreateManagerEmail(ctx context.Context, arg CreateManagerEmailParams) error
 	CreateProvisionOperation(ctx context.Context, arg CreateProvisionOperationParams) error
+	CreateTSCJob(ctx context.Context, arg CreateTSCJobParams) (TenderTscJob, error)
 	CurrentNamedGrantVersion(ctx context.Context, arg CurrentNamedGrantVersionParams) (int64, error)
+	DraftEvent(ctx context.Context, arg DraftEventParams) error
+	DraftSourceLinks(ctx context.Context, draftID pgtype.UUID) ([]DraftSourceLinksRow, error)
+	EditTSCJob(ctx context.Context, arg EditTSCJobParams) (TenderTscJob, error)
 	ExistingAttachment(ctx context.Context, arg ExistingAttachmentParams) (bool, error)
-	FindCaptureOperation(ctx context.Context, arg FindCaptureOperationParams) (TenderCaptureOperation, error)
-	FindIntake(ctx context.Context, arg FindIntakeParams) (TenderFmsIntake, error)
-	GetIntake(ctx context.Context, id pgtype.UUID) (TenderFmsIntake, error)
-	HandoverTenderOwner(ctx context.Context, arg HandoverTenderOwnerParams) (TenderFmsIntake, error)
-	InsertIntake(ctx context.Context, arg InsertIntakeParams) (TenderFmsIntake, error)
+	ExpireTSCJobs(ctx context.Context) ([]TenderTscJob, error)
+	FindCaptureOperation(ctx context.Context, arg FindCaptureOperationParams) (TenderTenderCaptureOperation, error)
+	FindIntake(ctx context.Context, arg FindIntakeParams) (TenderTenderFmsIntake, error)
+	FindTSCCloudCall(ctx context.Context, arg FindTSCCloudCallParams) (TenderTscCloudCall, error)
+	FindTSCOperation(ctx context.Context, arg FindTSCOperationParams) (TenderTscJob, error)
+	FinishTSCJob(ctx context.Context, arg FinishTSCJobParams) (TenderTscJob, error)
+	GetDocumentDraft(ctx context.Context, arg GetDocumentDraftParams) (TenderDocumentDraft, error)
+	GetIntake(ctx context.Context, id pgtype.UUID) (TenderTenderFmsIntake, error)
+	GetTSCBudget(ctx context.Context, draftID pgtype.UUID) (int64, error)
+	GetTSCJob(ctx context.Context, arg GetTSCJobParams) (TenderTscJob, error)
+	HandoverTenderOwner(ctx context.Context, arg HandoverTenderOwnerParams) (TenderTenderFmsIntake, error)
+	InsertIntake(ctx context.Context, arg InsertIntakeParams) (TenderTenderFmsIntake, error)
 	InsertIntakeEvent(ctx context.Context, arg InsertIntakeEventParams) error
 	InsertManagerAssignment(ctx context.Context, arg InsertManagerAssignmentParams) error
 	InsertNamedManagerAssignment(ctx context.Context, arg InsertNamedManagerAssignmentParams) error
 	InsertNamedRecordEvent(ctx context.Context, arg InsertNamedRecordEventParams) error
-	InsertNamedTender(ctx context.Context, arg InsertNamedTenderParams) (TenderFmsIntake, error)
+	InsertNamedTender(ctx context.Context, arg InsertNamedTenderParams) (TenderTenderFmsIntake, error)
+	InsertTSCEvent(ctx context.Context, arg InsertTSCEventParams) error
 	IntakeHistory(ctx context.Context, subjectID pgtype.UUID) ([]IntakeHistoryRow, error)
+	LinkDraftSource(ctx context.Context, arg LinkDraftSourceParams) error
 	LinkManagerNotice(ctx context.Context, arg LinkManagerNoticeParams) error
 	LinkTenderSource(ctx context.Context, arg LinkTenderSourceParams) error
-	ListIntakes(ctx context.Context, owner string) ([]TenderFmsIntake, error)
+	ListDocumentDrafts(ctx context.Context, arg ListDocumentDraftsParams) ([]TenderDocumentDraft, error)
+	ListIntakes(ctx context.Context, owner string) ([]TenderTenderFmsIntake, error)
 	ListNamedCaptures(ctx context.Context, arg ListNamedCapturesParams) ([]pgtype.UUID, error)
+	ListTSCJobs(ctx context.Context, draftID pgtype.UUID) ([]ListTSCJobsRow, error)
 	LockIntakeUploads(ctx context.Context) error
-	LockNamedTender(ctx context.Context, id pgtype.UUID) (TenderFmsIntake, error)
+	LockNamedTender(ctx context.Context, id pgtype.UUID) (TenderTenderFmsIntake, error)
+	LockTSCBudget(ctx context.Context, id pgtype.UUID) error
 	LockTenderIdentity(ctx context.Context) error
 	NamedParticipantActive(ctx context.Context, arg NamedParticipantActiveParams) (bool, error)
-	PatchNamedTender(ctx context.Context, arg PatchNamedTenderParams) (TenderFmsIntake, error)
-	ReadAssignmentAction(ctx context.Context, id pgtype.UUID) (TenderSourceAction, error)
+	PatchNamedTender(ctx context.Context, arg PatchNamedTenderParams) (TenderTenderFmsIntake, error)
+	ReadAssignmentAction(ctx context.Context, id pgtype.UUID) (TenderTenderSourceAction, error)
 	ReadWorkInventory(ctx context.Context, arg ReadWorkInventoryParams) ([][]byte, error)
 	RecordNamedChange(ctx context.Context, arg RecordNamedChangeParams) error
 	RecordNamedGrant(ctx context.Context, arg RecordNamedGrantParams) (pgtype.Timestamptz, error)
 	RecordTenderOwnerChange(ctx context.Context, arg RecordTenderOwnerChangeParams) error
-	ReplaceNamedManager(ctx context.Context, arg ReplaceNamedManagerParams) (TenderFmsIntake, error)
+	RenewTSCJob(ctx context.Context, arg RenewTSCJobParams) (int64, error)
+	ReplaceNamedManager(ctx context.Context, arg ReplaceNamedManagerParams) (TenderTenderFmsIntake, error)
+	ReserveTSCCloudCall(ctx context.Context, arg ReserveTSCCloudCallParams) (TenderTscCloudCall, error)
 	SaveCaptureOperation(ctx context.Context, arg SaveCaptureOperationParams) error
-	UpdateIntake(ctx context.Context, arg UpdateIntakeParams) (TenderFmsIntake, error)
+	TouchDocumentDraft(ctx context.Context, arg TouchDocumentDraftParams) error
+	UpdateIntake(ctx context.Context, arg UpdateIntakeParams) (TenderTenderFmsIntake, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -43,8 +43,8 @@ func allowed(module, layer, dependency string) bool {
 	}
 	switch layer {
 	case "sql":
-		// User-approved Auth SQL asset provider; no executable infrastructure or business logic.
-		return module == "auth" && dependency == "embed"
+		// Module SQL providers contain immutable embedded assets, never runtime logic.
+		return (module == "auth" || module == "tender_fms") && dependency == "embed"
 	case "domain":
 		if within("domain") {
 			return true

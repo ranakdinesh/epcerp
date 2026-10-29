@@ -53,3 +53,7 @@ func New(d Dependencies) (*Module, error) {
 func Consumer(c database.Connection, u auth.AssignmentDirectory) contracts.Consumer {
 	return application.NewConsumer(outbound.NewRepository(c, u))
 }
+
+func DraftConsumer(c database.Connection, u auth.AssignmentDirectory) contracts.DraftConsumer {
+	return application.NewConsumer(outbound.NewRepository(c, u))
+}

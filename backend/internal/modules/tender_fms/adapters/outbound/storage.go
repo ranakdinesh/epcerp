@@ -35,7 +35,7 @@ func actor(v pgtype.UUID) *string {
 	s := v.String()
 	return &s
 }
-func record(v db.TenderFmsIntake) domain.Intake {
+func record(v db.TenderTenderFmsIntake) domain.Intake {
 	return domain.Intake{RecordKind: v.RecordKind, ID: v.ID.String(), Title: v.Title, OwnerID: v.OwnerID.String(), Version: v.Version, Active: v.IsActive, CreatedAt: v.CreatedAt.Time, UpdatedAt: v.UpdatedAt.Time, CreatedBy: actor(v.CreatedByID), UpdatedBy: actor(v.UpdatedByID), Documents: []domain.Source{}}
 }
 

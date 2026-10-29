@@ -1,0 +1,25 @@
+# Standalone synthetic evaluator. No application credentials or business volumes.
+name: epcerp-tsc-test
+services:
+  tsc-ai-test:
+    image: epcerp-tsc-test:local
+    build:
+      context: ../../backend
+      dockerfile: ../deployment/epcerp/tsc-test.Dockerfile
+    restart: "no"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 32
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - tsc_ai_results:/results
+    networks: [tsc_evaluation]
+volumes:
+  tsc_ai_results:
+networks:
+  tsc_evaluation:

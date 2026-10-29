@@ -33,6 +33,12 @@ func (w *Worker) Once(ctx context.Context) (bool, error) {
 	if job.Status == "failed" {
 		return true, nil
 	}
+	parentCtx := ctx
+	stopClaim := func() {}
+	if keeper, ok := w.u.(ports.LeaseKeeper); ok {
+		ctx, stopClaim = keeper.KeepClaim(ctx, *job)
+		defer stopClaim()
+	}
 	data, e := w.c.Open(job.Original, job.SHA256)
 	result := domain.Result{}
 	if e == nil {
@@ -43,6 +49,9 @@ func (w *Worker) Once(ctx context.Context) (bool, error) {
 		if e == nil && result.SourceSHA256 != job.SHA256 {
 			e = domain.Invalid("Reader result does not match the original document")
 		}
+	}
+	if ctx.Err() != nil {
+		return true, ctx.Err()
 	}
 	failure := ""
 	var raw, encrypted []byte
@@ -59,6 +68,8 @@ func (w *Worker) Once(ctx context.Context) (bool, error) {
 			failure = d.Detail
 		}
 	}
+	stopClaim()
+	ctx = parentCtx
 	e = w.u.Within(ctx, func(ctx context.Context, r ports.Repository) error {
 		out, err := r.Finish(ctx, *job, encrypted, hash, result, failure)
 		if err != nil {

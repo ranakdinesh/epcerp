@@ -122,12 +122,12 @@ func Validate(files []Declaration) error {
 }
 
 type Receipt struct {
-	ID, OwnerID, State, ErrorCode, ConsumedBy, ClaimID string
-	Version, LimitRevision                             int64
-	ExpiresAt, LeaseUntil, CreatedAt                   time.Time
-	Attempts                                           int32
-	Files                                              []File
-	MemberCount, Unresolved                            int64
+	ID, OwnerID, State, ErrorCode, ConsumedBy, ClaimID, DraftID string
+	Version, LimitRevision                                      int64
+	ExpiresAt, LeaseUntil, CreatedAt, UpdatedAt                 time.Time
+	Attempts                                                    int32
+	Files                                                       []File
+	MemberCount, Unresolved                                     int64
 }
 type File struct {
 	ID, ReceiptID, ClientKey, Filename, Kind, SHA256, State, ObjectKey, UploadKey, ClaimID, ErrorCode string
@@ -149,3 +149,10 @@ type Verification struct {
 }
 
 type ObjectRef struct{ ID, ReceiptID, FileID, ClaimID string }
+
+type Disposition struct {
+	FileID string `json:"file_id"`
+	Path   string `json:"path"`
+	State  string `json:"state"`
+	Code   string `json:"code"`
+}

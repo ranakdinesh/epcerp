@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	AbortUpload(ctx context.Context, arg AbortUploadParams) (int64, error)
 	ActiveUploads(ctx context.Context, actorID pgtype.UUID) (int64, error)
+	AddDisposition(ctx context.Context, arg AddDispositionParams) error
 	AddEvent(ctx context.Context, arg AddEventParams) error
 	AddMember(ctx context.Context, arg AddMemberParams) error
 	ClaimPurgeObjects(ctx context.Context, claimID pgtype.UUID) ([]DocumentPackageObject, error)
@@ -21,6 +22,8 @@ type Querier interface {
 	ConsumeReceipt(ctx context.Context, arg ConsumeReceiptParams) (int64, error)
 	CreateFile(ctx context.Context, arg CreateFileParams) error
 	CreateReceipt(ctx context.Context, arg CreateReceiptParams) error
+	DraftMemberInfo(ctx context.Context, arg DraftMemberInfoParams) (DraftMemberInfoRow, error)
+	DraftReceipts(ctx context.Context, draftID pgtype.UUID) ([]pgtype.UUID, error)
 	ExpireReceipt(ctx context.Context, id pgtype.UUID) (int64, error)
 	FailExhaustedVerification(ctx context.Context) ([]DocumentPackageReceipt, error)
 	FindOperation(ctx context.Context, arg FindOperationParams) (DocumentPackageOperation, error)
@@ -30,12 +33,17 @@ type Querier interface {
 	GetMember(ctx context.Context, arg GetMemberParams) (DocumentPackageMember, error)
 	GetReceipt(ctx context.Context, id pgtype.UUID) (DocumentPackageReceipt, error)
 	IdentityGuard(ctx context.Context) error
+	ListDispositions(ctx context.Context, arg ListDispositionsParams) ([]DocumentPackageManifest, error)
 	ListFiles(ctx context.Context, receiptID pgtype.UUID) ([]DocumentPackageFile, error)
 	MemberIDs(ctx context.Context, arg MemberIDsParams) ([]pgtype.UUID, error)
 	MemberTotals(ctx context.Context, arg MemberTotalsParams) (MemberTotalsRow, error)
 	OperationLock(ctx context.Context, operationKey string) error
+	PublishDraftReceipt(ctx context.Context, arg PublishDraftReceiptParams) (int64, error)
+	ReadyDrafts(ctx context.Context) ([]ReadyDraftsRow, error)
 	ReadyFiles(ctx context.Context, arg ReadyFilesParams) error
 	RecordUploadObject(ctx context.Context, arg RecordUploadObjectParams) error
+	RenewVerificationClaim(ctx context.Context, arg RenewVerificationClaimParams) (int64, error)
+	RetainDraftReceipt(ctx context.Context, arg RetainDraftReceiptParams) (int64, error)
 	SaveOperation(ctx context.Context, arg SaveOperationParams) error
 	SealReceipt(ctx context.Context, arg SealReceiptParams) (int64, error)
 	StartUpload(ctx context.Context, arg StartUploadParams) (int64, error)

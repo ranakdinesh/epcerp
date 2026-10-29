@@ -44,12 +44,20 @@ func NewDocumentStreamStorage(dir string, c *DocumentCipher) (*DocumentStreamSto
 	return &DocumentStreamStorage{root, absolute, c}, nil
 }
 
+var ErrDocumentStorageFull = errors.New("insufficient document storage capacity")
 var documentObjectID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func (s *DocumentStreamStorage) Close() error { return s.root.Close() }
 func (s *DocumentStreamStorage) Upload(ctx context.Context, key string, body io.Reader, size int64, hash string) error {
 	if !documentObjectID.MatchString(key) || size < 1 || size > 64<<20 {
 		return errors.New("invalid source object")
+	}
+	var capacity syscall.Statfs_t
+	if e := syscall.Statfs(s.path, &capacity); e != nil {
+		return e
+	}
+	if uint64(capacity.Bavail)*uint64(capacity.Bsize) < uint64(size)+(256<<20) {
+		return ErrDocumentStorageFull
 	}
 	name := key + ".blob"
 	f, e := s.root.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)

@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/httpinput"
 	packageContract "github.com/ranakdinesh/epcERP/internal/modules/document_packages/contracts"
+	readingContract "github.com/ranakdinesh/epcERP/internal/modules/document_reading/contracts"
 	"github.com/ranakdinesh/epcERP/internal/modules/tender_fms/application"
 	"github.com/ranakdinesh/epcERP/internal/modules/tender_fms/domain"
 	"net/http"
@@ -67,6 +68,7 @@ func captureFailure(w http.ResponseWriter, e error) bool {
 	var c *domain.CaptureError
 	var p *packageContract.Error
 	var input *httpinput.Error
+	var readingError *readingContract.Error
 	switch {
 	case errors.As(e, &d):
 		status, detail = d.Status, d.Detail
@@ -75,6 +77,8 @@ func captureFailure(w http.ResponseWriter, e error) bool {
 		status, code, detail = c.Status, c.Code, c.Detail
 	case errors.As(e, &p):
 		status, code, detail = p.Status, p.Code, p.Detail
+	case errors.As(e, &readingError):
+		status, code, detail = readingError.Status, "reading_error", readingError.Detail
 	case errors.As(e, &input):
 		status, code, detail = input.Status, "invalid_request", input.Detail
 	}

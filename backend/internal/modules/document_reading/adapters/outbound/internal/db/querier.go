@@ -20,6 +20,7 @@ type Querier interface {
 	InsertReadingResult(ctx context.Context, arg InsertReadingResultParams) error
 	ListReadings(ctx context.Context, arg ListReadingsParams) ([]ListReadingsRow, error)
 	ReadingHistory(ctx context.Context, documentID pgtype.UUID) ([]DocumentReadingEvent, error)
+	RenewReadingClaim(ctx context.Context, arg RenewReadingClaimParams) (int64, error)
 	RetryReading(ctx context.Context, arg RetryReadingParams) (DocumentReading, error)
 	SubmitReading(ctx context.Context, arg SubmitReadingParams) (DocumentReading, error)
 }

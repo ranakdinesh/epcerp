@@ -5,16 +5,17 @@ import ts from 'typescript';
 const source = readFileSync(new URL('../src/components/processes/process-directory.ts', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
 const { tenderProcess, projectProcess, processForScreen, availableProcessStep, processStepHref, filterProcessSteps } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
-test('tender reference retains 26 ordered unique stages with only delivered intake routable', () => {
- assert.deepEqual(tenderProcess.steps.map(s=>s.number), Array.from({length:26},(_,i)=>i+1));
- assert.equal(new Set(tenderProcess.steps.map(s=>s.code)).size,26);
- assert.deepEqual(tenderProcess.steps.filter(s=>s.available).map(s=>s.code),['TS-01']);
- for (const step of tenderProcess.steps.slice(1)) assert.equal(processStepHref(tenderProcess,step),undefined);
+test('tender reference retains 27 ordered unique stages with document reading and TSC generation routable', () => {
+ assert.deepEqual(tenderProcess.steps.map(s=>s.number), Array.from({length:27},(_,i)=>i+1));
+ assert.equal(new Set(tenderProcess.steps.map(s=>s.code)).size,27);
+ assert.deepEqual(tenderProcess.steps.filter(s=>s.available).map(s=>s.code),['TS-01','TS-TSC']);
+ for (const step of tenderProcess.steps.slice(2)) assert.equal(processStepHref(tenderProcess,step),undefined);
  assert.equal(processStepHref(tenderProcess,tenderProcess.steps[0]),'/dashboard?screen=tender-fms&step=TS-01');
+ assert.equal(processStepHref(tenderProcess,tenderProcess.steps[1],undefined,'draft-id'),'/dashboard?screen=tender-fms&step=TS-TSC&draft=draft-id');
 });
 test('unavailable and invalid query selections resolve to real entry step', () => {
  for (const process of [tenderProcess,projectProcess]) {
-  for (const query of [null,'not-a-step',process.steps[1].code]) assert.equal(availableProcessStep(process,query),process.steps[0]);
+  for (const query of [null,'not-a-step',process.steps.find(s=>!s.available).code]) assert.equal(availableProcessStep(process,query),process.steps[0]);
   assert.equal(availableProcessStep(process,process.steps[0].code),process.steps[0]);
  }
  assert.equal(processForScreen('items'),undefined);
@@ -26,7 +27,7 @@ test('step search matches number, code, label and group without mutating directo
  assert.equal(filterProcessSteps(tenderProcess,'26')[0].number,26);
  assert.equal(filterProcessSteps(tenderProcess,'not-existing').length,0);
  assert.ok(filterProcessSteps(tenderProcess,'technical').length>1);
- assert.equal(tenderProcess.steps.length,26);
+ assert.equal(tenderProcess.steps.length,27);
 });
 
 test('confirmed project delivery remains 19 processes, with register separate from numbered stages',()=>{

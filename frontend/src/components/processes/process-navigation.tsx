@@ -7,8 +7,8 @@ import { ArrowLeftIcon, MapIcon, ClipboardDocumentListIcon, CheckCircleIcon } fr
 import { filterProcessSteps, processStepHref, processMapHref, type ProcessDefinition, type ProcessStep } from "./process-directory";
 
 // Rendered inside the shared application shell: no duplicate account/theme/sidebar.
-export function ProcessNavigation({ process, selected, mapSelected, projectId, workPackages=false, close }: {
-  process: ProcessDefinition; selected?: ProcessStep; mapSelected: boolean; projectId?: string; workPackages?: boolean; close: () => void;
+export function ProcessNavigation({ process, selected, mapSelected, projectId, draftId, workPackages=false, close }: {
+  process: ProcessDefinition; selected?: ProcessStep; mapSelected: boolean; projectId?: string; draftId?: string; workPackages?: boolean; close: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [completion,setCompletion]=useState<{project?:string;steps:number[]}>({steps:[]});
@@ -29,7 +29,7 @@ export function ProcessNavigation({ process, selected, mapSelected, projectId, w
     {process.screen==="purchase-fms"&&projectId&&<Link href={`/dashboard?screen=purchase-fms&project=${encodeURIComponent(projectId)}&work=packages`} title="Purchase work packages" aria-label="Purchase work packages" aria-current={workPackages?"page":undefined} onClick={close}><ClipboardDocumentListIcon aria-hidden="true"/><span>Purchase work packages</span></Link>}
     <ValidatedLabel className="go-step-search">Find a step<ValidatedInput type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search steps…" /></ValidatedLabel>
     {groups.map(group => <div key={group} className="go-process-group"><p>{group}</p>{steps.filter(step => step.group === group).map(step => {
-      const href = processStepHref(process, step,projectId);
+      const href = processStepHref(process, step,projectId,draftId);
       const content = <><span className="go-step-number" aria-hidden="true">{completed.includes(step.sourceNumber??step.number)?<CheckCircleIcon className="text-green-600" aria-hidden="true"/>:step.number || "R"}</span><span className="go-step-label">{step.label}{!step.available && <small>Planned</small>}</span></>;
       return href ? <Link key={step.code} href={href} title={`${step.number ? step.number + ". " : ""}${step.label}`} aria-label={`${step.number ? step.number + ". " : ""}${step.label}${completed.includes(step.sourceNumber??step.number)?" · Completed":""}`} aria-current={!mapSelected && !workPackages && selected?.code === step.code ? "page" : undefined} onClick={close}>{content}</Link>
         : <div key={step.code} className="go-planned-step" aria-disabled="true" title={`${step.number}. ${step.label} · Planned`}>{content}</div>;

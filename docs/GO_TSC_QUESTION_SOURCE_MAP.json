@@ -1,0 +1,550 @@
+﻿{
+    "status":  "design_only",
+    "template_version":  "tsc-company-form-v1",
+    "template_path":  "TSC Format.docx",
+    "template_sha256":  "cfb4d66eb86dc235a902eb136230a6f76b78226c3e0cb3b88037dfc13691a282",
+    "question_count":  70,
+    "boq_initial_row_count":  8,
+    "questions":  [
+                      {
+                          "id":  "particulars.q01",
+                          "section":  "particulars",
+                          "printed_number":  "1",
+                          "question":  "Name of Department:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q02",
+                          "section":  "particulars",
+                          "printed_number":  "2",
+                          "question":  "Name of work:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q03",
+                          "section":  "particulars",
+                          "printed_number":  "3",
+                          "question":  "Location where the work will be executed:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q04",
+                          "section":  "particulars",
+                          "printed_number":  "4",
+                          "question":  "Tender value with GST:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q05",
+                          "section":  "particulars",
+                          "printed_number":  "5",
+                          "question":  "Tender value without GST:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q06",
+                          "section":  "particulars",
+                          "printed_number":  "6",
+                          "question":  "Reverse Auction (RA) applicability :",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q07",
+                          "section":  "particulars",
+                          "printed_number":  "7",
+                          "question":  "Completion Period:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q08",
+                          "section":  "particulars",
+                          "printed_number":  "8",
+                          "question":  "Pre-bid Due Date \u0026 time:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q09",
+                          "section":  "particulars",
+                          "printed_number":  "9",
+                          "question":  "Tender Due Date \u0026 time:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q10",
+                          "section":  "particulars",
+                          "printed_number":  "10",
+                          "question":  "E-tendering Portal:",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q11",
+                          "section":  "particulars",
+                          "printed_number":  "11",
+                          "question":  "Site visit is Mandatory for the Subject tender?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q12",
+                          "section":  "particulars",
+                          "printed_number":  "12",
+                          "question":  "If yes provide contact person name \u0026 no \u0026 due date?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q13",
+                          "section":  "particulars",
+                          "printed_number":  "13",
+                          "question":  "Hard copy/Physical/Offline is required in the subject tender?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q14",
+                          "section":  "particulars",
+                          "printed_number":  "14",
+                          "question":  "Validity of offer",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q15",
+                          "section":  "particulars",
+                          "printed_number":  "15",
+                          "question":  "Is Joint Venture (JV), Consortium, or MOU-based bidding allowed under this tender?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "particulars.q16",
+                          "section":  "particulars",
+                          "printed_number":  "15",
+                          "question":  "Tender Type: Works/Goods/Services",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "tender_fee.q01",
+                          "section":  "tender_fee",
+                          "printed_number":  "1",
+                          "question":  "Is Tender Cost/ Tender Fee exemption allowed in the tender for works/ Service category? If yes",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "tender_fee.q02",
+                          "section":  "tender_fee",
+                          "printed_number":  "1.1",
+                          "question":  "Exemption from Startup",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "tender_fee.q03",
+                          "section":  "tender_fee",
+                          "printed_number":  "1.2",
+                          "question":  "Exemption from MSME (Udyam Certificate)",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "tender_fee.q04",
+                          "section":  "tender_fee",
+                          "printed_number":  "1.3",
+                          "question":  "Exemption against Bid Security Declaration",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "tender_fee.q05",
+                          "section":  "tender_fee",
+                          "printed_number":  "2",
+                          "question":  "If not, what is the value of tender cost and available mode of Payments?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "tender_fee.q06",
+                          "section":  "tender_fee",
+                          "printed_number":  "3",
+                          "question":  "Is Tender Cost/ Tender is acceptable in the form of Insurance Surety Bond?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "emd.q01",
+                          "section":  "emd",
+                          "printed_number":  "1",
+                          "question":  "Is EMD/BSD exemption allowed in the tender for work service Category?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "emd.q02",
+                          "section":  "emd",
+                          "printed_number":  "1.1",
+                          "question":  "Exemption from Startup",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "emd.q03",
+                          "section":  "emd",
+                          "printed_number":  "1.2",
+                          "question":  "Exemption from MSME (Udyam Certificate)",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "emd.q04",
+                          "section":  "emd",
+                          "printed_number":  "1.3",
+                          "question":  "Exemption against Bid Security Declaration",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "emd.q05",
+                          "section":  "emd",
+                          "printed_number":  "2",
+                          "question":  "If not, what is the value of EMD/BSD and available mode of payments??",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "emd.q06",
+                          "section":  "emd",
+                          "printed_number":  "3",
+                          "question":  "Is EMD/BSD is acceptable in the form of Insurance Surety Bond?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q01",
+                          "section":  "similar_work",
+                          "printed_number":  "1",
+                          "question":  "Matching of monetary limit of one single work, two works or three works \u0026 in how many past years?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q02",
+                          "section":  "similar_work",
+                          "printed_number":  "2",
+                          "question":  "Is there any provision/clause in the tender for enhancement of the executed work value to the current price level, such as the 7% annual escalation (enhancement) clause?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q03",
+                          "section":  "similar_work",
+                          "printed_number":  "3",
+                          "question":  "Definition of similar work as mentioned in the tender documents?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q04",
+                          "section":  "similar_work",
+                          "printed_number":  "4",
+                          "question":  "Documents required for similar work experience?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q05",
+                          "section":  "similar_work",
+                          "printed_number":  "5",
+                          "question":  "Please confirm whether Joint Venture (JV), Consortium, or MOU-based bidding is permitted under this tender. / If yes, kindly provide the detailed eligibility criteria and list of documents required to be submitted along with the bid.",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q06",
+                          "section":  "similar_work",
+                          "printed_number":  "6",
+                          "question":  "Any authorization from OEM required?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q07",
+                          "section":  "similar_work",
+                          "printed_number":  "7",
+                          "question":  "Details of any other document if required from OEM?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "similar_work.q08",
+                          "section":  "similar_work",
+                          "printed_number":  "8",
+                          "question":  "Details of any documents if required from client against experience submitted?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q01",
+                          "section":  "financial",
+                          "printed_number":  "1",
+                          "question":  "Matching value of turn-over requirement?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q02",
+                          "section":  "financial",
+                          "printed_number":  "2",
+                          "question":  "Average Annual Turnover Requirement?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q03",
+                          "section":  "financial",
+                          "printed_number":  "3",
+                          "question":  "Documents required for Annual Turnover?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q04",
+                          "section":  "financial",
+                          "printed_number":  "4",
+                          "question":  "If required, Any type of Certificate from Bank?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q05",
+                          "section":  "financial",
+                          "printed_number":  "5",
+                          "question":  "If required, Any type of Certificate from CA?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q06",
+                          "section":  "financial",
+                          "printed_number":  "6",
+                          "question":  "If required, any other type of document from any other third party or person?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q07",
+                          "section":  "financial",
+                          "printed_number":  "7",
+                          "question":  "Solvency requirement with value?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q08",
+                          "section":  "financial",
+                          "printed_number":  "8",
+                          "question":  "Net Worth requirement with value?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "financial.q09",
+                          "section":  "financial",
+                          "printed_number":  "9",
+                          "question":  "Working Capital requirement with value?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "electrical_licence.q01",
+                          "section":  "electrical_licence",
+                          "printed_number":  "1",
+                          "question":  "Is submission of an Electrical License required for this bid? If yes, please specify the state from which it should be issued?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "electrical_licence.q02",
+                          "section":  "electrical_licence",
+                          "printed_number":  "2",
+                          "question":  "Is the required voltage level for the Electrical License specified in the tender?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "electrical_licence.q03",
+                          "section":  "electrical_licence",
+                          "printed_number":  "3",
+                          "question":  "s an Undertaking or Endorsement for the Electrical License required?",
+                          "answer_basis":  "tender_and_company"
+                      },
+                      {
+                          "id":  "security.q01",
+                          "section":  "security",
+                          "printed_number":  "1",
+                          "question":  "Is the Security Deposit (SD) / Performance Bank Guarantee (PBG) accepted in the form of Insurance Surety Bond (ISB)?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "security.q02",
+                          "section":  "security",
+                          "printed_number":  "2",
+                          "question":  "What is the percentage of Security Deposit (SD) / Performance Bank Guarantee is required?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "security.q03",
+                          "section":  "security",
+                          "printed_number":  "3",
+                          "question":  "What is the time period of defect liability period?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "security.q04",
+                          "section":  "security",
+                          "printed_number":  "4",
+                          "question":  "What is the time period of Warranty of LED Lights?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "security.q05",
+                          "section":  "security",
+                          "printed_number":  "5",
+                          "question":  "Kindly confirm the time period for the Bank Guarantee applicable to SD/PBG?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "payment.q01",
+                          "section":  "payment",
+                          "printed_number":  "1",
+                          "question":  "What are the payment terms \u0026 milestones?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "payment.q02",
+                          "section":  "payment",
+                          "printed_number":  "2",
+                          "question":  "Who is paying the payment in the tender?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "payment.q03",
+                          "section":  "payment",
+                          "printed_number":  "3",
+                          "question":  "Any special remark or observation for the payment?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "work_location.q01",
+                          "section":  "work_location",
+                          "printed_number":  "1",
+                          "question":  "Confirm for stability \u0026 safety of work location? / Stability in work location can be confirmed through online news available about the location / Secondly, from vendor\u0027s or our team member\u0027s if any located from that area or nearby areas / Previous work experience about the place, if any / As a last resort, if required directly from vendor.",
+                          "answer_basis":  "reviewed_risk_evidence"
+                      },
+                      {
+                          "id":  "risk.q01",
+                          "section":  "risk",
+                          "printed_number":  "1",
+                          "question":  "Special comments on payment regularity and on time payments.",
+                          "answer_basis":  "reviewed_risk_evidence"
+                      },
+                      {
+                          "id":  "risk.q02",
+                          "section":  "risk",
+                          "printed_number":  "2",
+                          "question":  "Availability of local labor or Any labor union.",
+                          "answer_basis":  "reviewed_risk_evidence"
+                      },
+                      {
+                          "id":  "risk.q03",
+                          "section":  "risk",
+                          "printed_number":  "3",
+                          "question":  "Risk in terms of vendors/ location/ service or product to be delivered.",
+                          "answer_basis":  "reviewed_risk_evidence"
+                      },
+                      {
+                          "id":  "risk.q04",
+                          "section":  "risk",
+                          "printed_number":  "4.",
+                          "question":  "Is there any price escalation clause available in the tender ?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "risk.q05",
+                          "section":  "risk",
+                          "printed_number":  "4.1",
+                          "question":  "If Yes, what is the clause?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "risk.q06",
+                          "section":  "risk",
+                          "printed_number":  "5.",
+                          "question":  "LD (Liquid Damage) / Penalty clause available in the tender?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "risk.q07",
+                          "section":  "risk",
+                          "printed_number":  "5.1",
+                          "question":  "If Yes, what is the clause?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "conclusion.q01",
+                          "section":  "conclusion",
+                          "printed_number":  "1",
+                          "question":  "Are we Eligible?",
+                          "answer_basis":  "human_decision"
+                      },
+                      {
+                          "id":  "conclusion.q02",
+                          "section":  "conclusion",
+                          "printed_number":  "2",
+                          "question":  "Should we Bid this Project?",
+                          "answer_basis":  "human_decision"
+                      },
+                      {
+                          "id":  "other.q01",
+                          "section":  "other",
+                          "printed_number":  "",
+                          "question":  "Apart from this, are there any other conditions or documents that we need to submit in order to be technically qualified?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "other.q02",
+                          "section":  "other",
+                          "printed_number":  "",
+                          "question":  "Are there any terms and conditions that are directly related to the pre-qualification criteria?",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "other.q03",
+                          "section":  "other",
+                          "printed_number":  "",
+                          "question":  "Kindly confirm the list of forms and formats that are required to be submitted along with the technical bid.",
+                          "answer_basis":  "tender"
+                      },
+                      {
+                          "id":  "other.q04",
+                          "section":  "other",
+                          "printed_number":  "",
+                          "question":  "Any other terms, conditions, or special remarks that may affect the price bid or have price implications?",
+                          "answer_basis":  "tender"
+                      }
+                  ],
+    "boq_rows":  [
+                     {
+                         "id":  "boq.row_1",
+                         "printed_number":  "1",
+                         "item":  "",
+                         "makes":  ""
+                     },
+                     {
+                         "id":  "boq.row_2",
+                         "printed_number":  "2",
+                         "item":  "",
+                         "makes":  ""
+                     },
+                     {
+                         "id":  "boq.row_3",
+                         "printed_number":  "3",
+                         "item":  "",
+                         "makes":  ""
+                     },
+                     {
+                         "id":  "boq.row_4",
+                         "printed_number":  "4",
+                         "item":  "",
+                         "makes":  ""
+                     },
+                     {
+                         "id":  "boq.row_5",
+                         "printed_number":  "5",
+                         "item":  "",
+                         "makes":  ""
+                     },
+                     {
+                         "id":  "boq.row_6",
+                         "printed_number":  "6",
+                         "item":  "",
+                         "makes":  ""
+                     },
+                     {
+                         "id":  "boq.row_7",
+                         "printed_number":  "7",
+                         "item":  "",
+                         "makes":  ""
+                     },
+                     {
+                         "id":  "boq.row_8",
+                         "printed_number":  "8",
+                         "item":  "",
+                         "makes":  ""
+                     }
+                 ]
+}

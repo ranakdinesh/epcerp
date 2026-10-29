@@ -140,7 +140,7 @@ func (r *CaptureRepository) ChangeManager(ctx context.Context, record domain.Rec
 	}
 	return namedRecord(v), nil
 }
-func (r *CaptureRepository) recordChange(ctx context.Context, v db.TenderFmsIntake, actor, action string) error {
+func (r *CaptureRepository) recordChange(ctx context.Context, v db.TenderTenderFmsIntake, actor, action string) error {
 	event := Values{}.ID()
 	if e := r.q.RecordNamedChange(ctx, db.RecordNamedChangeParams{ID: uuid(event), IntakeID: v.ID, BusinessVersion: v.BusinessVersion, Action: action, ActorID: uuid(actor)}); e != nil {
 		return e

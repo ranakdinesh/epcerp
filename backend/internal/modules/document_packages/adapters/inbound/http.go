@@ -9,6 +9,7 @@ import (
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/httpinput"
 	"github.com/ranakdinesh/epcERP/internal/modules/document_packages/application"
 	"github.com/ranakdinesh/epcERP/internal/modules/document_packages/domain"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
@@ -92,6 +93,18 @@ func token(r *http.Request) string {
 	return ""
 }
 func Register(r chi.Router, s *application.Service) {
+	r.Get("/api/v1/tender-fms/receipts/{receipt_id}/files/{file_id}", func(w http.ResponseWriter, r *http.Request) {
+		data, name, e := s.Original(r.Context(), token(r), chi.URLParam(r, "receipt_id"), chi.URLParam(r, "file_id"))
+		if failure(w, r, e) {
+			return
+		}
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
+		w.Write(data)
+	})
+
 	r.Post("/api/v1/tender-fms/receipts", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Files []struct {

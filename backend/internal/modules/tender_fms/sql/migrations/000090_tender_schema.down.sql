@@ -1,0 +1,16 @@
+BEGIN;
+SET LOCAL lock_timeout = '10s';
+ALTER TABLE tender.tender_fms_intakes SET SCHEMA public;
+ALTER TABLE tender.tender_fms_events SET SCHEMA public;
+ALTER TABLE tender.tender_fms_owner_changes SET SCHEMA public;
+ALTER TABLE tender.tender_fms_manager_assignments SET SCHEMA public;
+ALTER TABLE tender.tender_fms_record_events SET SCHEMA public;
+ALTER TABLE tender.tender_fms_participant_grants SET SCHEMA public;
+ALTER TABLE tender.tender_provision_operations SET SCHEMA public;
+ALTER TABLE tender.tender_capture_operations SET SCHEMA public;
+ALTER TABLE tender.tender_source_links SET SCHEMA public;
+ALTER TABLE tender.tender_source_actions SET SCHEMA public;
+ALTER TABLE tender.tender_email_jobs SET SCHEMA public;
+ALTER TABLE tender.tender_email_attempts SET SCHEMA public;
+DROP SCHEMA tender;
+COMMIT;

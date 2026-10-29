@@ -64,18 +64,26 @@ type Segment struct {
 	Label          string   `json:"label"`
 	Text           string   `json:"text"`
 	NativeText     string   `json:"native_text,omitempty"`
+	OCRText        string   `json:"ocr_text,omitempty"`
+	OCRConfidence  *float64 `json:"ocr_confidence,omitempty"`
 	Method         string   `json:"method"`
 	Confidence     *float64 `json:"confidence,omitempty"`
 	Words          []Word   `json:"words,omitempty"`
 	Cells          []Cell   `json:"cells,omitempty"`
 	Merges         []string `json:"merged_ranges,omitempty"`
 }
+type PartCoverage struct {
+	Path        string `json:"path"`
+	Disposition string `json:"disposition"`
+	Reason      string `json:"reason"`
+}
 type Result struct {
-	Schema        string    `json:"schema"`
-	ReaderVersion string    `json:"reader_version"`
-	SourceSHA256  string    `json:"source_sha256"`
-	Segments      []Segment `json:"segments"`
-	Warnings      []string  `json:"warnings"`
+	Parts         []PartCoverage `json:"parts,omitempty"`
+	Schema        string         `json:"schema"`
+	ReaderVersion string         `json:"reader_version"`
+	SourceSHA256  string         `json:"source_sha256"`
+	Segments      []Segment      `json:"segments"`
+	Warnings      []string       `json:"warnings"`
 }
 type Event struct {
 	ID         string    `json:"id"`

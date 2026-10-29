@@ -5,32 +5,33 @@ export type ProcessDefinition = { screen: string; label: string; steps: readonly
 // Only an implemented, authorized Go workspace may become an available step.
 export const tenderProcess: ProcessDefinition = {
  screen: "tender-fms", label: "Tender FMS", steps: [
-  { code: "TS-01", group: "Tender Selection", number: 1, label: "Receive tender \u00b7 Documents", available: true },
-  { code: "TS-02", group: "Tender Selection", number: 2, label: "Approval for Bidding the Tender", available: false },
-  { code: "LG-01", group: "Lead Generation", number: 3, label: "Share tender and basic details", available: false },
-  { code: "LG-02", group: "Lead Generation", number: 4, label: "Approval for Bidding", available: false },
-  { code: "LG-03", group: "Lead Generation", number: 5, label: "Submit Pre-Bid Query over portal/E-mail", available: false },
-  { code: "LG-04", group: "Lead Generation", number: 6, label: "Pre-bid query approved or rejected", available: false },
-  { code: "CV-01", group: "Costing and Vendor Work", number: 7, label: "Read & understand tender document", available: false },
-  { code: "CV-02", group: "Costing and Vendor Work", number: 8, label: "Float Inquiries to vendors as per Make list", available: false },
-  { code: "CV-03", group: "Costing and Vendor Work", number: 9, label: "Receive Quotation from vendors", available: false },
-  { code: "CV-04", group: "Costing and Vendor Work", number: 10, label: "Check Quotation for correctness & completeness", available: false },
-  { code: "CV-05", group: "Costing and Vendor Work", number: 11, label: "Negotiate with vendors for L-1 Price", available: false },
-  { code: "CV-06", group: "Costing and Vendor Work", number: 12, label: "Submit Technical Documents for Technical Bid preparation", available: false },
-  { code: "CV-07", group: "Costing and Vendor Work", number: 13, label: "Prepare final working BOQ / costing sheet", available: false },
-  { code: "CV-08", group: "Costing and Vendor Work", number: 14, label: "Submission of tender on online portal", available: false },
-  { code: "TB-01", group: "Technical Bid Preparation", number: 15, label: "Prepare print-out file of tender documentation", available: false },
-  { code: "TB-02", group: "Technical Bid Preparation", number: 16, label: "Read and understand tender in totality", available: false },
-  { code: "TB-03", group: "Technical Bid Preparation", number: 17, label: "Review Bid cover", available: false },
-  { code: "TB-04", group: "Technical Bid Preparation", number: 18, label: "Raise request to Accounts department", available: false },
-  { code: "TB-05", group: "Technical Bid Preparation", number: 19, label: "Raise request to Operations executive for vendor documents", available: false },
-  { code: "TB-06", group: "Technical Bid Preparation", number: 20, label: "Prepare Technical Bid", available: false },
-  { code: "TB-07", group: "Technical Bid Preparation", number: 21, label: "Courier / Speed post Hard copy document", available: false },
-  { code: "TB-08", group: "Technical Bid Preparation", number: 22, label: "Submit Technical Bid to Operations Executive", available: false },
-  { code: "TBQ-01", group: "Tender Bid Query", number: 23, label: "Prepare query reply letter and supporting documents", available: false },
-  { code: "TBQ-02", group: "Tender Bid Query", number: 24, label: "Mail to Procurement Executive for checking", available: false },
-  { code: "TBQ-03", group: "Tender Bid Query", number: 25, label: "Forward for submission", available: false },
-  { code: "TBQ-04", group: "Tender Bid Query", number: 26, label: "Check & Submission", available: false },
+  { code: "TS-01", group: "Tender Selection", number: 1, label: "Read documents", available: true },
+  { code: "TS-TSC", group: "Tender Selection", number: 2, label: "Generate TSC", available: true },
+  { code: "TS-02", group: "Tender Selection", number: 3, label: "Approval for Bidding the Tender", available: false },
+  { code: "LG-01", group: "Lead Generation", number: 4, label: "Share tender and basic details", available: false },
+  { code: "LG-02", group: "Lead Generation", number: 5, label: "Approval for Bidding", available: false },
+  { code: "LG-03", group: "Lead Generation", number: 6, label: "Submit Pre-Bid Query over portal/E-mail", available: false },
+  { code: "LG-04", group: "Lead Generation", number: 7, label: "Pre-bid query approved or rejected", available: false },
+  { code: "CV-01", group: "Costing and Vendor Work", number: 8, label: "Read & understand tender document", available: false },
+  { code: "CV-02", group: "Costing and Vendor Work", number: 9, label: "Float Inquiries to vendors as per Make list", available: false },
+  { code: "CV-03", group: "Costing and Vendor Work", number: 10, label: "Receive Quotation from vendors", available: false },
+  { code: "CV-04", group: "Costing and Vendor Work", number: 11, label: "Check Quotation for correctness & completeness", available: false },
+  { code: "CV-05", group: "Costing and Vendor Work", number: 12, label: "Negotiate with vendors for L-1 Price", available: false },
+  { code: "CV-06", group: "Costing and Vendor Work", number: 13, label: "Submit Technical Documents for Technical Bid preparation", available: false },
+  { code: "CV-07", group: "Costing and Vendor Work", number: 14, label: "Prepare final working BOQ / costing sheet", available: false },
+  { code: "CV-08", group: "Costing and Vendor Work", number: 15, label: "Submission of tender on online portal", available: false },
+  { code: "TB-01", group: "Technical Bid Preparation", number: 16, label: "Prepare print-out file of tender documentation", available: false },
+  { code: "TB-02", group: "Technical Bid Preparation", number: 17, label: "Read and understand tender in totality", available: false },
+  { code: "TB-03", group: "Technical Bid Preparation", number: 18, label: "Review Bid cover", available: false },
+  { code: "TB-04", group: "Technical Bid Preparation", number: 19, label: "Raise request to Accounts department", available: false },
+  { code: "TB-05", group: "Technical Bid Preparation", number: 20, label: "Raise request to Operations executive for vendor documents", available: false },
+  { code: "TB-06", group: "Technical Bid Preparation", number: 21, label: "Prepare Technical Bid", available: false },
+  { code: "TB-07", group: "Technical Bid Preparation", number: 22, label: "Courier / Speed post Hard copy document", available: false },
+  { code: "TB-08", group: "Technical Bid Preparation", number: 23, label: "Submit Technical Bid to Operations Executive", available: false },
+  { code: "TBQ-01", group: "Tender Bid Query", number: 24, label: "Prepare query reply letter and supporting documents", available: false },
+  { code: "TBQ-02", group: "Tender Bid Query", number: 25, label: "Mail to Procurement Executive for checking", available: false },
+  { code: "TBQ-03", group: "Tender Bid Query", number: 26, label: "Forward for submission", available: false },
+  { code: "TBQ-04", group: "Tender Bid Query", number: 27, label: "Check & Submission", available: false },
  ]
 };
 export const projectProcess: ProcessDefinition = {
@@ -88,9 +89,9 @@ export function processForScreen(screen: string): ProcessDefinition | undefined 
 export function availableProcessStep(process: ProcessDefinition, requested: string | null): ProcessStep | undefined {
  return process.steps.find(step => step.available && step.code === requested) ?? process.steps.find(step => step.available);
 }
-export function processStepHref(process: ProcessDefinition, step: ProcessStep, projectId?: string): string | undefined {
+export function processStepHref(process: ProcessDefinition, step: ProcessStep, projectId?: string, draftId?: string): string | undefined {
  if (!step.available || (process.screen === "purchase-fms" && !projectId)) return undefined;
- return `/dashboard?screen=${process.screen}&step=${encodeURIComponent(step.code)}${process.screen === "purchase-fms" ? `&project=${encodeURIComponent(projectId!)}` : ""}`;
+ return `/dashboard?screen=${process.screen}&step=${encodeURIComponent(step.code)}${process.screen === "purchase-fms" ? `&project=${encodeURIComponent(projectId!)}` : process.screen === "tender-fms" && draftId ? `&draft=${encodeURIComponent(draftId)}` : ""}`;
 }
 export function filterProcessSteps(process: ProcessDefinition, query: string): readonly ProcessStep[] {
  const term = query.trim().toLowerCase();

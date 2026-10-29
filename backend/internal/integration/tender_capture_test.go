@@ -172,7 +172,7 @@ func TestReceiptCaptureAtomicReplayScopeAndReassignment(t *testing.T) {
 		t.Fatal("mandatory inbox failure accepted")
 	}
 	var count int
-	for _, table := range []string{"tender_capture_operations", "tender_provision_operations", "tender_source_actions", "tender_email_jobs", "tender_source_links", "document_readings"} {
+	for _, table := range []string{"tender.tender_capture_operations", "tender.tender_provision_operations", "tender.tender_source_actions", "tender.tender_email_jobs", "tender.tender_source_links", "document_readings"} {
 		if e = pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&count); e != nil || count != 0 {
 			t.Fatal("partial transaction", table, count, e)
 		}
@@ -214,7 +214,7 @@ func TestReceiptCaptureAtomicReplayScopeAndReassignment(t *testing.T) {
 	if saved.ProvisionState != "pending" || saved.ProjectID != "" || saved.EstimateID != "" || len(saved.Deliveries) != 1 || saved.Deliveries[0].NoticeID == "" || saved.Deliveries[0].EmailJobID == "" {
 		t.Fatal("false handoff or missing Manager work", saved)
 	}
-	for table, want := range map[string]int{"tender_capture_operations": 1, "tender_provision_operations": 1, "tender_source_actions": 1, "tender_email_jobs": 1, "tender_source_links": 2, "document_readings": 1} {
+	for table, want := range map[string]int{"tender.tender_capture_operations": 1, "tender.tender_provision_operations": 1, "tender.tender_source_actions": 1, "tender.tender_email_jobs": 1, "tender.tender_source_links": 2, "document_readings": 1} {
 		if e = pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&count); e != nil || count != want {
 			t.Fatal("wrong committed count", table, count, want, e)
 		}
@@ -246,7 +246,7 @@ func TestReceiptCaptureAtomicReplayScopeAndReassignment(t *testing.T) {
 		t.Fatal("former Manager retained access", e)
 	}
 	var state string
-	if e = pool.QueryRow(ctx, "SELECT state FROM tender_email_jobs WHERE id=$1", saved.Deliveries[0].EmailJobID).Scan(&state); e != nil || state != "cancelled_obsolete" {
+	if e = pool.QueryRow(ctx, "SELECT state FROM tender.tender_email_jobs WHERE id=$1", saved.Deliveries[0].EmailJobID).Scan(&state); e != nil || state != "cancelled_obsolete" {
 		t.Fatal("old addressed mail not cancelled", e, state)
 	}
 	if e = pool.QueryRow(ctx, "SELECT count(*) FROM communication_notices WHERE notice_kind='tender_manager'").Scan(&count); e != nil || count != 2 {

@@ -25,6 +25,7 @@ build:
 	go build -o /tmp/epcERP-document-worker ./cmd/document-worker
 	go build -o /tmp/epcERP-document-package-worker ./cmd/document-package-worker
 	go build -o /tmp/epcERP-document-reader ./cmd/document-reader
+	go build -o /tmp/epcERP-tsc-worker ./cmd/tsc-worker
 
 run-local:
 	./run-local.sh api

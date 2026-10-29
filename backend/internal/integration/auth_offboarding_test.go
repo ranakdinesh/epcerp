@@ -132,7 +132,7 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 	execFixture(t, pool, `INSERT INTO project_responsibility_profiles(id,project_id,user_id,bundle_id,responsibility,responsibility_key,permission_codes,version)VALUES($1,$2,$3,$4,'Archived responsibility','archived','["projects.budgets.write"]',1)`, v.ID(), closedProject, ids[2], archiveRole)
 	execFixture(t, pool, "INSERT INTO project_budgets(project_id,version,revision,state,total,currency,owner_id,notes,pricing_mode,is_active)VALUES($1,1,1,'draft',0,'INR',$2,'','',true)", closedProject, ids[2])
 	tenderID := v.ID()
-	execFixture(t, pool, "INSERT INTO tender_fms_intakes(id,title,owner_id,initial_sha256)VALUES($1,'Departure tender fixture',$2,$3)", tenderID, ids[2], "fixture-hash")
+	execFixture(t, pool, "INSERT INTO tender.tender_fms_intakes(id,title,owner_id,initial_sha256)VALUES($1,'Departure tender fixture',$2,$3)", tenderID, ids[2], "fixture-hash")
 	// A ready, explicitly permitted recipient; the manager does not gain source permissions.
 	role := v.ID()
 	execFixture(t, pool, "INSERT INTO auth.roles(id,name,description,is_active)VALUES($1,'tender_successor','Fixture tender processor',true)", role)
@@ -194,7 +194,7 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 	if _, e = ownership.Handover(ctx, "admin", tenderID, tenderdomain.OwnershipInput{OwnerID: ids[0], Version: 1, Reason: "Stale tender ownership change"}); e == nil {
 		t.Fatal("stale tender handover accepted")
 	}
-	if _, e = pool.Exec(ctx, "DELETE FROM tender_fms_owner_changes"); e == nil {
+	if _, e = pool.Exec(ctx, "DELETE FROM tender.tender_fms_owner_changes"); e == nil {
 		t.Fatal("tender handover evidence mutable")
 	}
 	report := profiles[ids[3]]

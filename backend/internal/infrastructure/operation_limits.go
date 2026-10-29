@@ -17,6 +17,9 @@ func NewReceiptLimits() *OperationLimits {
 func NewTenderLimits() *OperationLimits {
 	return &OperationLimits{map[string]*httpmiddleware.Limiter{"capture": httpmiddleware.NewLimiter(10, time.Minute), "assignment": httpmiddleware.NewLimiter(20, time.Minute), "read": httpmiddleware.NewLimiter(120, time.Minute)}}
 }
+func NewTSCLimits() *OperationLimits {
+	return &OperationLimits{map[string]*httpmiddleware.Limiter{"tsc_read": httpmiddleware.NewLimiter(120, time.Minute), "tsc_write": httpmiddleware.NewLimiter(10, time.Minute), "tsc_export": httpmiddleware.NewLimiter(5, 10*time.Minute)}}
+}
 func (l *OperationLimits) Allow(actor, operation string) bool {
 	limit := l.limits[operation]
 	return limit != nil && limit.Allow(actor)

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ranakdinesh/epcERP/internal/identity"
+	"github.com/ranakdinesh/epcERP/internal/infrastructure"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
 	auth "github.com/ranakdinesh/epcERP/internal/modules/auth/contracts"
 	"github.com/ranakdinesh/epcERP/internal/modules/document_packages/adapters/outbound/internal/db"
@@ -107,7 +108,7 @@ func (r *Repository) Get(ctx context.Context, key string) (domain.Receipt, error
 	if e != nil {
 		return domain.Receipt{}, e
 	}
-	out := domain.Receipt{ID: id(v.ID), OwnerID: id(v.OwnerID), State: v.State, Version: v.Version, LimitRevision: v.LimitProfileRevision, ExpiresAt: v.ExpiresAt.Time, CreatedAt: v.CreatedAt.Time, ClaimID: id(v.ClaimID), LeaseUntil: v.LeaseUntil.Time, Attempts: v.Attempts, ErrorCode: v.ErrorCode.String, ConsumedBy: id(v.ConsumedByTenderID), Files: []domain.File{}}
+	out := domain.Receipt{ID: id(v.ID), OwnerID: id(v.OwnerID), State: v.State, Version: v.Version, LimitRevision: v.LimitProfileRevision, ExpiresAt: v.ExpiresAt.Time, CreatedAt: v.CreatedAt.Time, UpdatedAt: v.UpdatedAt.Time, ClaimID: id(v.ClaimID), LeaseUntil: v.LeaseUntil.Time, Attempts: v.Attempts, ErrorCode: v.ErrorCode.String, ConsumedBy: id(v.ConsumedByTenderID), DraftID: id(v.DraftID), Files: []domain.File{}}
 	if v.State != "consumed" && !time.Now().Before(out.ExpiresAt) {
 		out.State = "expired"
 		out.ErrorCode = "receipt_expired"
@@ -228,6 +229,9 @@ func (r *Repository) FinishVerification(ctx context.Context, v domain.Receipt, c
 	state := "ready"
 	if code != "" {
 		state = "failed"
+		if code == "dependency_unavailable" && v.Attempts < 3 {
+			state = "verifying"
+		}
 	}
 	total, e := r.q.MemberTotals(ctx, db.MemberTotalsParams{ReceiptID: uuid(v.ID), ClaimID: uuid(v.ClaimID)})
 	if e != nil {
@@ -360,4 +364,94 @@ func (r *Repository) FinishPurge(ctx context.Context, o domain.ObjectRef) error 
 		return e
 	}
 	return r.event(ctx, v.ID, o.FileID, "unconsumed_object_purged", v.OwnerID, v.Version, "")
+}
+
+func (r *Repository) RetainDraft(ctx context.Context, id, actor, draft string) error {
+	n, e := r.q.RetainDraftReceipt(ctx, db.RetainDraftReceiptParams{ID: uuid(id), ActorID: uuid(actor), DraftID: uuid(draft)})
+	if e != nil {
+		return e
+	}
+	if n != 1 {
+		return domain.Stale
+	}
+	return r.event(ctx, id, "", "draft_retained", actor, 1, "")
+}
+func (r *Repository) DraftReceipts(ctx context.Context, draft string) ([]domain.Receipt, error) {
+	ids, e := r.q.DraftReceipts(ctx, uuid(draft))
+	if e != nil {
+		return nil, e
+	}
+	out := []domain.Receipt{}
+	for _, id := range ids {
+		v, e := r.Get(ctx, id.String())
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+func (r *Repository) PublishDraft(ctx context.Context, v domain.Receipt, draft string) error {
+	n, e := r.q.PublishDraftReceipt(ctx, db.PublishDraftReceiptParams{ID: uuid(v.ID), DraftID: uuid(draft)})
+	if e != nil {
+		return e
+	}
+	if n != 1 {
+		return domain.Stale
+	}
+	return r.event(ctx, v.ID, "", "draft_published", v.OwnerID, v.Version+1, "")
+}
+
+func (r *Repository) MemberInfo(ctx context.Context, v domain.Receipt, key string) (domain.Member, error) {
+	m, e := r.q.DraftMemberInfo(ctx, db.DraftMemberInfoParams{ReceiptID: uuid(v.ID), ID: uuid(key), DraftID: uuid(v.ConsumedBy)})
+	if errors.Is(e, pgx.ErrNoRows) {
+		return domain.Member{}, domain.Missing
+	}
+	if e != nil {
+		return domain.Member{}, e
+	}
+	return domain.Member{ID: m.ID.String(), ReceiptID: m.ReceiptID.String(), FileID: m.FileID.String(), Path: m.Path, Filename: m.Filename, Kind: m.Kind, SHA256: m.Sha256, Pages: m.Pages, Sheets: m.Sheets, Cells: m.Cells}, nil
+}
+
+func (u *Unit) KeepClaim(ctx context.Context, job domain.Receipt) (context.Context, func()) {
+	return infrastructure.KeepClaim(ctx, func(ctx context.Context) error {
+		return u.m.Within(ctx, func(ctx context.Context, c database.Connection) error {
+			n, e := db.New(c).RenewVerificationClaim(ctx, db.RenewVerificationClaimParams{ID: uuid(job.ID), ClaimID: uuid(job.ClaimID)})
+			if e != nil {
+				return e
+			}
+			if n != 1 {
+				return domain.Stale
+			}
+			return nil
+		})
+	})
+}
+
+func (r *Repository) AddDisposition(ctx context.Context, v domain.Receipt, d domain.Disposition) error {
+	current, e := r.Get(ctx, v.ID)
+	if e != nil {
+		return e
+	}
+	if current.ClaimID != v.ClaimID || current.State != "verifying" || !time.Now().Before(current.LeaseUntil) {
+		return domain.Stale
+	}
+	return r.q.AddDisposition(ctx, db.AddDispositionParams{ID: uuid(Values{}.ID()), ReceiptID: uuid(v.ID), FileID: uuid(d.FileID), ClaimID: uuid(v.ClaimID), Path: d.Path, Disposition: d.State, ErrorCode: d.Code})
+}
+func (r *Repository) Dispositions(ctx context.Context, v domain.Receipt) ([]domain.Disposition, error) {
+	rows, e := r.q.ListDispositions(ctx, db.ListDispositionsParams{ReceiptID: uuid(v.ID), ClaimID: uuid(v.ClaimID)})
+	out := []domain.Disposition{}
+	for _, d := range rows {
+		out = append(out, domain.Disposition{FileID: d.FileID.String(), Path: d.Path, State: d.Disposition, Code: d.ErrorCode})
+	}
+	return out, e
+}
+
+func (r *Repository) ReadyDrafts(ctx context.Context) ([]domain.Receipt, error) {
+	rows, e := r.q.ReadyDrafts(ctx)
+	out := []domain.Receipt{}
+	for _, v := range rows {
+		out = append(out, domain.Receipt{DraftID: v.DraftID.String(), OwnerID: v.OwnerID.String()})
+	}
+	return out, e
 }
