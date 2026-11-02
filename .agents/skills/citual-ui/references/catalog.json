@@ -1,0 +1,4980 @@
+{
+  "schemaVersion": 1,
+  "name": "citual-ui",
+  "version": "0.3.1",
+  "framework": "React 18+; tested Next.js 15 / Vite 6 with Tailwind 3.4 / 4",
+  "note": "Search metadata suggests candidates; inspect source and exported types before integration. Callers own backend persistence. No blanket redistribution license is granted.",
+  "items": [
+    {
+      "id": "login-form",
+      "export": "LoginForm",
+      "path": "components/workflows/LoginForm.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared",
+        "auth"
+      ],
+      "capabilities": [
+        "login",
+        "validation",
+        "password-visibility",
+        "pending",
+        "error",
+        "async-callback"
+      ],
+      "requires": [
+        "onAuthenticate"
+      ],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "Caller authenticates and creates a server session",
+      "preview": "/foundations",
+      "description": "Authenticate users with a validated login form",
+      "useWhen": "Sign-in flow with caller-provided authentication",
+      "avoidWhen": "Registration, password reset or session management",
+      "keywords": [
+        "sign",
+        "in",
+        "authenticate",
+        "password",
+        "credentials"
+      ],
+      "recipe": "recipes/component-controls.md",
+      "composeWith": [
+        "form-field"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "LoginCredentials",
+          "declaration": "export type LoginCredentials = { email: string; password: string };"
+        },
+        {
+          "name": "LoginFormProps",
+          "declaration": "export type LoginFormProps = {\n  onAuthenticate: (credentials: LoginCredentials) => Promise<void>;\n  title?: string;\n  forgotPasswordHref?: string;\n  onSuccess?: () => void;\n};"
+        }
+      ],
+      "import": "import { LoginForm } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "course-player",
+      "export": "CoursePlayer",
+      "path": "components/workflows/CoursePlayer.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "courses",
+        "university"
+      ],
+      "capabilities": [
+        "lesson-navigation",
+        "reading",
+        "progress",
+        "completion",
+        "async-callback"
+      ],
+      "requires": [
+        "title",
+        "lessons",
+        "onComplete"
+      ],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "Caller supplies lessons and persists learner progress",
+      "preview": "/workspaces/courses/learn",
+      "description": "Present lessons and track completion",
+      "useWhen": "Lesson navigation and completion callbacks",
+      "avoidWhen": "Video delivery or full learning management backend",
+      "keywords": [
+        "lesson",
+        "learning",
+        "training",
+        "content",
+        "player"
+      ],
+      "recipe": "recipes/integration.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": false,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "Lesson",
+          "declaration": "export type Lesson = {\n  id: string;\n  title: string;\n  minutes: number;\n  paragraphs: string[];\n};"
+        },
+        {
+          "name": "CoursePlayerProps",
+          "declaration": "export type CoursePlayerProps = {\n  title: string;\n  lessons: Lesson[];\n  completedIds?: string[];\n  onComplete: (lessonId: string) => Promise<void> | void;\n};"
+        }
+      ],
+      "import": "import { CoursePlayer } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "data-table",
+      "export": "DataTable",
+      "path": "components/workflows/DataTable.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "hrms",
+        "university",
+        "crm",
+        "courses",
+        "exams"
+      ],
+      "capabilities": [
+        "search",
+        "sort",
+        "pagination",
+        "row-actions",
+        "loading",
+        "error",
+        "empty"
+      ],
+      "requires": [
+        "rows",
+        "columns",
+        "rowId"
+      ],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "Caller supplies data and mutation callbacks",
+      "preview": "/foundations",
+      "description": "Browse tabular records with search sorting and pagination",
+      "useWhen": "Read and act on rows with caller-defined columns",
+      "avoidWhen": "Complete CRUD flow; remote pagination is not built in",
+      "keywords": [
+        "table",
+        "grid",
+        "listing",
+        "inventory",
+        "catalog",
+        "sort",
+        "paginate"
+      ],
+      "recipe": "recipes/record-management.md",
+      "composeWith": [
+        "filter-bar",
+        "bulk-action-toolbar"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "TableColumn",
+          "declaration": "export type TableColumn<T> = {\n  key: string;\n  label: string;\n  value: (row: T) => string | number;\n  render?: (row: T) => ReactNode;\n};"
+        },
+        {
+          "name": "TableSelection",
+          "declaration": "export type TableSelection<T> = {\n  ids: string[];\n  onChange: (ids: string[]) => void;\n  label: (row: T) => string;\n  disabled?: boolean;\n};"
+        },
+        {
+          "name": "DataTableProps",
+          "declaration": "export type DataTableProps<T> = {\n  selection?: TableSelection<T>;\n  rows: T[];\n  columns: TableColumn<T>[];\n  rowId: (row: T) => string;\n  actions?: (row: T) => ReactNode;\n  pageSize?: number;\n  searchLabel?: string;\n  toolbar?: ReactNode;\n  loading?: boolean;\n  error?: string;\n  onRetry?: () => void;\n};"
+        }
+      ],
+      "import": "import { DataTable } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "record-workspace",
+      "export": "RecordWorkspace",
+      "path": "components/workflows/RecordWorkspace.tsx",
+      "maturity": "local-demo",
+      "domains": [
+        "hrms",
+        "university",
+        "crm",
+        "courses"
+      ],
+      "capabilities": [
+        "crud",
+        "status-filters",
+        "csv-export",
+        "local-persistence",
+        "pipeline-board",
+        "validation"
+      ],
+      "requires": [
+        "workspace"
+      ],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "Replace local persistence with API mutations before production",
+      "preview": "/workspaces/hrms",
+      "description": "Explore configurable business workspace demos",
+      "useWhen": "Local browser demo of business modules",
+      "avoidWhen": "Production data access; use RecordManager for generic API CRUD",
+      "keywords": [
+        "hrms",
+        "crm",
+        "university",
+        "business",
+        "demo",
+        "workspace"
+      ],
+      "recipe": "recipes/integration.md",
+      "composeWith": [
+        "record-manager"
+      ],
+      "kind": "workflow",
+      "generic": false,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [],
+      "import": "import { RecordWorkspace } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "exam-workbench",
+      "export": "ExamWorkbench",
+      "path": "components/workflows/ExamWorkbench.tsx",
+      "maturity": "local-demo",
+      "domains": [
+        "exams",
+        "courses",
+        "university",
+        "hrms"
+      ],
+      "capabilities": [
+        "question-bank",
+        "exam-settings",
+        "timed-attempt",
+        "answer-recovery",
+        "practice-scoring",
+        "manual-review",
+        "audit-export"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "Server-owned attempts, scoring, media, identity verification and live proctoring required",
+      "preview": "/workspaces/exams",
+      "description": "Explore exam authoring and practice attempts",
+      "useWhen": "Local question bank and timed practice demonstration",
+      "avoidWhen": "Secure server-owned exams or real proctoring",
+      "keywords": [
+        "exam",
+        "assessment",
+        "quiz",
+        "test",
+        "question",
+        "grading"
+      ],
+      "recipe": "recipes/proctored-exams.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": false,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [],
+      "import": "import { ExamWorkbench } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "controls",
+      "export": "Dialog",
+      "path": "components/workflows/Controls.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "modal",
+        "focus-containment",
+        "escape-dismiss",
+        "buttons",
+        "status-badges",
+        "empty-error-loading"
+      ],
+      "requires": [
+        "open",
+        "title",
+        "onClose",
+        "children"
+      ],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "None",
+      "preview": "/foundations",
+      "description": "Display a focused modal dialog",
+      "useWhen": "Short confirmation or modal content",
+      "avoidWhen": "Side panel editing; choose Drawer",
+      "keywords": [
+        "modal",
+        "dialog",
+        "confirmation",
+        "popup"
+      ],
+      "recipe": "recipes/component-controls.md",
+      "composeWith": [
+        "drawer"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "ButtonProps",
+          "declaration": "export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {\n  variant?: \"default\" | \"primary\" | \"danger\";\n};"
+        },
+        {
+          "name": "BadgeProps",
+          "declaration": "export type BadgeProps = {\n  children: ReactNode;\n  tone?: \"success\" | \"warning\" | \"danger\" | \"info\" | \"neutral\" | \"green\" | \"amber\" | \"red\" | \"blue\";\n};"
+        }
+      ],
+      "import": "import { Dialog } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "form-field",
+      "export": "FormField",
+      "path": "components/workflows/FormField.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "validation",
+        "inline-errors",
+        "labels",
+        "native-constraints"
+      ],
+      "requires": [
+        "label"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None; caller owns state and validation",
+      "preview": "/foundations",
+      "description": "Render one labelled input with hints and errors",
+      "useWhen": "Controlled native input with caller validation",
+      "avoidWhen": "Complete record editor or multi-step workflow",
+      "keywords": [
+        "input",
+        "field",
+        "email",
+        "number",
+        "text",
+        "validation"
+      ],
+      "recipe": "recipes/component-controls.md",
+      "composeWith": [
+        "record-form"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "FormFieldProps",
+          "declaration": "export type FormFieldProps = InputHTMLAttributes<HTMLInputElement> & {\n  label: string;\n  hint?: string;\n  error?: string;\n};"
+        }
+      ],
+      "import": "import { FormField } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "date-picker",
+      "export": "DatePicker",
+      "path": "components/workflows/DatePicker.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "date-selection",
+        "min-max",
+        "native-calendar"
+      ],
+      "requires": [
+        "label",
+        "value",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None; caller owns state and validation",
+      "preview": "/foundations",
+      "description": "Select one civil date",
+      "useWhen": "Native date input with min and max",
+      "avoidWhen": "Date range, event scheduling or time-zone conversion",
+      "keywords": [
+        "date",
+        "calendar",
+        "birthday",
+        "deadline"
+      ],
+      "recipe": "recipes/component-controls.md",
+      "composeWith": [
+        "calendar-month"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "DatePickerProps",
+          "declaration": "export type DatePickerProps = Omit<FormFieldProps, \"type\" | \"value\" | \"defaultValue\" | \"onChange\"> & {\n  /** ISO calendar date (YYYY-MM-DD), without timezone conversion. */\n  value: string;\n  onChange: (value: string) => void;\n};"
+        }
+      ],
+      "import": "import { DatePicker } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "searchable-select",
+      "export": "SearchableSelect",
+      "path": "components/workflows/SearchableSelect.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "search",
+        "keyboard-navigation",
+        "disabled-options",
+        "controlled-selection"
+      ],
+      "requires": [
+        "label",
+        "options",
+        "value",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None; caller owns state and validation",
+      "preview": "/foundations",
+      "description": "Choose an option with keyboard search",
+      "useWhen": "Single selection from supplied options",
+      "avoidWhen": "Remote fetching, virtualized lists or multiple selection",
+      "keywords": [
+        "combobox",
+        "dropdown",
+        "choose",
+        "autocomplete",
+        "select"
+      ],
+      "recipe": "recipes/component-controls.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "SelectOption",
+          "declaration": "export type SelectOption = { value: string; label: string; disabled?: boolean };"
+        },
+        {
+          "name": "SearchableSelectProps",
+          "declaration": "export type SearchableSelectProps = {\n  label: string; options: SelectOption[]; value: string; onChange: (value: string) => void;\n  id?: string; name?: string; placeholder?: string; disabled?: boolean; required?: boolean; error?: string;\n};"
+        }
+      ],
+      "import": "import { SearchableSelect } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "drawer",
+      "export": "Drawer",
+      "path": "components/workflows/Drawer.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "focus-containment",
+        "escape-dismiss",
+        "backdrop-dismiss",
+        "scroll-lock"
+      ],
+      "requires": [
+        "open",
+        "title",
+        "onClose",
+        "children"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None; caller owns state and validation",
+      "preview": "/foundations",
+      "description": "Show a modal side panel",
+      "useWhen": "Details or editing beside the main content",
+      "avoidWhen": "Nonmodal navigation sidebar",
+      "keywords": [
+        "drawer",
+        "side",
+        "panel",
+        "sheet",
+        "slide",
+        "over"
+      ],
+      "recipe": "recipes/component-controls.md",
+      "composeWith": [
+        "record-detail",
+        "record-form"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "DrawerProps",
+          "declaration": "export type DrawerProps = { open: boolean; title: string; onClose: () => void; children: ReactNode };"
+        }
+      ],
+      "import": "import { Drawer } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "toast",
+      "export": "ToastProvider",
+      "path": "components/workflows/Toast.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "notifications",
+        "auto-dismiss",
+        "manual-dismiss",
+        "pause-on-focus"
+      ],
+      "requires": [
+        "children"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None; caller owns state and validation",
+      "preview": "/foundations",
+      "description": "Show temporary feedback notifications",
+      "useWhen": "Transient success or failure after an action",
+      "avoidWhen": "Persistent error summary or notification inbox",
+      "keywords": [
+        "toast",
+        "snackbar",
+        "notification",
+        "feedback",
+        "success"
+      ],
+      "recipe": "recipes/component-controls.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "ToastMessage",
+          "declaration": "export type ToastMessage = { message: string; tone?: \"success\" | \"error\" | \"info\"; duration?: number };"
+        }
+      ],
+      "import": "import { ToastProvider } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "record-form",
+      "export": "RecordForm",
+      "path": "components/workflows/RecordForm.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "typed-fields",
+        "validation",
+        "error-summary",
+        "async-submit",
+        "draft-recovery"
+      ],
+      "requires": [
+        "initialValue",
+        "fields",
+        "onSubmit",
+        "onCancel"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller supplies records, validates domain rules, and persists mutations through async callbacks.",
+      "preview": "/foundations",
+      "description": "Edit a typed record with validation",
+      "useWhen": "Single record editor with async submit",
+      "avoidWhen": "Whole CRUD screen or a multi-step journey",
+      "keywords": [
+        "edit",
+        "create",
+        "form",
+        "validation",
+        "fields",
+        "submit"
+      ],
+      "recipe": "recipes/record-management.md",
+      "composeWith": [
+        "record-detail"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "RecordField",
+          "declaration": "export type RecordField<T> = {\n  key: Extract<keyof T, string>;\n  label: string;\n  type?: \"text\" | \"email\" | \"tel\" | \"number\" | \"date\" | \"time\" | \"select\";\n  required?: boolean;\n  hint?: string;\n  options?: SelectOption[];\n  min?: number | string;\n  max?: number | string;\n  step?: number | \"any\";\n  maxLength?: number;\n  /** Optional display formatting for RecordDetail. */\n  format?: (record: T) => ReactNode;\n};"
+        },
+        {
+          "name": "RecordErrors",
+          "declaration": "export type RecordErrors<T> = Partial<Record<Extract<keyof T, string>, string>>;"
+        },
+        {
+          "name": "RecordFormProps",
+          "declaration": "export type RecordFormProps<T> = {\n  initialValue: T;\n  initialErrors?: RecordErrors<T>;\n  onValuesChange?: (value: T) => void;\n  cancelLabel?: string;\n  hideCancel?: boolean;\n  fields: RecordField<T>[];\n  validate?: (value: T) => RecordErrors<T>;\n  onSubmit: (value: T) => void | Promise<void>;\n  onCancel: () => void;\n  onBusyChange?: (busy: boolean) => void;\n  submitLabel?: string;\n};"
+        }
+      ],
+      "import": "import { RecordForm } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "record-detail",
+      "export": "RecordDetail",
+      "path": "components/workflows/RecordDetail.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "generic-record-details",
+        "field-formatters",
+        "select-labels"
+      ],
+      "requires": [
+        "record",
+        "fields"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller supplies records, validates domain rules, and persists mutations through async callbacks.",
+      "preview": "/foundations",
+      "description": "Display a read-only record",
+      "useWhen": "Formatted fields and select labels",
+      "avoidWhen": "Editing or persistence",
+      "keywords": [
+        "details",
+        "inspect",
+        "record",
+        "description",
+        "read",
+        "only"
+      ],
+      "recipe": "recipes/record-management.md",
+      "composeWith": [
+        "drawer"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": false,
+      "types": [
+        {
+          "name": "RecordDetailProps",
+          "declaration": "export type RecordDetailProps<T> = { record: T; fields: RecordField<T>[] };"
+        }
+      ],
+      "import": "import { RecordDetail } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "record-manager",
+      "export": "RecordManager",
+      "path": "components/workflows/RecordManager.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "generic-crud",
+        "list-detail-edit",
+        "delete-confirmation",
+        "async-mutations",
+        "controlled-rows",
+        "validation"
+      ],
+      "requires": [
+        "rows",
+        "fields",
+        "columns",
+        "rowId",
+        "recordLabel",
+        "createRecord",
+        "onRowsChange",
+        "onCreate",
+        "onUpdate",
+        "onDelete",
+        "title",
+        "singularLabel"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller supplies records, validates domain rules, and persists mutations through async callbacks.",
+      "preview": "/foundations",
+      "description": "Manage arbitrary records through list detail and CRUD",
+      "useWhen": "Reusable CRUD screen with caller-owned rows and async mutations",
+      "avoidWhen": "Business demo persistence or remote pagination engine",
+      "keywords": [
+        "crud",
+        "manage",
+        "inventory",
+        "products",
+        "assets",
+        "customers",
+        "create",
+        "edit",
+        "delete",
+        "records"
+      ],
+      "recipe": "recipes/record-management.md",
+      "composeWith": [
+        "filter-bar",
+        "bulk-action-toolbar",
+        "activity-timeline"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "RecordFilter",
+          "declaration": "export type RecordFilter<T> = FilterDefinition & { matches: (row: T, value: string) => boolean };"
+        },
+        {
+          "name": "RecordManagerProps",
+          "declaration": "export type RecordManagerProps<T> = {\n  filters?: RecordFilter<T>[];\n  bulkActions?: BulkAction<T>[];\n  renderDetail?: (record: T) => ReactNode;\n  title: string;\n  singularLabel: string;\n  rows: T[];\n  columns: TableColumn<T>[];\n  fields: RecordField<T>[];\n  rowId: (record: T) => string;\n  recordLabel: (record: T) => string;\n  createRecord: () => T;\n  onRowsChange: (rows: T[]) => void;\n  /** Return the server-confirmed record, including its stable ID. */\n  onCreate: (draft: T) => T | Promise<T>;\n  onUpdate: (draft: T, original: T) => T | Promise<T>;\n  onDelete: (record: T) => void | Promise<void>;\n  validate?: (draft: T, original: T | null) => RecordErrors<T>;\n  loading?: boolean;\n  error?: string;\n  onRetry?: () => void;\n  pageSize?: number;\n};"
+        }
+      ],
+      "import": "import { RecordManager } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "filter-bar",
+      "export": "FilterBar",
+      "path": "components/workflows/FilterBar.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "controlled-filters",
+        "active-chips",
+        "reset",
+        "select-text-date"
+      ],
+      "requires": [
+        "filters",
+        "values",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns filtering, mutation persistence, and event storage.",
+      "preview": "/foundations",
+      "description": "Compose controlled filters and active chips",
+      "useWhen": "Text select and date filters over caller-owned values",
+      "avoidWhen": "Data fetching or filtering implementation",
+      "keywords": [
+        "filter",
+        "refine",
+        "facets",
+        "chips",
+        "reset",
+        "search"
+      ],
+      "recipe": "recipes/workflow-tools.md",
+      "composeWith": [
+        "data-table"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "FilterDefinition",
+          "declaration": "export type FilterDefinition = {\n  id: string;\n  label: string;\n  type?: \"select\" | \"text\" | \"date\";\n  options?: { value: string; label: string }[];\n};"
+        },
+        {
+          "name": "FilterBarProps",
+          "declaration": "export type FilterBarProps = {\n  filters: FilterDefinition[];\n  values: Record<string, string>;\n  onChange: (values: Record<string, string>) => void;\n  disabled?: boolean;\n};"
+        }
+      ],
+      "import": "import { FilterBar } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "bulk-action-toolbar",
+      "export": "BulkActionToolbar",
+      "path": "components/workflows/BulkActionToolbar.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "bulk-actions",
+        "confirmation",
+        "async-callbacks",
+        "error-recovery",
+        "selection-count"
+      ],
+      "requires": [
+        "selectedRows",
+        "actions",
+        "onClear"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns filtering, mutation persistence, and event storage.",
+      "preview": "/foundations",
+      "description": "Confirm and run actions on selected records",
+      "useWhen": "Bulk operations with async error recovery",
+      "avoidWhen": "Selection ownership or server batch transaction handling",
+      "keywords": [
+        "bulk",
+        "batch",
+        "selected",
+        "delete",
+        "approve",
+        "archive"
+      ],
+      "recipe": "recipes/workflow-tools.md",
+      "composeWith": [
+        "data-table"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "BulkAction",
+          "declaration": "export type BulkAction<T> = {\n  id: string;\n  label: string;\n  variant?: \"default\" | \"primary\" | \"danger\";\n  /** Destructive actions should always supply confirmation text. */\n  confirmation?: string;\n  onAction: (records: T[]) => void | Promise<void>;\n};"
+        },
+        {
+          "name": "BulkActionToolbarProps",
+          "declaration": "export type BulkActionToolbarProps<T> = {\n  selectedRows: T[];\n  actions: BulkAction<T>[];\n  onClear: () => void;\n  disabled?: boolean;\n  onBusyChange?: (busy: boolean) => void;\n};"
+        }
+      ],
+      "import": "import { BulkActionToolbar } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "activity-timeline",
+      "export": "ActivityTimeline",
+      "path": "components/workflows/ActivityTimeline.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "event-history",
+        "chronological-order",
+        "loading",
+        "error",
+        "empty",
+        "time-formatting"
+      ],
+      "requires": [
+        "events"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns filtering, mutation persistence, and event storage.",
+      "preview": "/foundations",
+      "description": "Show chronological event history",
+      "useWhen": "Record history with loading error and empty states",
+      "avoidWhen": "Live event transport or audit storage",
+      "keywords": [
+        "activity",
+        "timeline",
+        "history",
+        "audit",
+        "events",
+        "log"
+      ],
+      "recipe": "recipes/workflow-tools.md",
+      "composeWith": [
+        "record-detail"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": false,
+      "types": [
+        {
+          "name": "ActivityEvent",
+          "declaration": "export type ActivityEvent = { id: string; title: string; description?: ReactNode; actor?: string; timestamp: string };"
+        },
+        {
+          "name": "ActivityTimelineProps",
+          "declaration": "export type ActivityTimelineProps = {\n  events: ActivityEvent[];\n  title?: string;\n  loading?: boolean;\n  error?: string;\n  onRetry?: () => void;\n  order?: \"newest\" | \"oldest\";\n  formatTime?: (timestamp: string) => string;\n};"
+        }
+      ],
+      "import": "import { ActivityTimeline } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "kanban-board",
+      "export": "KanbanBoard",
+      "path": "components/workflows/KanbanBoard.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "configurable-columns",
+        "controlled-records",
+        "drag-drop",
+        "keyboard-moves",
+        "async-mutations",
+        "error-retry",
+        "read-only",
+        "unassigned-records"
+      ],
+      "requires": [
+        "title",
+        "records",
+        "columns",
+        "rowId",
+        "recordLabel",
+        "getColumnId"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller persists moves and updates records; enforce transitions and permissions on the server.",
+      "preview": "/foundations#kanban",
+      "description": "Move records between configurable stages",
+      "useWhen": "Workflow board with keyboard touch and drag/drop controls",
+      "avoidWhen": "Scheduling by date or server transition authorization",
+      "keywords": [
+        "kanban",
+        "board",
+        "pipeline",
+        "stages",
+        "tasks",
+        "tickets",
+        "drag",
+        "move"
+      ],
+      "recipe": "recipes/kanban-board.md",
+      "composeWith": [
+        "record-detail"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "KanbanColumn",
+          "declaration": "export type KanbanColumn = { id: string; label: string; description?: string; disabled?: boolean };"
+        },
+        {
+          "name": "KanbanBoardProps",
+          "declaration": "export type KanbanBoardProps<T> = {\n  title: string;\n  records: T[];\n  columns: KanbanColumn[];\n  rowId: (record: T) => string;\n  recordLabel: (record: T) => string;\n  getColumnId: (record: T) => string;\n  renderCard?: (record: T) => ReactNode;\n  /** Persist the move, update controlled records, and throw on failure. */\n  onMove?: (record: T, destination: string, source: string) => void | Promise<void>;\n  canMove?: (record: T, destination: string) => boolean;\n  disabled?: boolean;\n  loading?: boolean;\n  error?: string;\n  onRetry?: () => void;\n};"
+        }
+      ],
+      "import": "import { KanbanBoard } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "calendar-month",
+      "export": "CalendarMonth",
+      "path": "components/workflows/CalendarMonth.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "month-navigation",
+        "date-selection",
+        "event-counts",
+        "civil-dates"
+      ],
+      "requires": [
+        "month",
+        "selectedDate",
+        "events",
+        "onMonthChange",
+        "onSelectDate"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller persists events and enforces conflicts, permissions, timezone conversion and scheduling rules.",
+      "preview": "/foundations#calendar",
+      "description": "Choose a date in a month with event counts",
+      "useWhen": "Controlled date navigation without an event editor",
+      "avoidWhen": "Event CRUD; use EventScheduler",
+      "keywords": [
+        "calendar",
+        "month",
+        "select",
+        "date",
+        "events"
+      ],
+      "recipe": "recipes/calendar-scheduler.md",
+      "composeWith": [
+        "event-scheduler"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "CalendarMonthProps",
+          "declaration": "export type CalendarMonthProps = {\n  month: string;\n  selectedDate: string;\n  events: CalendarEvent[];\n  onMonthChange: (month: string) => void;\n  onSelectDate: (date: string) => void;\n  disabled?: boolean;\n};"
+        }
+      ],
+      "import": "import { CalendarMonth } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "event-scheduler",
+      "export": "EventScheduler",
+      "path": "components/workflows/EventScheduler.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "month-agenda",
+        "event-crud",
+        "async-callbacks",
+        "validation",
+        "multi-day-events",
+        "read-only",
+        "error-recovery"
+      ],
+      "requires": [
+        "title",
+        "events",
+        "initialDate",
+        "timeZoneLabel",
+        "onEventsChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller persists events and enforces conflicts, permissions, timezone conversion and scheduling rules.",
+      "preview": "/foundations#calendar",
+      "description": "Manage dated events in month and agenda views",
+      "useWhen": "Create edit and delete inclusive multi-day events",
+      "avoidWhen": "Timezone conversion, recurrence engine or conflict enforcement",
+      "keywords": [
+        "schedule",
+        "appointment",
+        "booking",
+        "calendar",
+        "agenda",
+        "meeting",
+        "event"
+      ],
+      "recipe": "recipes/calendar-scheduler.md",
+      "composeWith": [
+        "calendar-month"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "EventDraft",
+          "declaration": "export type EventDraft = Omit<CalendarEvent, \"id\">;"
+        },
+        {
+          "name": "EventSchedulerProps",
+          "declaration": "export type EventSchedulerProps = {\n  title: string;\n  events: CalendarEvent[];\n  /** Explicit date avoids server/browser timezone ambiguity on initial render. */\n  initialDate: string;\n  timeZoneLabel: string;\n  today?: string;\n  onEventsChange: (events: CalendarEvent[]) => void;\n  onCreate?: (event: EventDraft) => CalendarEvent | Promise<CalendarEvent>;\n  onUpdate?: (event: CalendarEvent, original: CalendarEvent) => CalendarEvent | Promise<CalendarEvent>;\n  onDelete?: (event: CalendarEvent) => void | Promise<void>;\n  renderEvent?: (event: CalendarEvent) => ReactNode;\n  loading?: boolean;\n  error?: string;\n  onRetry?: () => void;\n};"
+        }
+      ],
+      "import": "import { EventScheduler } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "file-uploader",
+      "export": "FileUploader",
+      "path": "components/workflows/FileUploader.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "file-selection",
+        "drag-drop",
+        "type-size-validation",
+        "queue-limits",
+        "progress",
+        "cancellation",
+        "retry",
+        "async-upload"
+      ],
+      "requires": [
+        "onUpload"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller provides upload transport, honors AbortSignal, reports progress, and validates files on the server.",
+      "preview": "/foundations#file-uploader",
+      "description": "Upload files with progress cancellation and retry",
+      "useWhen": "File selection and transport callback per queued file",
+      "avoidWhen": "Parsing CSV columns or storing files by itself",
+      "keywords": [
+        "upload",
+        "attachment",
+        "file",
+        "image",
+        "document",
+        "progress",
+        "cancel"
+      ],
+      "recipe": "recipes/file-uploader.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "UploadContext",
+          "declaration": "export type UploadContext = {\n  signal: AbortSignal;\n  /** Percent transferred, 0–100. Omit reports for indeterminate progress. */\n  onProgress: (percent: number) => void;\n};"
+        },
+        {
+          "name": "UploadItem",
+          "declaration": "export type UploadItem<Result> = {\n  id: string;\n  file: File;\n  status: \"queued\" | \"uploading\" | \"success\" | \"error\" | \"cancelled\";\n  progress?: number;\n  error?: string;\n  result?: Result;\n};"
+        },
+        {
+          "name": "FileUploaderProps",
+          "declaration": "export type FileUploaderProps<Result> = {\n  label?: string;\n  accept?: string;\n  maxFileSize?: number;\n  maxFiles?: number;\n  multiple?: boolean;\n  disabled?: boolean;\n  validateFile?: (file: File) => string | undefined;\n  onUpload: (file: File, context: UploadContext) => Promise<Result>;\n  renderResult?: (result: Result, file: File) => ReactNode;\n};"
+        }
+      ],
+      "import": "import { FileUploader } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "multi-step-form",
+      "export": "MultiStepForm",
+      "path": "components/workflows/MultiStepForm.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "configurable-steps",
+        "field-validation",
+        "draft-preservation",
+        "review",
+        "back-navigation",
+        "async-submit",
+        "error-retry",
+        "completion-reset"
+      ],
+      "requires": [
+        "title",
+        "initialValue",
+        "steps",
+        "onSubmit"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller validates and persists the final submission; drafts remain in component memory.",
+      "preview": "/foundations#multi-step-form",
+      "description": "Guide users through steps review and submission",
+      "useWhen": "Long form journey with preserved in-memory drafts",
+      "avoidWhen": "CSV column mapping; use ImportWizard",
+      "keywords": [
+        "wizard",
+        "onboarding",
+        "steps",
+        "registration",
+        "review",
+        "application",
+        "form"
+      ],
+      "recipe": "recipes/multi-step-form.md",
+      "composeWith": [
+        "record-form"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "FormStep",
+          "declaration": "export type FormStep<T> = {\n  id: string;\n  title: string;\n  description?: string;\n  fields: RecordField<T>[];\n  validate?: (value: T) => RecordErrors<T>;\n};"
+        },
+        {
+          "name": "MultiStepFormProps",
+          "declaration": "export type MultiStepFormProps<T> = {\n  title: string;\n  initialValue: T;\n  steps: FormStep<T>[];\n  onSubmit: (value: T) => void | Promise<void>;\n  submitLabel?: string;\n  renderReview?: (value: Readonly<T>) => ReactNode;\n  renderSuccess?: (value: Readonly<T>) => ReactNode;\n};"
+        }
+      ],
+      "import": "import { MultiStepForm } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "stat-card",
+      "export": "StatCard",
+      "path": "components/workflows/StatCard.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "metrics",
+        "comparison",
+        "loading-error-empty",
+        "zero-values"
+      ],
+      "requires": [
+        "label",
+        "value"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns metric aggregation, chart rendering and data fetching.",
+      "preview": "/foundations#metrics",
+      "description": "Display one metric and its comparison",
+      "useWhen": "KPI with zero values loading error and missing-data handling",
+      "avoidWhen": "Chart rendering or metric aggregation",
+      "keywords": [
+        "stat",
+        "metric",
+        "kpi",
+        "total",
+        "count",
+        "dashboard",
+        "number"
+      ],
+      "recipe": "recipes/metrics-panels.md",
+      "composeWith": [
+        "chart-panel"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "StatChange",
+          "declaration": "export type StatChange = { value: string; direction: \"up\" | \"down\" | \"flat\"; tone?: \"positive\" | \"negative\" | \"neutral\"; comparison: string };"
+        },
+        {
+          "name": "StatCardProps",
+          "declaration": "export type StatCardProps = {\n  label: string;\n  value: string | number | null;\n  description?: string;\n  change?: StatChange;\n  loading?: boolean;\n  error?: string;\n  onRetry?: () => void;\n  footer?: ReactNode;\n};"
+        }
+      ],
+      "import": "import { StatCard } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "chart-panel",
+      "export": "ChartPanel",
+      "path": "components/workflows/ChartPanel.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "renderer-slot",
+        "accessible-summary",
+        "data-table",
+        "loading-error-empty"
+      ],
+      "requires": [
+        "title",
+        "summary",
+        "children",
+        "dataTable"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns metric aggregation, chart rendering and data fetching.",
+      "preview": "/foundations#metrics",
+      "description": "Wrap a chart with states summary and equivalent data table",
+      "useWhen": "Accessible container around a caller-supplied chart renderer",
+      "avoidWhen": "Built-in chart engine or data fetching",
+      "keywords": [
+        "chart",
+        "graph",
+        "visualization",
+        "plot",
+        "bar",
+        "line",
+        "analytics"
+      ],
+      "recipe": "recipes/metrics-panels.md",
+      "composeWith": [
+        "stat-card"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "ChartPanelProps",
+          "declaration": "export type ChartPanelProps = {\n  title: string;\n  summary: string;\n  children: ReactNode;\n  dataTable: ReactNode;\n  description?: string;\n  actions?: ReactNode;\n  loading?: boolean;\n  error?: string;\n  empty?: boolean;\n  emptyMessage?: string;\n  onRetry?: () => void;\n};"
+        }
+      ],
+      "import": "import { ChartPanel } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "import-wizard",
+      "export": "ImportWizard",
+      "path": "components/workflows/ImportWizard.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "csv-parse",
+        "column-mapping",
+        "row-validation",
+        "preview-pagination",
+        "async-import",
+        "retry"
+      ],
+      "requires": [
+        "title",
+        "fields",
+        "parseRow",
+        "onImport"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller commits the validated batch atomically and handles server validation and duplicate imports.",
+      "preview": "/foundations#import-wizard",
+      "description": "Import CSV or TSV through mapping validation and review",
+      "useWhen": "Structured tabular file import before a batch callback",
+      "avoidWhen": "Binary attachment upload or spreadsheet XLSX parsing",
+      "keywords": [
+        "csv",
+        "tsv",
+        "import",
+        "upload",
+        "spreadsheet",
+        "map",
+        "columns",
+        "rows"
+      ],
+      "recipe": "recipes/import-wizard.md",
+      "composeWith": [
+        "file-uploader"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "ImportField",
+          "declaration": "export type ImportField = { key: string; label: string; required?: boolean };"
+        },
+        {
+          "name": "ImportWizardProps",
+          "declaration": "export type ImportWizardProps<T> = {\n  title: string;\n  fields: ImportField[];\n  parseRow: (values: Record<string, string>, rowNumber: number) => T;\n  validateRow?: (value: T, rowNumber: number) => string[] | undefined;\n  onImport: (rows: T[], context: { signal: AbortSignal }) => void | Promise<void>;\n  maxRows?: number;\n  maxFileSize?: number;\n};"
+        }
+      ],
+      "import": "import { ImportWizard } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "settings-panel",
+      "export": "SettingsPanel",
+      "path": "components/workflows/SettingsPanel.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "grouped-settings",
+        "toggles",
+        "validation",
+        "dirty-state",
+        "discard",
+        "defaults",
+        "async-save",
+        "retry",
+        "read-only"
+      ],
+      "requires": [
+        "title",
+        "initialValue",
+        "defaults",
+        "groups"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller persists confirmed settings and enforces authorization and field policies.",
+      "preview": "/foundations#settings-panel",
+      "description": "Edit grouped preferences with save discard and defaults",
+      "useWhen": "Settings draft with toggles read-only and async save",
+      "avoidWhen": "User permissions backend or general multi-step onboarding",
+      "keywords": [
+        "settings",
+        "preferences",
+        "configuration",
+        "toggle",
+        "defaults",
+        "save",
+        "discard"
+      ],
+      "recipe": "recipes/settings-panel.md",
+      "composeWith": [
+        "form-field"
+      ],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "SettingField",
+          "declaration": "export type SettingField<T> = Omit<RecordField<T>, \"type\"> & { type?: RecordField<T>[\"type\"] | \"toggle\"; disabled?: boolean };"
+        },
+        {
+          "name": "SettingsGroup",
+          "declaration": "export type SettingsGroup<T> = { id: string; title: string; description?: string; fields: SettingField<T>[] };"
+        },
+        {
+          "name": "SettingsPanelProps",
+          "declaration": "export type SettingsPanelProps<T> = {\n  title: string;\n  initialValue: T;\n  defaults: T;\n  groups: SettingsGroup<T>[];\n  onSave?: (value: T, context: { signal: AbortSignal }) => T | Promise<T>;\n  validate?: (value: T) => RecordErrors<T>;\n  disabled?: boolean;\n};"
+        }
+      ],
+      "import": "import { SettingsPanel } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "tabs",
+      "export": "Tabs",
+      "path": "components/workflows/NavigationPatterns.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "tab-navigation",
+        "keyboard-arrows",
+        "controlled-panels"
+      ],
+      "requires": [
+        "label",
+        "items",
+        "value",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns application actions, data, validation and permissions.",
+      "preview": "/foundations#advanced-controls",
+      "description": "Switch between related panels",
+      "useWhen": "Inline navigation between related views",
+      "avoidWhen": "Route navigation or progressive disclosure",
+      "keywords": [
+        "tabs",
+        "tab",
+        "panels",
+        "sections",
+        "switch"
+      ],
+      "recipe": "recipes/navigation-selection.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "TabItem",
+          "declaration": "export type TabItem = { id: string; label: string; content: ReactNode; disabled?: boolean };"
+        },
+        {
+          "name": "TabsProps",
+          "declaration": "export type TabsProps = { label: string; items: TabItem[]; value: string; onChange: (id: string) => void };"
+        },
+        {
+          "name": "AccordionItem",
+          "declaration": "export type AccordionItem = { id: string; title: string; content: ReactNode; disabled?: boolean };"
+        },
+        {
+          "name": "AccordionProps",
+          "declaration": "export type AccordionProps = { label: string; items: AccordionItem[]; value: string[]; onChange: (ids: string[]) => void; multiple?: boolean };"
+        }
+      ],
+      "import": "import { Tabs } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "accordion",
+      "export": "Accordion",
+      "path": "components/workflows/NavigationPatterns.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "disclosure",
+        "multiple-panels",
+        "controlled-expansion"
+      ],
+      "requires": [
+        "label",
+        "items",
+        "value",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns application actions, data, validation and permissions.",
+      "preview": "/foundations#advanced-controls",
+      "description": "Expand and collapse content sections",
+      "useWhen": "Progressive disclosure of help or details",
+      "avoidWhen": "Navigation between independent pages",
+      "keywords": [
+        "accordion",
+        "disclosure",
+        "expand",
+        "collapse",
+        "faq"
+      ],
+      "recipe": "recipes/navigation-selection.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "TabItem",
+          "declaration": "export type TabItem = { id: string; label: string; content: ReactNode; disabled?: boolean };"
+        },
+        {
+          "name": "TabsProps",
+          "declaration": "export type TabsProps = { label: string; items: TabItem[]; value: string; onChange: (id: string) => void };"
+        },
+        {
+          "name": "AccordionItem",
+          "declaration": "export type AccordionItem = { id: string; title: string; content: ReactNode; disabled?: boolean };"
+        },
+        {
+          "name": "AccordionProps",
+          "declaration": "export type AccordionProps = { label: string; items: AccordionItem[]; value: string[]; onChange: (ids: string[]) => void; multiple?: boolean };"
+        }
+      ],
+      "import": "import { Accordion } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "multi-select",
+      "export": "MultiSelect",
+      "path": "components/workflows/MultiSelect.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "multiple-selection",
+        "local-search",
+        "selection-limit"
+      ],
+      "requires": [
+        "label",
+        "options",
+        "value",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns application actions, data, validation and permissions.",
+      "preview": "/foundations#advanced-controls",
+      "description": "Select several supplied options",
+      "useWhen": "Searchable checkbox group with controlled selections",
+      "avoidWhen": "Remote search or virtualized options",
+      "keywords": [
+        "multi",
+        "select",
+        "multiple",
+        "checkbox",
+        "tags",
+        "categories",
+        "choose"
+      ],
+      "recipe": "recipes/navigation-selection.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "MultiSelectOption",
+          "declaration": "export type MultiSelectOption = { value: string; label: string; disabled?: boolean };"
+        },
+        {
+          "name": "MultiSelectProps",
+          "declaration": "export type MultiSelectProps = { label: string; options: MultiSelectOption[]; value: string[]; onChange: (values: string[]) => void; disabled?: boolean; maxSelected?: number };"
+        }
+      ],
+      "import": "import { MultiSelect } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "date-range-picker",
+      "export": "DateRangePicker",
+      "path": "components/workflows/DateRangePicker.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "date-range",
+        "min-max",
+        "reversed-range-error"
+      ],
+      "requires": [
+        "label",
+        "value",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns application actions, data, validation and permissions.",
+      "preview": "/foundations#advanced-controls",
+      "description": "Choose an inclusive range of dates",
+      "useWhen": "Two civil dates for reporting and filtering",
+      "avoidWhen": "Timezone conversion or event editing",
+      "keywords": [
+        "date",
+        "range",
+        "dates",
+        "period",
+        "reporting",
+        "from",
+        "to"
+      ],
+      "recipe": "recipes/navigation-selection.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "DateRange",
+          "declaration": "export type DateRange = { start: string; end: string };"
+        },
+        {
+          "name": "DateRangePickerProps",
+          "declaration": "export type DateRangePickerProps = { label: string; value: DateRange; onChange: (value: DateRange) => void; min?: string; max?: string; required?: boolean; disabled?: boolean; error?: string };"
+        }
+      ],
+      "import": "import { DateRangePicker } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "tree-view",
+      "export": "TreeView",
+      "path": "components/workflows/TreeView.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "hierarchy",
+        "keyboard-navigation",
+        "controlled-expansion"
+      ],
+      "requires": [
+        "label",
+        "nodes",
+        "expanded",
+        "onExpandedChange",
+        "onChange"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns application actions, data, validation and permissions.",
+      "preview": "/foundations#advanced-controls",
+      "description": "Navigate a hierarchy of nodes",
+      "useWhen": "Folders or nested categories with single selection",
+      "avoidWhen": "Drag and drop or checkbox cascades",
+      "keywords": [
+        "tree",
+        "hierarchy",
+        "folders",
+        "nested",
+        "directories",
+        "nodes"
+      ],
+      "recipe": "recipes/navigation-selection.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "TreeNode",
+          "declaration": "export type TreeNode = { id: string; label: string; children?: TreeNode[]; disabled?: boolean };"
+        },
+        {
+          "name": "TreeViewProps",
+          "declaration": "export type TreeViewProps = { label: string; nodes: TreeNode[]; value?: string; onChange: (id: string) => void; expanded: string[]; onExpandedChange: (ids: string[]) => void };"
+        }
+      ],
+      "import": "import { TreeView } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "command-palette",
+      "export": "CommandPalette",
+      "path": "components/workflows/CommandPalette.tsx",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "command-search",
+        "keyboard-navigation",
+        "modal",
+        "error-recovery"
+      ],
+      "requires": [
+        "open",
+        "title",
+        "commands",
+        "onClose"
+      ],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Caller owns application actions, data, validation and permissions.",
+      "preview": "/foundations#advanced-controls",
+      "description": "Search and dispatch application commands",
+      "useWhen": "Keyboard or pointer command launcher",
+      "avoidWhen": "Asynchronous operation UI or global shortcuts by itself",
+      "keywords": [
+        "command",
+        "palette",
+        "launcher",
+        "actions",
+        "quick",
+        "search"
+      ],
+      "recipe": "recipes/navigation-selection.md",
+      "composeWith": [],
+      "kind": "workflow",
+      "generic": true,
+      "importFrom": "citual-ui/workflows",
+      "client": true,
+      "types": [
+        {
+          "name": "PaletteCommand",
+          "declaration": "export type PaletteCommand = { id: string; label: string; keywords?: string[]; disabled?: boolean; onSelect: () => void };"
+        },
+        {
+          "name": "CommandPaletteProps",
+          "declaration": "export type CommandPaletteProps = { open: boolean; title: string; commands: PaletteCommand[]; onClose: () => void };"
+        }
+      ],
+      "import": "import { CommandPalette } from \"citual-ui/workflows\";"
+    },
+    {
+      "id": "button",
+      "export": "Button",
+      "description": "Trigger an action with native button props and primary or danger variants",
+      "useWhen": "Trigger an action with native button props and primary or danger variants",
+      "avoidWhen": "A higher-level workflow already owns this control",
+      "kind": "workflow",
+      "generic": true,
+      "path": "components/workflows/Controls.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "button"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "None; caller owns state",
+      "recipe": "recipes/component-controls.md",
+      "preview": "/foundations",
+      "keywords": [
+        "button",
+        "button"
+      ],
+      "composeWith": [],
+      "client": true,
+      "types": [
+        {
+          "name": "ButtonProps",
+          "declaration": "export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {\n  variant?: \"default\" | \"primary\" | \"danger\";\n};"
+        },
+        {
+          "name": "BadgeProps",
+          "declaration": "export type BadgeProps = {\n  children: ReactNode;\n  tone?: \"success\" | \"warning\" | \"danger\" | \"info\" | \"neutral\" | \"green\" | \"amber\" | \"red\" | \"blue\";\n};"
+        }
+      ],
+      "import": "import { Button } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "badge",
+      "export": "Badge",
+      "description": "Display a compact status label with a semantic color tone",
+      "useWhen": "Display a compact status label with a semantic color tone",
+      "avoidWhen": "A higher-level workflow already owns this control",
+      "kind": "workflow",
+      "generic": true,
+      "path": "components/workflows/Controls.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "badge"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "None; caller owns state",
+      "recipe": "recipes/component-controls.md",
+      "preview": "/foundations",
+      "keywords": [
+        "badge",
+        "badge"
+      ],
+      "composeWith": [],
+      "client": true,
+      "types": [
+        {
+          "name": "ButtonProps",
+          "declaration": "export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {\n  variant?: \"default\" | \"primary\" | \"danger\";\n};"
+        },
+        {
+          "name": "BadgeProps",
+          "declaration": "export type BadgeProps = {\n  children: ReactNode;\n  tone?: \"success\" | \"warning\" | \"danger\" | \"info\" | \"neutral\" | \"green\" | \"amber\" | \"red\" | \"blue\";\n};"
+        }
+      ],
+      "import": "import { Badge } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "state-panel",
+      "export": "StatePanel",
+      "description": "Render shared loading error or empty feedback",
+      "useWhen": "Render shared loading error or empty feedback",
+      "avoidWhen": "A higher-level workflow already owns this control",
+      "kind": "workflow",
+      "generic": true,
+      "path": "components/workflows/Controls.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "state-panel"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react",
+        "lucide-react"
+      ],
+      "backend": "None; caller owns state",
+      "recipe": "recipes/component-controls.md",
+      "preview": "/foundations",
+      "keywords": [
+        "state-panel",
+        "statepanel"
+      ],
+      "composeWith": [],
+      "client": true,
+      "types": [
+        {
+          "name": "ButtonProps",
+          "declaration": "export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {\n  variant?: \"default\" | \"primary\" | \"danger\";\n};"
+        },
+        {
+          "name": "BadgeProps",
+          "declaration": "export type BadgeProps = {\n  children: ReactNode;\n  tone?: \"success\" | \"warning\" | \"danger\" | \"info\" | \"neutral\" | \"green\" | \"amber\" | \"red\" | \"blue\";\n};"
+        }
+      ],
+      "import": "import { StatePanel } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "surface",
+      "export": "Surface",
+      "description": "Themeable surface with semantic background border radius and padding",
+      "useWhen": "Themeable surface with semantic background border radius and padding",
+      "avoidWhen": "The consuming project already provides an equivalent primitive",
+      "kind": "component",
+      "generic": true,
+      "path": "components/foundations/Layout.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "surface"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None",
+      "recipe": "recipes/design-foundation.md",
+      "preview": "/foundations",
+      "keywords": [
+        "surface",
+        "panel",
+        "foundation"
+      ],
+      "composeWith": [],
+      "client": false,
+      "types": [
+        {
+          "name": "SurfaceProps",
+          "declaration": "export type SurfaceProps = HTMLAttributes<HTMLDivElement>;"
+        },
+        {
+          "name": "StackProps",
+          "declaration": "export type StackProps = SurfaceProps & { gap?: number; direction?: \"column\" | \"row\" };"
+        },
+        {
+          "name": "GridProps",
+          "declaration": "export type GridProps = SurfaceProps & { gap?: number; minColumnWidth?: string };"
+        },
+        {
+          "name": "HeadingProps",
+          "declaration": "export type HeadingProps = HTMLAttributes<HTMLHeadingElement> & { as?: \"h1\" | \"h2\" | \"h3\" | \"h4\" | \"h5\" | \"h6\" };"
+        },
+        {
+          "name": "TextProps",
+          "declaration": "export type TextProps = HTMLAttributes<HTMLParagraphElement> & { tone?: \"default\" | \"muted\" };"
+        }
+      ],
+      "import": "import { Surface } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "stack",
+      "export": "Stack",
+      "description": "Arrange children vertically or in a wrapping row using project density",
+      "useWhen": "Arrange children vertically or in a wrapping row using project density",
+      "avoidWhen": "The consuming project already provides an equivalent primitive",
+      "kind": "component",
+      "generic": true,
+      "path": "components/foundations/Layout.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "stack"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None",
+      "recipe": "recipes/design-foundation.md",
+      "preview": "/foundations",
+      "keywords": [
+        "stack",
+        "spacing",
+        "foundation"
+      ],
+      "composeWith": [],
+      "client": false,
+      "types": [
+        {
+          "name": "SurfaceProps",
+          "declaration": "export type SurfaceProps = HTMLAttributes<HTMLDivElement>;"
+        },
+        {
+          "name": "StackProps",
+          "declaration": "export type StackProps = SurfaceProps & { gap?: number; direction?: \"column\" | \"row\" };"
+        },
+        {
+          "name": "GridProps",
+          "declaration": "export type GridProps = SurfaceProps & { gap?: number; minColumnWidth?: string };"
+        },
+        {
+          "name": "HeadingProps",
+          "declaration": "export type HeadingProps = HTMLAttributes<HTMLHeadingElement> & { as?: \"h1\" | \"h2\" | \"h3\" | \"h4\" | \"h5\" | \"h6\" };"
+        },
+        {
+          "name": "TextProps",
+          "declaration": "export type TextProps = HTMLAttributes<HTMLParagraphElement> & { tone?: \"default\" | \"muted\" };"
+        }
+      ],
+      "import": "import { Stack } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "grid",
+      "export": "Grid",
+      "description": "Responsive auto-fit grid with configurable column minimums",
+      "useWhen": "Responsive auto-fit grid with configurable column minimums",
+      "avoidWhen": "The consuming project already provides an equivalent primitive",
+      "kind": "component",
+      "generic": true,
+      "path": "components/foundations/Layout.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "grid"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None",
+      "recipe": "recipes/design-foundation.md",
+      "preview": "/foundations",
+      "keywords": [
+        "grid",
+        "responsive",
+        "foundation"
+      ],
+      "composeWith": [],
+      "client": false,
+      "types": [
+        {
+          "name": "SurfaceProps",
+          "declaration": "export type SurfaceProps = HTMLAttributes<HTMLDivElement>;"
+        },
+        {
+          "name": "StackProps",
+          "declaration": "export type StackProps = SurfaceProps & { gap?: number; direction?: \"column\" | \"row\" };"
+        },
+        {
+          "name": "GridProps",
+          "declaration": "export type GridProps = SurfaceProps & { gap?: number; minColumnWidth?: string };"
+        },
+        {
+          "name": "HeadingProps",
+          "declaration": "export type HeadingProps = HTMLAttributes<HTMLHeadingElement> & { as?: \"h1\" | \"h2\" | \"h3\" | \"h4\" | \"h5\" | \"h6\" };"
+        },
+        {
+          "name": "TextProps",
+          "declaration": "export type TextProps = HTMLAttributes<HTMLParagraphElement> & { tone?: \"default\" | \"muted\" };"
+        }
+      ],
+      "import": "import { Grid } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "container",
+      "export": "Container",
+      "description": "Center page content within the project content width",
+      "useWhen": "Center page content within the project content width",
+      "avoidWhen": "The consuming project already provides an equivalent primitive",
+      "kind": "component",
+      "generic": true,
+      "path": "components/foundations/Layout.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "container"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None",
+      "recipe": "recipes/design-foundation.md",
+      "preview": "/foundations",
+      "keywords": [
+        "container",
+        "width",
+        "foundation"
+      ],
+      "composeWith": [],
+      "client": false,
+      "types": [
+        {
+          "name": "SurfaceProps",
+          "declaration": "export type SurfaceProps = HTMLAttributes<HTMLDivElement>;"
+        },
+        {
+          "name": "StackProps",
+          "declaration": "export type StackProps = SurfaceProps & { gap?: number; direction?: \"column\" | \"row\" };"
+        },
+        {
+          "name": "GridProps",
+          "declaration": "export type GridProps = SurfaceProps & { gap?: number; minColumnWidth?: string };"
+        },
+        {
+          "name": "HeadingProps",
+          "declaration": "export type HeadingProps = HTMLAttributes<HTMLHeadingElement> & { as?: \"h1\" | \"h2\" | \"h3\" | \"h4\" | \"h5\" | \"h6\" };"
+        },
+        {
+          "name": "TextProps",
+          "declaration": "export type TextProps = HTMLAttributes<HTMLParagraphElement> & { tone?: \"default\" | \"muted\" };"
+        }
+      ],
+      "import": "import { Container } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "heading",
+      "export": "Heading",
+      "description": "Semantic h1 to h6 with project heading typography",
+      "useWhen": "Semantic h1 to h6 with project heading typography",
+      "avoidWhen": "The consuming project already provides an equivalent primitive",
+      "kind": "component",
+      "generic": true,
+      "path": "components/foundations/Layout.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "heading"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None",
+      "recipe": "recipes/design-foundation.md",
+      "preview": "/foundations",
+      "keywords": [
+        "heading",
+        "typography",
+        "foundation"
+      ],
+      "composeWith": [],
+      "client": false,
+      "types": [
+        {
+          "name": "SurfaceProps",
+          "declaration": "export type SurfaceProps = HTMLAttributes<HTMLDivElement>;"
+        },
+        {
+          "name": "StackProps",
+          "declaration": "export type StackProps = SurfaceProps & { gap?: number; direction?: \"column\" | \"row\" };"
+        },
+        {
+          "name": "GridProps",
+          "declaration": "export type GridProps = SurfaceProps & { gap?: number; minColumnWidth?: string };"
+        },
+        {
+          "name": "HeadingProps",
+          "declaration": "export type HeadingProps = HTMLAttributes<HTMLHeadingElement> & { as?: \"h1\" | \"h2\" | \"h3\" | \"h4\" | \"h5\" | \"h6\" };"
+        },
+        {
+          "name": "TextProps",
+          "declaration": "export type TextProps = HTMLAttributes<HTMLParagraphElement> & { tone?: \"default\" | \"muted\" };"
+        }
+      ],
+      "import": "import { Heading } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "text",
+      "export": "Text",
+      "description": "Body or muted text using project typography and colors",
+      "useWhen": "Body or muted text using project typography and colors",
+      "avoidWhen": "The consuming project already provides an equivalent primitive",
+      "kind": "component",
+      "generic": true,
+      "path": "components/foundations/Layout.tsx",
+      "importFrom": "citual-ui/foundations",
+      "maturity": "interactive",
+      "domains": [
+        "shared"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "None",
+      "recipe": "recipes/design-foundation.md",
+      "preview": "/foundations",
+      "keywords": [
+        "text",
+        "typography",
+        "foundation"
+      ],
+      "composeWith": [],
+      "client": false,
+      "types": [
+        {
+          "name": "SurfaceProps",
+          "declaration": "export type SurfaceProps = HTMLAttributes<HTMLDivElement>;"
+        },
+        {
+          "name": "StackProps",
+          "declaration": "export type StackProps = SurfaceProps & { gap?: number; direction?: \"column\" | \"row\" };"
+        },
+        {
+          "name": "GridProps",
+          "declaration": "export type GridProps = SurfaceProps & { gap?: number; minColumnWidth?: string };"
+        },
+        {
+          "name": "HeadingProps",
+          "declaration": "export type HeadingProps = HTMLAttributes<HTMLHeadingElement> & { as?: \"h1\" | \"h2\" | \"h3\" | \"h4\" | \"h5\" | \"h6\" };"
+        },
+        {
+          "name": "TextProps",
+          "declaration": "export type TextProps = HTMLAttributes<HTMLParagraphElement> & { tone?: \"default\" | \"muted\" };"
+        }
+      ],
+      "import": "import { Text } from \"citual-ui/foundations\";"
+    },
+    {
+      "id": "smarthr-leave-requests-01",
+      "name": "SmartHR Leave Requests",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "maturity": "interactive",
+      "path": "components/data-display/SmartHrLeaveRequests.tsx",
+      "export": "SmartHrLeaveRequests",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/leaves.html",
+      "tags": [
+        "smarthr",
+        "hrms",
+        "leaves",
+        "approvals",
+        "interactive"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "description": "SmartHR Leave Requests",
+      "useWhen": "Use the SmartHR Leave Requests visual pattern for smarthr, hrms, leaves, approvals, interactive",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "hrms",
+        "leaves",
+        "approvals",
+        "interactive"
+      ],
+      "capabilities": [
+        "smarthr",
+        "hrms",
+        "leaves",
+        "approvals",
+        "interactive"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-leave-requests-01",
+      "keywords": [
+        "smarthr",
+        "hrms",
+        "leaves",
+        "approvals",
+        "interactive"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": true,
+      "types": [
+        {
+          "name": "LeaveRequest",
+          "declaration": "export type LeaveRequest = {\n  id: string;\n  employee: string;\n  leaveType: string;\n  from: string;\n  to: string;\n  days: number;\n  reason: string;\n  status: \"Pending\" | \"Approved\" | \"Rejected\";\n};"
+        },
+        {
+          "name": "SmartHrLeaveRequestsProps",
+          "declaration": "export type SmartHrLeaveRequestsProps = {\n  requests?: LeaveRequest[];\n  onDecision?: (\n    request: LeaveRequest,\n    status: \"Approved\" | \"Rejected\",\n    note: string,\n  ) => Promise<void> | void;\n};"
+        }
+      ],
+      "import": "import { SmartHrLeaveRequests } from \"citual-ui/components\";"
+    },
+    {
+      "id": "smarthr-candidate-pipeline-01",
+      "name": "SmartHR Candidate Pipeline",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "maturity": "interactive",
+      "path": "components/data-display/SmartHrCandidatePipeline.tsx",
+      "export": "SmartHrCandidatePipeline",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/candidates.html",
+      "tags": [
+        "smarthr",
+        "hrms",
+        "recruitment",
+        "candidates",
+        "interactive"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "description": "SmartHR Candidate Pipeline",
+      "useWhen": "Use the SmartHR Candidate Pipeline visual pattern for smarthr, hrms, recruitment, candidates, interactive",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "hrms",
+        "recruitment",
+        "candidates",
+        "interactive"
+      ],
+      "capabilities": [
+        "smarthr",
+        "hrms",
+        "recruitment",
+        "candidates",
+        "interactive"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-candidate-pipeline-01",
+      "keywords": [
+        "smarthr",
+        "hrms",
+        "recruitment",
+        "candidates",
+        "interactive"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": true,
+      "types": [
+        {
+          "name": "CandidateStage",
+          "declaration": "export type CandidateStage = (typeof stages)[number];"
+        },
+        {
+          "name": "Candidate",
+          "declaration": "export type Candidate = {\n  id: string;\n  name: string;\n  role: string;\n  phone: string;\n  appliedDate: string;\n  resumeUrl?: string;\n  stage: CandidateStage;\n};"
+        },
+        {
+          "name": "SmartHrCandidatePipelineProps",
+          "declaration": "export type SmartHrCandidatePipelineProps = {\n  candidates?: Candidate[];\n  onStageChange?: (\n    candidate: Candidate,\n    stage: CandidateStage,\n  ) => Promise<void> | void;\n};"
+        }
+      ],
+      "import": "import { SmartHrCandidatePipeline } from \"citual-ui/components\";"
+    },
+    {
+      "id": "apex-admin-dashboard-01",
+      "name": "Apex Admin Dashboard",
+      "type": "layout",
+      "category": "dashboards",
+      "status": "ready",
+      "path": "layouts/dashboards/ApexAdminDashboard.tsx",
+      "export": "ApexAdminDashboard",
+      "sourcePath": "templates-raw/themeforest-7duK6HPj-apex-angular-4-bootstrap-admin-template/apex-admin-v14/html-version/html-template/html/ltr/vertical-menu-template/dashboard1.html",
+      "tags": [
+        "admin",
+        "dashboard",
+        "sidebar",
+        "metrics",
+        "app-shell"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Apex Admin Dashboard",
+      "useWhen": "Use the Apex Admin Dashboard visual pattern for admin, dashboard, sidebar, metrics, app-shell",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "admin",
+        "dashboard",
+        "sidebar",
+        "metrics",
+        "app-shell"
+      ],
+      "capabilities": [
+        "admin",
+        "dashboard",
+        "sidebar",
+        "metrics",
+        "app-shell"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/apex-admin-dashboard-01",
+      "keywords": [
+        "admin",
+        "dashboard",
+        "sidebar",
+        "metrics",
+        "app-shell"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "ApexAdminDashboardProps",
+          "declaration": "export type ApexAdminDashboardProps = {\n  appName?: string;\n  userName?: string;\n  metrics?: Metric[];\n  navigation?: NavigationItem[];\n  activities?: Activity[];\n};"
+        }
+      ],
+      "import": "import { ApexAdminDashboard } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "apex-login-panel-01",
+      "name": "Apex Login Panel",
+      "type": "layout",
+      "category": "auth",
+      "status": "ready",
+      "path": "layouts/auth/ApexLoginPanel.tsx",
+      "export": "ApexLoginPanel",
+      "sourcePath": "templates-raw/themeforest-7duK6HPj-apex-angular-4-bootstrap-admin-template/apex-admin-v14/html-version/html-template/html/ltr/vertical-menu-template/auth-login.html",
+      "tags": [
+        "admin",
+        "auth",
+        "login",
+        "split-panel"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Apex Login Panel",
+      "useWhen": "Use the Apex Login Panel visual pattern for admin, auth, login, split-panel",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "admin",
+        "auth",
+        "login",
+        "split-panel"
+      ],
+      "capabilities": [
+        "admin",
+        "auth",
+        "login",
+        "split-panel"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/apex-login-panel-01",
+      "keywords": [
+        "admin",
+        "auth",
+        "login",
+        "split-panel"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "ApexLoginPanelProps",
+          "declaration": "export type ApexLoginPanelProps = {\n  title?: string;\n  subtitle?: string;\n  brand?: string;\n};"
+        }
+      ],
+      "import": "import { ApexLoginPanel } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "education-demo-selector-01",
+      "name": "Education Demo Selector",
+      "type": "layout",
+      "category": "marketing-pages",
+      "status": "ready",
+      "path": "layouts/marketing-pages/EducationDemoSelector.tsx",
+      "export": "EducationDemoSelector",
+      "sourcePath": "templates-raw/themeforest-y4ZkuwAp-education-college-education-master/main/HTML/demo.html",
+      "tags": [
+        "education",
+        "demo-selector",
+        "courses",
+        "dashboard",
+        "admin"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Education Demo Selector",
+      "useWhen": "Use the Education Demo Selector visual pattern for education, demo-selector, courses, dashboard, admin",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "education",
+        "demo-selector",
+        "courses",
+        "dashboard",
+        "admin"
+      ],
+      "capabilities": [
+        "education",
+        "demo-selector",
+        "courses",
+        "dashboard",
+        "admin"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/education-demo-selector-01",
+      "keywords": [
+        "education",
+        "demo-selector",
+        "courses",
+        "dashboard",
+        "admin"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "EducationDemoSelectorProps",
+          "declaration": "export type EducationDemoSelectorProps = {\n  title?: string;\n  subtitle?: string;\n  demos?: DemoCard[];\n  links?: string[];\n};"
+        }
+      ],
+      "import": "import { EducationDemoSelector } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "fedrex-pricing-table-01",
+      "name": "Fedrex Pricing Table",
+      "type": "component",
+      "category": "pricing-tables",
+      "status": "ready",
+      "path": "components/pricing-tables/FedrexPricingTable.tsx",
+      "export": "FedrexPricingTable",
+      "sourcePath": "templates-raw/themeforest-Ob22SPOS-fedrexmultipourpose-saas-product-template/main-file/pricing.html",
+      "tags": [
+        "pricing",
+        "saas",
+        "comparison",
+        "plans",
+        "ecommerce"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Fedrex Pricing Table",
+      "useWhen": "Use the Fedrex Pricing Table visual pattern for pricing, saas, comparison, plans, ecommerce",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "pricing",
+        "saas",
+        "comparison",
+        "plans",
+        "ecommerce"
+      ],
+      "capabilities": [
+        "pricing",
+        "saas",
+        "comparison",
+        "plans",
+        "ecommerce"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/fedrex-pricing-table-01",
+      "keywords": [
+        "pricing",
+        "saas",
+        "comparison",
+        "plans",
+        "ecommerce"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FedrexPricingTableProps",
+          "declaration": "export type FedrexPricingTableProps = {\n  eyebrow?: string;\n  title?: string;\n  description?: string;\n  plans?: Plan[];\n};"
+        }
+      ],
+      "import": "import { FedrexPricingTable } from \"citual-ui/components\";"
+    },
+    {
+      "id": "fedrex-saas-navbar-01",
+      "name": "Fedrex SaaS Navbar",
+      "type": "layout",
+      "category": "navbars",
+      "status": "ready",
+      "path": "layouts/navbars/FedrexSaasNavbar.tsx",
+      "export": "FedrexSaasNavbar",
+      "sourcePath": "templates-raw/themeforest-Ob22SPOS-fedrexmultipourpose-saas-product-template/main-file/pricing.html",
+      "tags": [
+        "saas",
+        "navbar",
+        "mega-menu",
+        "marketing",
+        "fedrex"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Fedrex SaaS Navbar",
+      "useWhen": "Use the Fedrex SaaS Navbar visual pattern for saas, navbar, mega-menu, marketing, fedrex",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "saas",
+        "navbar",
+        "mega-menu",
+        "marketing",
+        "fedrex"
+      ],
+      "capabilities": [
+        "saas",
+        "navbar",
+        "mega-menu",
+        "marketing",
+        "fedrex"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/fedrex-saas-navbar-01",
+      "keywords": [
+        "saas",
+        "navbar",
+        "mega-menu",
+        "marketing",
+        "fedrex"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FedrexSaasNavbarProps",
+          "declaration": "export type FedrexSaasNavbarProps = {\n  brand?: string;\n  links?: NavLink[];\n  ctaLabel?: string;\n  ctaHref?: string;\n};"
+        }
+      ],
+      "import": "import { FedrexSaasNavbar } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "fedrex-dark-footer-01",
+      "name": "Fedrex Dark Footer",
+      "type": "layout",
+      "category": "footers",
+      "status": "ready",
+      "path": "layouts/footers/FedrexDarkFooter.tsx",
+      "export": "FedrexDarkFooter",
+      "sourcePath": "templates-raw/themeforest-Ob22SPOS-fedrexmultipourpose-saas-product-template/main-file/dark-footer.html",
+      "tags": [
+        "saas",
+        "footer",
+        "newsletter",
+        "contact",
+        "fedrex"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Fedrex Dark Footer",
+      "useWhen": "Use the Fedrex Dark Footer visual pattern for saas, footer, newsletter, contact, fedrex",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "saas",
+        "footer",
+        "newsletter",
+        "contact",
+        "fedrex"
+      ],
+      "capabilities": [
+        "saas",
+        "footer",
+        "newsletter",
+        "contact",
+        "fedrex"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/fedrex-dark-footer-01",
+      "keywords": [
+        "saas",
+        "footer",
+        "newsletter",
+        "contact",
+        "fedrex"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FedrexDarkFooterProps",
+          "declaration": "export type FedrexDarkFooterProps = {\n  brand?: string;\n  description?: string;\n  columns?: FooterColumn[];\n};"
+        }
+      ],
+      "import": "import { FedrexDarkFooter } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "frexy-services-feature-grid-01",
+      "name": "Frexy Services Feature Grid",
+      "type": "component",
+      "category": "feature-grids",
+      "status": "ready",
+      "path": "components/feature-grids/FrexyServicesFeatureGrid.tsx",
+      "export": "FrexyServicesFeatureGrid",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/services/our_services_version_1.html",
+      "tags": [
+        "corporate",
+        "services",
+        "feature-grid",
+        "responsive"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Frexy Services Feature Grid",
+      "useWhen": "Use the Frexy Services Feature Grid visual pattern for corporate, services, feature-grid, responsive",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "corporate",
+        "services",
+        "feature-grid",
+        "responsive"
+      ],
+      "capabilities": [
+        "corporate",
+        "services",
+        "feature-grid",
+        "responsive"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-services-feature-grid-01",
+      "keywords": [
+        "corporate",
+        "services",
+        "feature-grid",
+        "responsive"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyServicesFeatureGridProps",
+          "declaration": "export type FrexyServicesFeatureGridProps = {\n  eyebrow?: string;\n  title?: string;\n  description?: string;\n  features?: Feature[];\n};"
+        }
+      ],
+      "import": "import { FrexyServicesFeatureGrid } from \"citual-ui/components\";"
+    },
+    {
+      "id": "hicks-contact-review-form-01",
+      "name": "Hicks Contact Review Form",
+      "type": "component",
+      "category": "forms",
+      "status": "ready",
+      "path": "components/forms/HicksContactReviewForm.tsx",
+      "export": "HicksContactReviewForm",
+      "sourcePath": "templates-raw/themeforest-09AxVapg-hicks-hynson-law-firm-html-template/Main_v1.1/HTML/contact_v1.html",
+      "tags": [
+        "legal",
+        "contact",
+        "case-review",
+        "form"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Hicks Contact Review Form",
+      "useWhen": "Use the Hicks Contact Review Form visual pattern for legal, contact, case-review, form",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "legal",
+        "contact",
+        "case-review",
+        "form"
+      ],
+      "capabilities": [
+        "legal",
+        "contact",
+        "case-review",
+        "form"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/hicks-contact-review-form-01",
+      "keywords": [
+        "legal",
+        "contact",
+        "case-review",
+        "form"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "HicksContactReviewFormProps",
+          "declaration": "export type HicksContactReviewFormProps = {\n  title?: string;\n  description?: string;\n  officeTitle?: string;\n};"
+        }
+      ],
+      "import": "import { HicksContactReviewForm } from \"citual-ui/components\";"
+    },
+    {
+      "id": "edule-course-cards-01",
+      "name": "Edule Course Cards",
+      "type": "component",
+      "category": "cards",
+      "status": "ready",
+      "path": "components/cards/EduleCourseCards.tsx",
+      "export": "EduleCourseCards",
+      "sourcePath": "templates-raw/themeforest-HPDIFnTM-edule-elearning-website-template/edule/courses.html",
+      "tags": [
+        "education",
+        "courses",
+        "cards",
+        "progress",
+        "learning"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Edule Course Cards",
+      "useWhen": "Use the Edule Course Cards visual pattern for education, courses, cards, progress, learning",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "education",
+        "courses",
+        "cards",
+        "progress",
+        "learning"
+      ],
+      "capabilities": [
+        "education",
+        "courses",
+        "cards",
+        "progress",
+        "learning"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/edule-course-cards-01",
+      "keywords": [
+        "education",
+        "courses",
+        "cards",
+        "progress",
+        "learning"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "EduleCourseCardsProps",
+          "declaration": "export type EduleCourseCardsProps = {\n  title?: string;\n  courses?: Course[];\n};"
+        }
+      ],
+      "import": "import { EduleCourseCards } from \"citual-ui/components\";"
+    },
+    {
+      "id": "frexy-responsive-hero-01",
+      "name": "Frexy Responsive Hero",
+      "type": "layout",
+      "category": "heroes",
+      "status": "ready",
+      "path": "layouts/heroes/FrexyResponsiveHero.tsx",
+      "export": "FrexyResponsiveHero",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/shared/homepage_index/slider_index.html",
+      "tags": [
+        "corporate",
+        "hero",
+        "responsive",
+        "marketing",
+        "frexy"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Frexy Responsive Hero",
+      "useWhen": "Use the Frexy Responsive Hero visual pattern for corporate, hero, responsive, marketing, frexy",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "corporate",
+        "hero",
+        "responsive",
+        "marketing",
+        "frexy"
+      ],
+      "capabilities": [
+        "corporate",
+        "hero",
+        "responsive",
+        "marketing",
+        "frexy"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-responsive-hero-01",
+      "keywords": [
+        "corporate",
+        "hero",
+        "responsive",
+        "marketing",
+        "frexy"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyResponsiveHeroProps",
+          "declaration": "export type FrexyResponsiveHeroProps = {\n  eyebrow?: string;\n  title?: string;\n  description?: string;\n  primaryCta?: string;\n  secondaryCta?: string;\n  points?: HeroPoint[];\n};"
+        }
+      ],
+      "import": "import { FrexyResponsiveHero } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "frexy-listing-sidebar-01",
+      "name": "Frexy Listing Sidebar",
+      "type": "layout",
+      "category": "sidebars",
+      "status": "ready",
+      "path": "layouts/sidebars/FrexyListingSidebar.tsx",
+      "export": "FrexyListingSidebar",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/real estate/real_estate_home_listing_left_sidebar.html",
+      "tags": [
+        "corporate",
+        "directory",
+        "sidebar",
+        "filters",
+        "real-estate"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Frexy Listing Sidebar",
+      "useWhen": "Use the Frexy Listing Sidebar visual pattern for corporate, directory, sidebar, filters, real-estate",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "corporate",
+        "directory",
+        "sidebar",
+        "filters",
+        "real-estate"
+      ],
+      "capabilities": [
+        "corporate",
+        "directory",
+        "sidebar",
+        "filters",
+        "real-estate"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-listing-sidebar-01",
+      "keywords": [
+        "corporate",
+        "directory",
+        "sidebar",
+        "filters",
+        "real-estate"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyListingSidebarProps",
+          "declaration": "export type FrexyListingSidebarProps = {\n  title?: string;\n  filters?: FilterGroup[];\n};"
+        }
+      ],
+      "import": "import { FrexyListingSidebar } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "dunzo-error-state-01",
+      "name": "Dunzo Error State",
+      "type": "layout",
+      "category": "error-pages",
+      "status": "ready",
+      "path": "layouts/error-pages/DunzoErrorState.tsx",
+      "export": "DunzoErrorState",
+      "sourcePath": "templates-raw/themeforest-QU3xx37L-dunzo-bootstrap-admin-dashboard-html-template/template/template/error-404.html",
+      "tags": [
+        "admin",
+        "error",
+        "404",
+        "empty-state",
+        "dunzo"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Dunzo Error State",
+      "useWhen": "Use the Dunzo Error State visual pattern for admin, error, 404, empty-state, dunzo",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "admin",
+        "error",
+        "404",
+        "empty-state",
+        "dunzo"
+      ],
+      "capabilities": [
+        "admin",
+        "error",
+        "404",
+        "empty-state",
+        "dunzo"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/dunzo-error-state-01",
+      "keywords": [
+        "admin",
+        "error",
+        "404",
+        "empty-state",
+        "dunzo"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "DunzoErrorStateProps",
+          "declaration": "export type DunzoErrorStateProps = {\n  code?: string;\n  title?: string;\n  description?: string;\n  actionLabel?: string;\n};"
+        }
+      ],
+      "import": "import { DunzoErrorState } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "frexy-drop-modal-01",
+      "name": "Frexy Drop Modal",
+      "type": "component",
+      "category": "modals",
+      "status": "ready",
+      "path": "components/modals/FrexyDropModal.tsx",
+      "export": "FrexyDropModal",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/shortcode/shortcode_drop_box.html",
+      "tags": [
+        "corporate",
+        "modal",
+        "dialog",
+        "drop-box"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Frexy Drop Modal",
+      "useWhen": "Use the Frexy Drop Modal visual pattern for corporate, modal, dialog, drop-box",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "corporate",
+        "modal",
+        "dialog",
+        "drop-box"
+      ],
+      "capabilities": [
+        "corporate",
+        "modal",
+        "dialog",
+        "drop-box"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-drop-modal-01",
+      "keywords": [
+        "corporate",
+        "modal",
+        "dialog",
+        "drop-box"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyDropModalProps",
+          "declaration": "export type FrexyDropModalProps = {\n  open?: boolean;\n  title?: string;\n  description?: string;\n  confirmLabel?: string;\n};"
+        }
+      ],
+      "import": "import { FrexyDropModal } from \"citual-ui/components\";"
+    },
+    {
+      "id": "frexy-vertical-tabs-01",
+      "name": "Frexy Vertical Tabs",
+      "type": "component",
+      "category": "navigation",
+      "status": "ready",
+      "path": "components/navigation/FrexyVerticalTabs.tsx",
+      "export": "FrexyVerticalTabs",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/shared/tabs-vertical.html",
+      "tags": [
+        "corporate",
+        "tabs",
+        "navigation",
+        "vertical-tabs"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Frexy Vertical Tabs",
+      "useWhen": "Use the Frexy Vertical Tabs visual pattern for corporate, tabs, navigation, vertical-tabs",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "corporate",
+        "tabs",
+        "navigation",
+        "vertical-tabs"
+      ],
+      "capabilities": [
+        "corporate",
+        "tabs",
+        "navigation",
+        "vertical-tabs"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-vertical-tabs-01",
+      "keywords": [
+        "corporate",
+        "tabs",
+        "navigation",
+        "vertical-tabs"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyVerticalTabsProps",
+          "declaration": "export type FrexyVerticalTabsProps = {\n  activeIndex?: number;\n  tabs?: Tab[];\n};"
+        }
+      ],
+      "import": "import { FrexyVerticalTabs } from \"citual-ui/components\";"
+    },
+    {
+      "id": "frexy-listing-grid-01",
+      "name": "Frexy Listing Grid",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "path": "components/data-display/FrexyListingGrid.tsx",
+      "export": "FrexyListingGrid",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/real estate/real_estate_home_listing_grid.html",
+      "tags": [
+        "corporate",
+        "directory",
+        "listing",
+        "grid",
+        "real-estate"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Frexy Listing Grid",
+      "useWhen": "Use the Frexy Listing Grid visual pattern for corporate, directory, listing, grid, real-estate",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "corporate",
+        "directory",
+        "listing",
+        "grid",
+        "real-estate"
+      ],
+      "capabilities": [
+        "corporate",
+        "directory",
+        "listing",
+        "grid",
+        "real-estate"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-listing-grid-01",
+      "keywords": [
+        "corporate",
+        "directory",
+        "listing",
+        "grid",
+        "real-estate"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyListingGridProps",
+          "declaration": "export type FrexyListingGridProps = {\n  listings?: Listing[];\n};"
+        }
+      ],
+      "import": "import { FrexyListingGrid } from \"citual-ui/components\";"
+    },
+    {
+      "id": "frexy-blog-masonry-block-01",
+      "name": "Frexy Blog Masonry Block",
+      "type": "component",
+      "category": "content-blocks",
+      "status": "ready",
+      "path": "components/content-blocks/FrexyBlogMasonryBlock.tsx",
+      "export": "FrexyBlogMasonryBlock",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/homepage/homepage-1_index_blog.html",
+      "tags": [
+        "corporate",
+        "blog",
+        "masonry",
+        "testimonial",
+        "content-block"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Frexy Blog Masonry Block",
+      "useWhen": "Use the Frexy Blog Masonry Block visual pattern for corporate, blog, masonry, testimonial, content-block",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "corporate",
+        "blog",
+        "masonry",
+        "testimonial",
+        "content-block"
+      ],
+      "capabilities": [
+        "corporate",
+        "blog",
+        "masonry",
+        "testimonial",
+        "content-block"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-blog-masonry-block-01",
+      "keywords": [
+        "corporate",
+        "blog",
+        "masonry",
+        "testimonial",
+        "content-block"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyBlogMasonryBlockProps",
+          "declaration": "export type FrexyBlogMasonryBlockProps = {\n  title?: string;\n  posts?: Post[];\n};"
+        }
+      ],
+      "import": "import { FrexyBlogMasonryBlock } from \"citual-ui/components\";"
+    },
+    {
+      "id": "smarthr-admin-shell-01",
+      "name": "SmartHR Admin Shell",
+      "type": "layout",
+      "category": "admin-shells",
+      "status": "ready",
+      "path": "layouts/admin-shells/SmartHrAdminShell.tsx",
+      "export": "SmartHrAdminShell",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/html/index.html",
+      "tags": [
+        "admin",
+        "hrms",
+        "crm",
+        "shell",
+        "dashboard"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "SmartHR Admin Shell",
+      "useWhen": "Use the SmartHR Admin Shell visual pattern for admin, hrms, crm, shell, dashboard",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "admin",
+        "hrms",
+        "crm",
+        "shell",
+        "dashboard"
+      ],
+      "capabilities": [
+        "admin",
+        "hrms",
+        "crm",
+        "shell",
+        "dashboard"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-admin-shell-01",
+      "keywords": [
+        "admin",
+        "hrms",
+        "crm",
+        "shell",
+        "dashboard"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrAdminShellProps",
+          "declaration": "export type SmartHrAdminShellProps = {\n  brand?: string;\n  userName?: string;\n  links?: ShellLink[];\n  children?: ReactNode;\n};"
+        }
+      ],
+      "import": "import { SmartHrAdminShell } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "frexy-product-detail-page-01",
+      "name": "Frexy Product Detail Page",
+      "type": "layout",
+      "category": "content-pages",
+      "status": "ready",
+      "path": "layouts/content-pages/FrexyProductDetailPage.tsx",
+      "export": "FrexyProductDetailPage",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/shopping/shop_detail.html",
+      "tags": [
+        "ecommerce",
+        "product-detail",
+        "shopping",
+        "content-page"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Frexy Product Detail Page",
+      "useWhen": "Use the Frexy Product Detail Page visual pattern for ecommerce, product-detail, shopping, content-page",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "ecommerce",
+        "product-detail",
+        "shopping",
+        "content-page"
+      ],
+      "capabilities": [
+        "ecommerce",
+        "product-detail",
+        "shopping",
+        "content-page"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-product-detail-page-01",
+      "keywords": [
+        "ecommerce",
+        "product-detail",
+        "shopping",
+        "content-page"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyProductDetailPageProps",
+          "declaration": "export type FrexyProductDetailPageProps = {\n  title?: string;\n  price?: string;\n  description?: string;\n  specs?: ProductSpec[];\n};"
+        }
+      ],
+      "import": "import { FrexyProductDetailPage } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "ventcamp-ticket-pricing-01",
+      "name": "Ventcamp Ticket Pricing",
+      "type": "component",
+      "category": "pricing-tables",
+      "status": "ready",
+      "path": "components/pricing-tables/VentcampTicketPricing.tsx",
+      "export": "VentcampTicketPricing",
+      "sourcePath": "templates-raw/themeforest-7H3dv3Jf-ventcamp-event-and-conference-template/Ventcamp_2.1/Ventcamp_HTML/elements/pricing.html",
+      "tags": [
+        "events",
+        "conference",
+        "tickets",
+        "pricing",
+        "passes"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Ventcamp Ticket Pricing",
+      "useWhen": "Use the Ventcamp Ticket Pricing visual pattern for events, conference, tickets, pricing, passes",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "events",
+        "conference",
+        "tickets",
+        "pricing",
+        "passes"
+      ],
+      "capabilities": [
+        "events",
+        "conference",
+        "tickets",
+        "pricing",
+        "passes"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/ventcamp-ticket-pricing-01",
+      "keywords": [
+        "events",
+        "conference",
+        "tickets",
+        "pricing",
+        "passes"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "VentcampTicketPricingProps",
+          "declaration": "export type VentcampTicketPricingProps = {\n  eyebrow?: string;\n  title?: string;\n  description?: string;\n  plans?: TicketPlan[];\n};"
+        }
+      ],
+      "import": "import { VentcampTicketPricing } from \"citual-ui/components\";"
+    },
+    {
+      "id": "fedrex-career-openings-01",
+      "name": "Fedrex Career Openings",
+      "type": "component",
+      "category": "cards",
+      "status": "ready",
+      "path": "components/cards/FedrexCareerOpenings.tsx",
+      "export": "FedrexCareerOpenings",
+      "sourcePath": "templates-raw/themeforest-Ob22SPOS-fedrexmultipourpose-saas-product-template/main-file/careers.html",
+      "tags": [
+        "jobs",
+        "careers",
+        "hiring",
+        "accordion",
+        "saas"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Fedrex Career Openings",
+      "useWhen": "Use the Fedrex Career Openings visual pattern for jobs, careers, hiring, accordion, saas",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "jobs",
+        "careers",
+        "hiring",
+        "accordion",
+        "saas"
+      ],
+      "capabilities": [
+        "jobs",
+        "careers",
+        "hiring",
+        "accordion",
+        "saas"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/fedrex-career-openings-01",
+      "keywords": [
+        "jobs",
+        "careers",
+        "hiring",
+        "accordion",
+        "saas"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FedrexCareerOpeningsProps",
+          "declaration": "export type FedrexCareerOpeningsProps = {\n  eyebrow?: string;\n  title?: string;\n  description?: string;\n  openings?: JobOpening[];\n};"
+        }
+      ],
+      "import": "import { FedrexCareerOpenings } from \"citual-ui/components\";"
+    },
+    {
+      "id": "frexy-portfolio-showcase-01",
+      "name": "Frexy Portfolio Showcase",
+      "type": "component",
+      "category": "content-blocks",
+      "status": "ready",
+      "path": "components/content-blocks/FrexyPortfolioShowcase.tsx",
+      "export": "FrexyPortfolioShowcase",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/homepage/homepage-1_index_portfolio.html",
+      "tags": [
+        "portfolio",
+        "gallery",
+        "masonry",
+        "creative",
+        "filters"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Frexy Portfolio Showcase",
+      "useWhen": "Use the Frexy Portfolio Showcase visual pattern for portfolio, gallery, masonry, creative, filters",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "portfolio",
+        "gallery",
+        "masonry",
+        "creative",
+        "filters"
+      ],
+      "capabilities": [
+        "portfolio",
+        "gallery",
+        "masonry",
+        "creative",
+        "filters"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-portfolio-showcase-01",
+      "keywords": [
+        "portfolio",
+        "gallery",
+        "masonry",
+        "creative",
+        "filters"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyPortfolioShowcaseProps",
+          "declaration": "export type FrexyPortfolioShowcaseProps = {\n  eyebrow?: string;\n  title?: string;\n  description?: string;\n  filters?: string[];\n  items?: PortfolioItem[];\n};"
+        }
+      ],
+      "import": "import { FrexyPortfolioShowcase } from \"citual-ui/components\";"
+    },
+    {
+      "id": "forms-plus-file-upload-form-01",
+      "name": "Forms Plus File Upload Form",
+      "type": "component",
+      "category": "forms",
+      "status": "ready",
+      "path": "components/forms/FormsPlusFileUploadForm.tsx",
+      "export": "FormsPlusFileUploadForm",
+      "sourcePath": "templates-raw/codecanyon-EwEXAJRy-forms-plus-php-forms-framework/forms-plus-php/js/jquery-file-upload/basic-plus.html",
+      "tags": [
+        "forms",
+        "upload",
+        "file-upload",
+        "dropzone",
+        "application"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Forms Plus File Upload Form",
+      "useWhen": "Use the Forms Plus File Upload Form visual pattern for forms, upload, file-upload, dropzone, application",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "forms",
+        "upload",
+        "file-upload",
+        "dropzone",
+        "application"
+      ],
+      "capabilities": [
+        "forms",
+        "upload",
+        "file-upload",
+        "dropzone",
+        "application"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/forms-plus-file-upload-form-01",
+      "keywords": [
+        "forms",
+        "upload",
+        "file-upload",
+        "dropzone",
+        "application"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FormsPlusFileUploadFormProps",
+          "declaration": "export type FormsPlusFileUploadFormProps = {\n  eyebrow?: string;\n  title?: string;\n  description?: string;\n  requirements?: UploadRequirement[];\n};"
+        }
+      ],
+      "import": "import { FormsPlusFileUploadForm } from \"citual-ui/components\";"
+    },
+    {
+      "id": "frexy-checkout-page-01",
+      "name": "Frexy Checkout Page",
+      "type": "layout",
+      "category": "content-pages",
+      "status": "ready",
+      "path": "layouts/content-pages/FrexyCheckoutPage.tsx",
+      "export": "FrexyCheckoutPage",
+      "sourcePath": "templates-raw/themeforest-DT0ZiADg-frexy-responsive-multipurpose-html5-template/frexy-responsive-multipurpose-html5-template/HTML/app/shopping/shop_check_out.html",
+      "tags": [
+        "ecommerce",
+        "checkout",
+        "billing",
+        "cart",
+        "content-page"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Frexy Checkout Page",
+      "useWhen": "Use the Frexy Checkout Page visual pattern for ecommerce, checkout, billing, cart, content-page",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "ecommerce",
+        "checkout",
+        "billing",
+        "cart",
+        "content-page"
+      ],
+      "capabilities": [
+        "ecommerce",
+        "checkout",
+        "billing",
+        "cart",
+        "content-page"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/frexy-checkout-page-01",
+      "keywords": [
+        "ecommerce",
+        "checkout",
+        "billing",
+        "cart",
+        "content-page"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "FrexyCheckoutPageProps",
+          "declaration": "export type FrexyCheckoutPageProps = {\n  title?: string;\n  description?: string;\n  summary?: SummaryRow[];\n};"
+        }
+      ],
+      "import": "import { FrexyCheckoutPage } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "dunzo-product-list-dashboard-01",
+      "name": "Dunzo Product List Dashboard",
+      "type": "layout",
+      "category": "dashboards",
+      "status": "ready",
+      "path": "layouts/dashboards/DunzoProductListDashboard.tsx",
+      "export": "DunzoProductListDashboard",
+      "sourcePath": "templates-raw/themeforest-QU3xx37L-dunzo-bootstrap-admin-dashboard-html-template/template/template/list-products.html",
+      "tags": [
+        "admin",
+        "dashboard",
+        "ecommerce",
+        "products",
+        "table"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Dunzo Product List Dashboard",
+      "useWhen": "Use the Dunzo Product List Dashboard visual pattern for admin, dashboard, ecommerce, products, table",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "admin",
+        "dashboard",
+        "ecommerce",
+        "products",
+        "table"
+      ],
+      "capabilities": [
+        "admin",
+        "dashboard",
+        "ecommerce",
+        "products",
+        "table"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/dunzo-product-list-dashboard-01",
+      "keywords": [
+        "admin",
+        "dashboard",
+        "ecommerce",
+        "products",
+        "table"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "DunzoProductListDashboardProps",
+          "declaration": "export type DunzoProductListDashboardProps = {\n  title?: string;\n  products?: ProductRow[];\n};"
+        }
+      ],
+      "import": "import { DunzoProductListDashboard } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "apex-horizontal-admin-navbar-01",
+      "name": "Apex Horizontal Admin Navbar",
+      "type": "layout",
+      "category": "navbars",
+      "status": "ready",
+      "path": "layouts/navbars/ApexHorizontalAdminNavbar.tsx",
+      "export": "ApexHorizontalAdminNavbar",
+      "sourcePath": "templates-raw/themeforest-7duK6HPj-apex-angular-4-bootstrap-admin-template/apex-admin-v14/html-version/html-template/html/ltr/horizontal-menu-template/index.html",
+      "tags": [
+        "admin",
+        "navbar",
+        "horizontal-menu",
+        "search",
+        "notifications"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Apex Horizontal Admin Navbar",
+      "useWhen": "Use the Apex Horizontal Admin Navbar visual pattern for admin, navbar, horizontal-menu, search, notifications",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "admin",
+        "navbar",
+        "horizontal-menu",
+        "search",
+        "notifications"
+      ],
+      "capabilities": [
+        "admin",
+        "navbar",
+        "horizontal-menu",
+        "search",
+        "notifications"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/apex-horizontal-admin-navbar-01",
+      "keywords": [
+        "admin",
+        "navbar",
+        "horizontal-menu",
+        "search",
+        "notifications"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "ApexHorizontalAdminNavbarProps",
+          "declaration": "export type ApexHorizontalAdminNavbarProps = {\n  brand?: string;\n  navItems?: NavItem[];\n};"
+        }
+      ],
+      "import": "import { ApexHorizontalAdminNavbar } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "jobi-hiring-footer-01",
+      "name": "Jobi Hiring Footer",
+      "type": "layout",
+      "category": "footers",
+      "status": "ready",
+      "path": "layouts/footers/JobiHiringFooter.tsx",
+      "export": "JobiHiringFooter",
+      "sourcePath": "templates-raw/themeforest-J7hXc3Dt-jobi-job-portal-job-board-svelte-template/Jobi_svelte_v1.0.0/Landing/src/lib/Components/Footers/Footer.svelte",
+      "tags": [
+        "jobs",
+        "footer",
+        "newsletter",
+        "job-board",
+        "hiring"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Jobi Hiring Footer",
+      "useWhen": "Use the Jobi Hiring Footer visual pattern for jobs, footer, newsletter, job-board, hiring",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "jobs",
+        "footer",
+        "newsletter",
+        "job-board",
+        "hiring"
+      ],
+      "capabilities": [
+        "jobs",
+        "footer",
+        "newsletter",
+        "job-board",
+        "hiring"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/jobi-hiring-footer-01",
+      "keywords": [
+        "jobs",
+        "footer",
+        "newsletter",
+        "job-board",
+        "hiring"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "JobiHiringFooterProps",
+          "declaration": "export type JobiHiringFooterProps = {\n  brand?: string;\n  groups?: FooterGroup[];\n};"
+        }
+      ],
+      "import": "import { JobiHiringFooter } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "hicks-attorney-directory-01",
+      "name": "Hicks Attorney Directory",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "path": "components/data-display/HicksAttorneyDirectory.tsx",
+      "export": "HicksAttorneyDirectory",
+      "sourcePath": "templates-raw/themeforest-09AxVapg-hicks-hynson-law-firm-html-template/Main_v1.1/HTML/attorneys_list_v1.html",
+      "tags": [
+        "legal",
+        "attorneys",
+        "directory",
+        "team",
+        "filters"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "Hicks Attorney Directory",
+      "useWhen": "Use the Hicks Attorney Directory visual pattern for legal, attorneys, directory, team, filters",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "legal",
+        "attorneys",
+        "directory",
+        "team",
+        "filters"
+      ],
+      "capabilities": [
+        "legal",
+        "attorneys",
+        "directory",
+        "team",
+        "filters"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/hicks-attorney-directory-01",
+      "keywords": [
+        "legal",
+        "attorneys",
+        "directory",
+        "team",
+        "filters"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "HicksAttorneyDirectoryProps",
+          "declaration": "export type HicksAttorneyDirectoryProps = {\n  title?: string;\n  filters?: string[];\n  attorneys?: Attorney[];\n};"
+        }
+      ],
+      "import": "import { HicksAttorneyDirectory } from \"citual-ui/components\";"
+    },
+    {
+      "id": "smarthr-tailwind-shell-01",
+      "name": "SmartHR Tailwind Shell",
+      "type": "layout",
+      "category": "admin-shells",
+      "status": "ready",
+      "path": "layouts/admin-shells/SmartHrTailwindShell.tsx",
+      "export": "SmartHrTailwindShell",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/index.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "admin-shell",
+        "hrms",
+        "navigation",
+        "app-frame"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "SmartHR Tailwind Shell",
+      "useWhen": "Use the SmartHR Tailwind Shell visual pattern for smarthr, tailwind, admin-shell, hrms, navigation, app-frame",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "admin-shell",
+        "hrms",
+        "navigation",
+        "app-frame"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "admin-shell",
+        "hrms",
+        "navigation",
+        "app-frame"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-tailwind-shell-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "admin-shell",
+        "hrms",
+        "navigation",
+        "app-frame"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrTailwindShellProps",
+          "declaration": "export type SmartHrTailwindShellProps = {\n  brand?: string;\n  userName?: string;\n  navGroups?: NavGroup[];\n  children?: ReactNode;\n};"
+        }
+      ],
+      "import": "import { SmartHrTailwindShell } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "smarthr-tailwind-admin-dashboard-01",
+      "name": "SmartHR Tailwind Admin Dashboard",
+      "type": "layout",
+      "category": "dashboards",
+      "status": "ready",
+      "path": "layouts/dashboards/SmartHrTailwindAdminDashboard.tsx",
+      "export": "SmartHrTailwindAdminDashboard",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/index.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "admin",
+        "dashboard",
+        "hrms",
+        "analytics"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "SmartHR Tailwind Admin Dashboard",
+      "useWhen": "Use the SmartHR Tailwind Admin Dashboard visual pattern for smarthr, tailwind, admin, dashboard, hrms, analytics",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "admin",
+        "dashboard",
+        "hrms",
+        "analytics"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "admin",
+        "dashboard",
+        "hrms",
+        "analytics"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-tailwind-admin-dashboard-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "admin",
+        "dashboard",
+        "hrms",
+        "analytics"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrTailwindAdminDashboardProps",
+          "declaration": "export type SmartHrTailwindAdminDashboardProps = {\n  userName?: string;\n  metrics?: Metric[];\n};"
+        }
+      ],
+      "import": "import { SmartHrTailwindAdminDashboard } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "smarthr-employee-dashboard-01",
+      "name": "SmartHR Employee Dashboard",
+      "type": "layout",
+      "category": "dashboards",
+      "status": "ready",
+      "path": "layouts/dashboards/SmartHrEmployeeDashboard.tsx",
+      "export": "SmartHrEmployeeDashboard",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/employee-dashboard.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "employee-dashboard",
+        "attendance",
+        "projects",
+        "hrms"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "SmartHR Employee Dashboard",
+      "useWhen": "Use the SmartHR Employee Dashboard visual pattern for smarthr, tailwind, employee-dashboard, attendance, projects, hrms",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "employee-dashboard",
+        "attendance",
+        "projects",
+        "hrms"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "employee-dashboard",
+        "attendance",
+        "projects",
+        "hrms"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-employee-dashboard-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "employee-dashboard",
+        "attendance",
+        "projects",
+        "hrms"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrEmployeeDashboardProps",
+          "declaration": "export type SmartHrEmployeeDashboardProps = {\n  employeeName?: string;\n  summaries?: WorkSummary[];\n};"
+        }
+      ],
+      "import": "import { SmartHrEmployeeDashboard } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "smarthr-employee-directory-table-01",
+      "name": "SmartHR Employee Directory Table",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "path": "components/data-display/SmartHrEmployeeDirectoryTable.tsx",
+      "export": "SmartHrEmployeeDirectoryTable",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/employees.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "employees",
+        "directory",
+        "table",
+        "hrms"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "SmartHR Employee Directory Table",
+      "useWhen": "Use the SmartHR Employee Directory Table visual pattern for smarthr, tailwind, employees, directory, table, hrms",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "employees",
+        "directory",
+        "table",
+        "hrms"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "employees",
+        "directory",
+        "table",
+        "hrms"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-employee-directory-table-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "employees",
+        "directory",
+        "table",
+        "hrms"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrEmployeeDirectoryTableProps",
+          "declaration": "export type SmartHrEmployeeDirectoryTableProps = {\n  employees?: Employee[];\n};"
+        }
+      ],
+      "import": "import { SmartHrEmployeeDirectoryTable } from \"citual-ui/components\";"
+    },
+    {
+      "id": "smarthr-attendance-admin-table-01",
+      "name": "SmartHR Attendance Admin Table",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "path": "components/data-display/SmartHrAttendanceAdminTable.tsx",
+      "export": "SmartHrAttendanceAdminTable",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/attendance-admin.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "attendance",
+        "admin",
+        "table",
+        "hrms"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "SmartHR Attendance Admin Table",
+      "useWhen": "Use the SmartHR Attendance Admin Table visual pattern for smarthr, tailwind, attendance, admin, table, hrms",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "attendance",
+        "admin",
+        "table",
+        "hrms"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "attendance",
+        "admin",
+        "table",
+        "hrms"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-attendance-admin-table-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "attendance",
+        "admin",
+        "table",
+        "hrms"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrAttendanceAdminTableProps",
+          "declaration": "export type SmartHrAttendanceAdminTableProps = {\n  rows?: AttendanceRow[];\n};"
+        }
+      ],
+      "import": "import { SmartHrAttendanceAdminTable } from \"citual-ui/components\";"
+    },
+    {
+      "id": "smarthr-payroll-items-table-01",
+      "name": "SmartHR Payroll Items Table",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "path": "components/data-display/SmartHrPayrollItemsTable.tsx",
+      "export": "SmartHrPayrollItemsTable",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/payroll.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "payroll",
+        "salary",
+        "table",
+        "hrms"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "SmartHR Payroll Items Table",
+      "useWhen": "Use the SmartHR Payroll Items Table visual pattern for smarthr, tailwind, payroll, salary, table, hrms",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "payroll",
+        "salary",
+        "table",
+        "hrms"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "payroll",
+        "salary",
+        "table",
+        "hrms"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-payroll-items-table-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "payroll",
+        "salary",
+        "table",
+        "hrms"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrPayrollItemsTableProps",
+          "declaration": "export type SmartHrPayrollItemsTableProps = {\n  items?: PayrollItem[];\n};"
+        }
+      ],
+      "import": "import { SmartHrPayrollItemsTable } from \"citual-ui/components\";"
+    },
+    {
+      "id": "smarthr-project-list-table-01",
+      "name": "SmartHR Project List Table",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "path": "components/data-display/SmartHrProjectListTable.tsx",
+      "export": "SmartHrProjectListTable",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/projects.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "projects",
+        "tasks",
+        "table",
+        "hrms"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "SmartHR Project List Table",
+      "useWhen": "Use the SmartHR Project List Table visual pattern for smarthr, tailwind, projects, tasks, table, hrms",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "projects",
+        "tasks",
+        "table",
+        "hrms"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "projects",
+        "tasks",
+        "table",
+        "hrms"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-project-list-table-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "projects",
+        "tasks",
+        "table",
+        "hrms"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrProjectListTableProps",
+          "declaration": "export type SmartHrProjectListTableProps = {\n  projects?: Project[];\n};"
+        }
+      ],
+      "import": "import { SmartHrProjectListTable } from \"citual-ui/components\";"
+    },
+    {
+      "id": "smarthr-employee-profile-form-01",
+      "name": "SmartHR Employee Profile Form",
+      "type": "component",
+      "category": "forms",
+      "status": "ready",
+      "path": "components/forms/SmartHrEmployeeProfileForm.tsx",
+      "export": "SmartHrEmployeeProfileForm",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/employees.html",
+      "tags": [
+        "smarthr",
+        "tailwind",
+        "employee",
+        "form",
+        "profile",
+        "hrms"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "maturity": "presentation",
+      "description": "SmartHR Employee Profile Form",
+      "useWhen": "Use the SmartHR Employee Profile Form visual pattern for smarthr, tailwind, employee, form, profile, hrms",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "tailwind",
+        "employee",
+        "form",
+        "profile",
+        "hrms"
+      ],
+      "capabilities": [
+        "smarthr",
+        "tailwind",
+        "employee",
+        "form",
+        "profile",
+        "hrms"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-employee-profile-form-01",
+      "keywords": [
+        "smarthr",
+        "tailwind",
+        "employee",
+        "form",
+        "profile",
+        "hrms"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "SmartHrEmployeeProfileFormProps",
+          "declaration": "export type SmartHrEmployeeProfileFormProps = {\n  title?: string;\n};"
+        }
+      ],
+      "import": "import { SmartHrEmployeeProfileForm } from \"citual-ui/components\";"
+    },
+    {
+      "id": "university-management-starter-01",
+      "name": "University Management Starter",
+      "type": "layout",
+      "category": "app-starters",
+      "status": "ready",
+      "path": "layouts/app-starters/UniversityManagementStarter.tsx",
+      "export": "UniversityManagementStarter",
+      "sourcePath": "templates-raw/themeforest-y4ZkuwAp-education-college-education-master/main/HTML/demo.html",
+      "tags": [
+        "project-kit",
+        "university",
+        "education",
+        "students",
+        "faculty",
+        "admin"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "University Management Starter",
+      "useWhen": "Use the University Management Starter visual pattern for project-kit, university, education, students, faculty, admin",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "project-kit",
+        "university",
+        "education",
+        "students",
+        "faculty",
+        "admin"
+      ],
+      "capabilities": [
+        "project-kit",
+        "university",
+        "education",
+        "students",
+        "faculty",
+        "admin"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/university-management-starter-01",
+      "keywords": [
+        "project-kit",
+        "university",
+        "education",
+        "students",
+        "faculty",
+        "admin"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "UniversityManagementStarterProps",
+          "declaration": "export type UniversityManagementStarterProps = {\n  title?: string;\n  modules?: Module[];\n};"
+        }
+      ],
+      "import": "import { UniversityManagementStarter } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "hrms-starter-01",
+      "name": "HRMS Starter",
+      "type": "layout",
+      "category": "app-starters",
+      "status": "ready",
+      "path": "layouts/app-starters/HrmsStarter.tsx",
+      "export": "HrmsStarter",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/index.html",
+      "tags": [
+        "project-kit",
+        "hrms",
+        "smarthr",
+        "employees",
+        "attendance",
+        "payroll"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "HRMS Starter",
+      "useWhen": "Use the HRMS Starter visual pattern for project-kit, hrms, smarthr, employees, attendance, payroll",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "project-kit",
+        "hrms",
+        "smarthr",
+        "employees",
+        "attendance",
+        "payroll"
+      ],
+      "capabilities": [
+        "project-kit",
+        "hrms",
+        "smarthr",
+        "employees",
+        "attendance",
+        "payroll"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/hrms-starter-01",
+      "keywords": [
+        "project-kit",
+        "hrms",
+        "smarthr",
+        "employees",
+        "attendance",
+        "payroll"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "HrmsStarterProps",
+          "declaration": "export type HrmsStarterProps = {\n  title?: string;\n  metrics?: Metric[];\n};"
+        }
+      ],
+      "import": "import { HrmsStarter } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "crm-starter-01",
+      "name": "CRM Starter",
+      "type": "layout",
+      "category": "app-starters",
+      "status": "ready",
+      "path": "layouts/app-starters/CrmStarter.tsx",
+      "export": "CrmStarter",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/leads-dashboard.html",
+      "tags": [
+        "project-kit",
+        "crm",
+        "leads",
+        "deals",
+        "pipeline",
+        "contacts"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "CRM Starter",
+      "useWhen": "Use the CRM Starter visual pattern for project-kit, crm, leads, deals, pipeline, contacts",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "project-kit",
+        "crm",
+        "leads",
+        "deals",
+        "pipeline",
+        "contacts"
+      ],
+      "capabilities": [
+        "project-kit",
+        "crm",
+        "leads",
+        "deals",
+        "pipeline",
+        "contacts"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/crm-starter-01",
+      "keywords": [
+        "project-kit",
+        "crm",
+        "leads",
+        "deals",
+        "pipeline",
+        "contacts"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "CrmStarterProps",
+          "declaration": "export type CrmStarterProps = {\n  title?: string;\n  stages?: PipelineStage[];\n};"
+        }
+      ],
+      "import": "import { CrmStarter } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "online-course-management-starter-01",
+      "name": "Online Course Management Starter",
+      "type": "layout",
+      "category": "app-starters",
+      "status": "ready",
+      "path": "layouts/app-starters/OnlineCourseManagementStarter.tsx",
+      "export": "OnlineCourseManagementStarter",
+      "sourcePath": "templates-raw/themeforest-HPDIFnTM-edule-elearning-website-template/edule/courses.html",
+      "tags": [
+        "project-kit",
+        "online-course",
+        "lms",
+        "education",
+        "courses",
+        "learning"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Online Course Management Starter",
+      "useWhen": "Use the Online Course Management Starter visual pattern for project-kit, online-course, lms, education, courses, learning",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "project-kit",
+        "online-course",
+        "lms",
+        "education",
+        "courses",
+        "learning"
+      ],
+      "capabilities": [
+        "project-kit",
+        "online-course",
+        "lms",
+        "education",
+        "courses",
+        "learning"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/online-course-management-starter-01",
+      "keywords": [
+        "project-kit",
+        "online-course",
+        "lms",
+        "education",
+        "courses",
+        "learning"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "OnlineCourseManagementStarterProps",
+          "declaration": "export type OnlineCourseManagementStarterProps = {\n  title?: string;\n  metrics?: CourseMetric[];\n};"
+        }
+      ],
+      "import": "import { OnlineCourseManagementStarter } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "online-proctored-exam-starter-01",
+      "name": "Online Testing and Proctored Exams Starter",
+      "type": "layout",
+      "category": "app-starters",
+      "status": "ready",
+      "path": "layouts/app-starters/OnlineProctoredExamStarter.tsx",
+      "export": "OnlineProctoredExamStarter",
+      "sourcePath": "templates-raw/themeforest-HPDIFnTM-edule-elearning-website-template/edule/courses.html",
+      "tags": [
+        "project-kit",
+        "online-testing",
+        "proctored-exam",
+        "assessment",
+        "lms",
+        "education",
+        "certification"
+      ],
+      "kind": "layout",
+      "generic": false,
+      "importFrom": "citual-ui/layouts",
+      "maturity": "presentation",
+      "description": "Online Testing and Proctored Exams Starter",
+      "useWhen": "Use the Online Testing and Proctored Exams Starter visual pattern for project-kit, online-testing, proctored-exam, assessment, lms, education, certification",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "project-kit",
+        "online-testing",
+        "proctored-exam",
+        "assessment",
+        "lms",
+        "education",
+        "certification"
+      ],
+      "capabilities": [
+        "project-kit",
+        "online-testing",
+        "proctored-exam",
+        "assessment",
+        "lms",
+        "education",
+        "certification"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/online-proctored-exam-starter-01",
+      "keywords": [
+        "project-kit",
+        "online-testing",
+        "proctored-exam",
+        "assessment",
+        "lms",
+        "education",
+        "certification"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": false,
+      "types": [
+        {
+          "name": "OnlineProctoredExamStarterProps",
+          "declaration": "export type OnlineProctoredExamStarterProps = {\n  title?: string;\n  metrics?: ExamMetric[];\n  sessions?: ExamSession[];\n};"
+        }
+      ],
+      "import": "import { OnlineProctoredExamStarter } from \"citual-ui/layouts\";"
+    },
+    {
+      "id": "smarthr-employee-detail-01",
+      "name": "SmartHR Employee Detail",
+      "type": "component",
+      "category": "data-display",
+      "status": "ready",
+      "maturity": "interactive",
+      "path": "components/data-display/SmartHrEmployeeDetail.tsx",
+      "export": "SmartHrEmployeeDetail",
+      "sourcePath": "templates-raw/themeforest-LMLyeM1v-smarthr-bootstrap-admin-panel-template/smarthr-v4.2.1/tailwind/src/employee-details.html",
+      "tags": [
+        "smarthr",
+        "hrms",
+        "employee",
+        "profile",
+        "interactive"
+      ],
+      "kind": "component",
+      "generic": false,
+      "importFrom": "citual-ui/components",
+      "description": "SmartHR Employee Detail",
+      "useWhen": "Use the SmartHR Employee Detail visual pattern for smarthr, hrms, employee, profile, interactive",
+      "avoidWhen": "Generic interactive behavior is required without adapting a template; inspect props and origin license",
+      "domains": [
+        "smarthr",
+        "hrms",
+        "employee",
+        "profile",
+        "interactive"
+      ],
+      "capabilities": [
+        "smarthr",
+        "hrms",
+        "employee",
+        "profile",
+        "interactive"
+      ],
+      "requires": [],
+      "dependencies": [
+        "react"
+      ],
+      "backend": "Inspect source; presentation status does not imply working backend behavior",
+      "recipe": "recipes/integration.md",
+      "preview": "/preview/smarthr-employee-detail-01",
+      "keywords": [
+        "smarthr",
+        "hrms",
+        "employee",
+        "profile",
+        "interactive"
+      ],
+      "composeWith": [],
+      "license": "Purchased-template derivative; original terms apply. Redistribution rights are not established by this catalog.",
+      "client": true,
+      "types": [
+        {
+          "name": "EmployeeDetail",
+          "declaration": "export type EmployeeDetail = {\n  id: string; name: string; email: string; phone: string; role: string;\n  department: string; manager: string; joined: string; location: string;\n  status: \"Active\" | \"On leave\" | \"Inactive\";\n};"
+        },
+        {
+          "name": "SmartHrEmployeeDetailProps",
+          "declaration": "export type SmartHrEmployeeDetailProps = {\n  employee?: EmployeeDetail;\n  departments?: SelectOption[];\n  onSave?: (employee: EmployeeDetail) => void | Promise<void>;\n};"
+        }
+      ],
+      "import": "import { SmartHrEmployeeDetail } from \"citual-ui/components\";"
+    }
+  ]
+}

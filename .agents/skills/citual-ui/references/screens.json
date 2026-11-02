@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "recipes": [
+    {
+      "id": "dashboard",
+      "title": "Analytics dashboard",
+      "keywords": [
+        "dashboard",
+        "analytics",
+        "metrics",
+        "reporting",
+        "overview"
+      ],
+      "layoutQueries": [
+        "admin shell sidebar"
+      ],
+      "sections": [
+        {
+          "title": "Key metrics",
+          "componentIds": [
+            "stat-card"
+          ]
+        },
+        {
+          "title": "Trends",
+          "componentIds": [
+            "chart-panel",
+            "date-range-picker"
+          ]
+        },
+        {
+          "title": "Recent activity",
+          "componentIds": [
+            "activity-timeline"
+          ]
+        }
+      ],
+      "constraint": "Caller provides metric aggregation and chart renderer; never substitute invented live data."
+    },
+    {
+      "id": "records",
+      "title": "Record management screen",
+      "keywords": [
+        "inventory",
+        "products",
+        "customers",
+        "records",
+        "crud",
+        "manage",
+        "list"
+      ],
+      "layoutQueries": [
+        "admin shell sidebar"
+      ],
+      "sections": [
+        {
+          "title": "Browse and filter",
+          "componentIds": [
+            "data-table",
+            "filter-bar"
+          ]
+        },
+        {
+          "title": "Create inspect and edit",
+          "componentIds": [
+            "record-manager"
+          ]
+        },
+        {
+          "title": "Batch actions",
+          "componentIds": [
+            "bulk-action-toolbar"
+          ]
+        }
+      ],
+      "constraint": "Choose RecordManager OR a custom DataTable/RecordForm/Drawer composition; do not render duplicate record lists."
+    },
+    {
+      "id": "preferences",
+      "title": "Settings screen",
+      "keywords": [
+        "settings",
+        "preferences",
+        "configuration",
+        "account",
+        "workspace"
+      ],
+      "layoutQueries": [
+        "admin shell sidebar"
+      ],
+      "sections": [
+        {
+          "title": "Settings groups",
+          "componentIds": [
+            "settings-panel"
+          ]
+        },
+        {
+          "title": "Section navigation",
+          "componentIds": [
+            "tabs"
+          ]
+        }
+      ],
+      "constraint": "Managed fields and permissions are enforced by the application; defaults remain an unsaved draft."
+    },
+    {
+      "id": "onboarding",
+      "title": "Onboarding flow",
+      "keywords": [
+        "onboarding",
+        "application",
+        "registration",
+        "steps",
+        "wizard",
+        "review"
+      ],
+      "layoutQueries": [
+        "auth split panel"
+      ],
+      "sections": [
+        {
+          "title": "Guided form",
+          "componentIds": [
+            "multi-step-form"
+          ]
+        },
+        {
+          "title": "Attachments when requested",
+          "componentIds": [
+            "file-uploader"
+          ]
+        }
+      ],
+      "constraint": "Validate each step and final submission. Attachments are optional, not added just because the recipe mentions them."
+    },
+    {
+      "id": "import",
+      "title": "Tabular import screen",
+      "keywords": [
+        "csv",
+        "tsv",
+        "import",
+        "mapping",
+        "columns",
+        "spreadsheet",
+        "rows"
+      ],
+      "layoutQueries": [
+        "admin shell sidebar"
+      ],
+      "sections": [
+        {
+          "title": "Map validate and review",
+          "componentIds": [
+            "import-wizard"
+          ]
+        }
+      ],
+      "constraint": "CSV/TSV only. XLSX needs a separate parser; retry requires idempotent server handling."
+    },
+    {
+      "id": "calendar",
+      "title": "Scheduling screen",
+      "keywords": [
+        "calendar",
+        "scheduling",
+        "appointments",
+        "booking",
+        "agenda",
+        "events"
+      ],
+      "layoutQueries": [
+        "admin shell sidebar"
+      ],
+      "sections": [
+        {
+          "title": "Month and agenda",
+          "componentIds": [
+            "event-scheduler"
+          ]
+        },
+        {
+          "title": "Additional filters when requested",
+          "componentIds": [
+            "filter-bar"
+          ]
+        }
+      ],
+      "constraint": "Caller owns time zones, conflicts and recurrence; do not claim these features are provided."
+    },
+    {
+      "id": "pipeline",
+      "title": "Workflow board",
+      "keywords": [
+        "kanban",
+        "pipeline",
+        "stages",
+        "tickets",
+        "board",
+        "tasks"
+      ],
+      "layoutQueries": [
+        "admin shell sidebar"
+      ],
+      "sections": [
+        {
+          "title": "Move records by stage",
+          "componentIds": [
+            "kanban-board"
+          ]
+        },
+        {
+          "title": "Inspect record",
+          "componentIds": [
+            "record-detail",
+            "drawer"
+          ]
+        }
+      ],
+      "constraint": "Enforce transitions on the server; preserve failed moves for retry."
+    },
+    {
+      "id": "marketing",
+      "title": "Marketing page",
+      "keywords": [
+        "landing",
+        "marketing",
+        "pricing",
+        "hero",
+        "features",
+        "services",
+        "website"
+      ],
+      "layoutQueries": [
+        "hero",
+        "navbar",
+        "feature grids",
+        "pricing",
+        "footer"
+      ],
+      "sections": [],
+      "constraint": "Template assets are visual starting points. Preserve source license restrictions and inspect actual props."
+    }
+  ]
+}
