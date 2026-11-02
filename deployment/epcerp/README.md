@@ -622,3 +622,24 @@ Credentials, encryption keys, volumes and Gemini settings were preserved. Privat
 backup/release manifests record exact source and image identities. Remote server
 and `main` are unchanged. Authenticated operational browser writes were not used
 as deployment smoke checks.
+
+### Separate TSC format workspaces (2 November 2026)
+
+The format library is now a dedicated full-width view. Opening a format leaves
+the library and opens its own workspace, with separate Format details and
+Questions tabs. Questions are readable summary rows, not expanded input forms.
+Search the list and open one question in a wide, centered editor. Numbering and
+answer-preparation controls are disclosed only when needed. Apply to format
+returns to the list; Save format persists the revision. The compact save bar
+stays available while scrolling. Copy and reorder/remove actions sit in their
+respective action menus. Existing validation, permissions and snapshots remain.
+
+Checks: 230 frontend tests, TypeScript, targeted ESLint and production build;
+Chrome synthetic flows verify separate library/details/list/editor views, zero
+expanded forms in the question list, a desktop question field wider than 800px,
+one-question editing, optional controls, tab keys/focus restoration, copy/create,
+duplicate prevention, reorder/remove/undo, stale drafts, inactive filtering and
+read-only access. Desktop 1440px/mobile 390px and both themes were inspected.
+The local frontend alone was replaced; schema remains 97 and provider settings
+are unchanged. Browser plugin unavailable; existing Playwright used. These checks
+use synthetic records and make no provider calls.
