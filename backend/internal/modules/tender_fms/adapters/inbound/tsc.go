@@ -45,13 +45,15 @@ func RegisterTSC(r chi.Router, s *application.TSC) {
 	})
 	r.Post(base, func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
-			Version int64  `json:"expected_version"`
-			Mode    string `json:"mode"`
+			FormatID      string `json:"format_id"`
+			FormatVersion int64  `json:"format_version"`
+			Version       int64  `json:"expected_version"`
+			Mode          string `json:"mode"`
 		}
 		if captureFailure(w, httpinput.Decode(w, r, 8192, &in)) {
 			return
 		}
-		out, e := s.Create(r.Context(), captureToken(r), chi.URLParam(r, "draft"), r.Header.Get("Idempotency-Key"), in.Mode, in.Version)
+		out, e := s.Create(r.Context(), captureToken(r), chi.URLParam(r, "draft"), r.Header.Get("Idempotency-Key"), in.Mode, in.Version, domain.TSCFormatSelection{ID: in.FormatID, Version: in.FormatVersion})
 		if captureFailure(w, e) {
 			return
 		}

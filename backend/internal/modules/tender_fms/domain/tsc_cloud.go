@@ -28,6 +28,7 @@ type TSCProviderOption struct {
 }
 
 type TSCOptions struct {
+	Formats       []TSCFormat         `json:"formats"`
 	Providers     []TSCProviderOption `json:"providers"`
 	LimitPaise    int64               `json:"limit_paise"`
 	ReservedPaise int64               `json:"reserved_paise"`

@@ -93,7 +93,9 @@ func (TSCExporter) Export(j domain.TSCJob) ([]byte, error) {
 		if e != nil {
 			return nil, e
 		}
-		if file.Name == "word/document.xml" {
+		if file.Name == "word/document.xml" && j.Input.FormatID != "" {
+			data = []byte(tscFormatDocument(j, answers))
+		} else if file.Name == "word/document.xml" {
 			row := 0
 			filled := 0
 			xml := tscRows.ReplaceAllStringFunc(string(data), func(s string) string {
@@ -175,4 +177,31 @@ func tscChecklistAnswer(a domain.TSCAnswer) string {
 	default:
 		return ""
 	}
+}
+
+// New formats export their frozen question set; historical fixed-form exports retain the uploaded layout.
+func tscFormatDocument(j domain.TSCJob, answers map[string]domain.TSCAnswer) string {
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`)
+	b.WriteString(tscParagraph(j.Input.FormatName + " — DRAFT"))
+	b.WriteString(tscParagraph(j.Input.Name))
+	b.WriteString(tscParagraph("Format revision " + fmtInt(j.Input.FormatVersion) + " · Review all answers and supporting sources before use."))
+	b.WriteString(`<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="600"/><w:gridCol w:w="4000"/><w:gridCol w:w="4400"/></w:tblGrid>`)
+	cell := func(text, width string) string {
+		out := `<w:tc><w:tcPr><w:tcW w:w="` + width + `" w:type="dxa"/></w:tcPr>`
+		for _, line := range strings.Split(text, "\n") {
+			out += tscParagraph(line)
+		}
+		return out + `</w:tc>`
+	}
+	b.WriteString(`<w:tr><w:trPr><w:tblHeader/></w:trPr>` + cell("No.", "600") + cell("Question", "4000") + cell("Answer", "4400") + `</w:tr>`)
+	for i, q := range j.Input.Questions {
+		number := q.Number
+		if number == "" {
+			number = fmtInt(int64(i + 1))
+		}
+		b.WriteString(`<w:tr><w:trPr><w:cantSplit/></w:trPr>` + cell(number, "600") + cell(strings.ReplaceAll(q.Section, "_", " ")+"\n"+q.Text, "4000") + cell(tscChecklistAnswer(answers[q.ID]), "4400") + `</w:tr>`)
+	}
+	b.WriteString(`</w:tbl><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="900" w:bottom="900" w:left="900"/></w:sectPr></w:body></w:document>`)
+	return b.String()
 }

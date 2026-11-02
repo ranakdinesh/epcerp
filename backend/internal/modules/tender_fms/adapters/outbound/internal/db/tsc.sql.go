@@ -13,7 +13,7 @@ import (
 
 const claimTSCJob = `-- name: ClaimTSCJob :one
 UPDATE tender.tsc_jobs SET state='processing',claim_id=$1,lease_until=clock_timestamp()+interval '2 minutes',attempts=attempts+1,version=version+1,updated_at=clock_timestamp()
-WHERE id=(SELECT id FROM tender.tsc_jobs WHERE (state='queued' OR state='processing' AND lease_until<clock_timestamp()) AND attempts<3 ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at
+WHERE id=(SELECT id FROM tender.tsc_jobs WHERE (state='queued' OR state='processing' AND lease_until<clock_timestamp()) AND attempts<3 ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at, format_id, format_version
 `
 
 func (q *Queries) ClaimTSCJob(ctx context.Context, claimID pgtype.UUID) (TenderTscJob, error) {
@@ -39,6 +39,8 @@ func (q *Queries) ClaimTSCJob(ctx context.Context, claimID pgtype.UUID) (TenderT
 		&i.ResultHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FormatID,
+		&i.FormatVersion,
 	)
 	return i, err
 }
@@ -55,20 +57,22 @@ func (q *Queries) CountTSCJobs(ctx context.Context, draftID pgtype.UUID) (int64,
 }
 
 const createTSCJob = `-- name: CreateTSCJob :one
-INSERT INTO tender.tsc_jobs(id,draft_id,draft_version,actor_id,operation_key,mode,model,input_cipher,input_hash)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at
+INSERT INTO tender.tsc_jobs(id,draft_id,draft_version,actor_id,operation_key,mode,model,input_cipher,input_hash,format_id,format_version)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at, format_id, format_version
 `
 
 type CreateTSCJobParams struct {
-	ID           pgtype.UUID
-	DraftID      pgtype.UUID
-	DraftVersion int64
-	ActorID      pgtype.UUID
-	OperationKey pgtype.UUID
-	Mode         string
-	Model        string
-	InputCipher  []byte
-	InputHash    string
+	ID            pgtype.UUID
+	DraftID       pgtype.UUID
+	DraftVersion  int64
+	ActorID       pgtype.UUID
+	OperationKey  pgtype.UUID
+	Mode          string
+	Model         string
+	InputCipher   []byte
+	InputHash     string
+	FormatID      pgtype.UUID
+	FormatVersion pgtype.Int8
 }
 
 func (q *Queries) CreateTSCJob(ctx context.Context, arg CreateTSCJobParams) (TenderTscJob, error) {
@@ -82,6 +86,8 @@ func (q *Queries) CreateTSCJob(ctx context.Context, arg CreateTSCJobParams) (Ten
 		arg.Model,
 		arg.InputCipher,
 		arg.InputHash,
+		arg.FormatID,
+		arg.FormatVersion,
 	)
 	var i TenderTscJob
 	err := row.Scan(
@@ -104,13 +110,15 @@ func (q *Queries) CreateTSCJob(ctx context.Context, arg CreateTSCJobParams) (Ten
 		&i.ResultHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FormatID,
+		&i.FormatVersion,
 	)
 	return i, err
 }
 
 const editTSCJob = `-- name: EditTSCJob :one
 UPDATE tender.tsc_jobs SET result_cipher=$1,result_hash=$2,version=version+1,updated_at=clock_timestamp()
-WHERE id=$3 AND version=$4 AND state='ready' RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at
+WHERE id=$3 AND version=$4 AND state='ready' RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at, format_id, format_version
 `
 
 type EditTSCJobParams struct {
@@ -148,12 +156,14 @@ func (q *Queries) EditTSCJob(ctx context.Context, arg EditTSCJobParams) (TenderT
 		&i.ResultHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FormatID,
+		&i.FormatVersion,
 	)
 	return i, err
 }
 
 const expireTSCJobs = `-- name: ExpireTSCJobs :many
-UPDATE tender.tsc_jobs SET state='failed',claim_id=NULL,lease_until=NULL,error_code='attempts_exhausted',version=version+1,updated_at=clock_timestamp() WHERE state='processing' AND lease_until<clock_timestamp() AND attempts>=3 RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at
+UPDATE tender.tsc_jobs SET state='failed',claim_id=NULL,lease_until=NULL,error_code='attempts_exhausted',version=version+1,updated_at=clock_timestamp() WHERE state='processing' AND lease_until<clock_timestamp() AND attempts>=3 RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at, format_id, format_version
 `
 
 func (q *Queries) ExpireTSCJobs(ctx context.Context) ([]TenderTscJob, error) {
@@ -185,6 +195,8 @@ func (q *Queries) ExpireTSCJobs(ctx context.Context) ([]TenderTscJob, error) {
 			&i.ResultHash,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.FormatID,
+			&i.FormatVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -197,7 +209,7 @@ func (q *Queries) ExpireTSCJobs(ctx context.Context) ([]TenderTscJob, error) {
 }
 
 const findTSCOperation = `-- name: FindTSCOperation :one
-SELECT id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at FROM tender.tsc_jobs WHERE draft_id=$1 AND actor_id=$2 AND operation_key=$3
+SELECT id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at, format_id, format_version FROM tender.tsc_jobs WHERE draft_id=$1 AND actor_id=$2 AND operation_key=$3
 `
 
 type FindTSCOperationParams struct {
@@ -229,13 +241,15 @@ func (q *Queries) FindTSCOperation(ctx context.Context, arg FindTSCOperationPara
 		&i.ResultHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FormatID,
+		&i.FormatVersion,
 	)
 	return i, err
 }
 
 const finishTSCJob = `-- name: FinishTSCJob :one
 UPDATE tender.tsc_jobs SET state=$1,claim_id=NULL,lease_until=NULL,error_code=$2,result_cipher=$3,result_hash=$4,version=version+1,updated_at=clock_timestamp()
-WHERE id=$5 AND claim_id=$6 AND state='processing' AND lease_until>clock_timestamp() RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at
+WHERE id=$5 AND claim_id=$6 AND state='processing' AND lease_until>clock_timestamp() RETURNING id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at, format_id, format_version
 `
 
 type FinishTSCJobParams struct {
@@ -277,12 +291,14 @@ func (q *Queries) FinishTSCJob(ctx context.Context, arg FinishTSCJobParams) (Ten
 		&i.ResultHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FormatID,
+		&i.FormatVersion,
 	)
 	return i, err
 }
 
 const getTSCJob = `-- name: GetTSCJob :one
-SELECT id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at FROM tender.tsc_jobs WHERE draft_id=$1 AND id=$2 FOR UPDATE
+SELECT id, draft_id, draft_version, actor_id, operation_key, mode, model, state, version, attempts, claim_id, lease_until, error_code, input_cipher, input_hash, result_cipher, result_hash, created_at, updated_at, format_id, format_version FROM tender.tsc_jobs WHERE draft_id=$1 AND id=$2 FOR UPDATE
 `
 
 type GetTSCJobParams struct {
@@ -313,6 +329,8 @@ func (q *Queries) GetTSCJob(ctx context.Context, arg GetTSCJobParams) (TenderTsc
 		&i.ResultHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FormatID,
+		&i.FormatVersion,
 	)
 	return i, err
 }

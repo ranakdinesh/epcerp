@@ -195,7 +195,7 @@ func (r *tscRepository) Create(ctx context.Context, d domain.DocumentDraft, acto
 	if e != nil {
 		return domain.TSCJob{}, e
 	}
-	v, e := r.q.CreateTSCJob(ctx, db.CreateTSCJobParams{ID: uuid(Values{}.ID()), DraftID: uuid(d.ID), DraftVersion: d.Version, ActorID: uuid(actor), OperationKey: uuid(key), Mode: mode, Model: model, InputCipher: cipher, InputHash: hash})
+	v, e := r.q.CreateTSCJob(ctx, db.CreateTSCJobParams{ID: uuid(Values{}.ID()), DraftID: uuid(d.ID), DraftVersion: d.Version, ActorID: uuid(actor), OperationKey: uuid(key), Mode: mode, Model: model, InputCipher: cipher, InputHash: hash, FormatID: uuid(in.FormatID), FormatVersion: pgtype.Int8{Int64: in.FormatVersion, Valid: in.FormatID != ""}})
 	if e != nil {
 		return domain.TSCJob{}, tscDBError(e)
 	}

@@ -50,12 +50,24 @@ func (s *TSC) within(ctx context.Context, token, id, action string, f func(conte
 		return f(ctx, r, draft, p.ID)
 	})
 }
-func (s *TSC) Create(ctx context.Context, token, id, key, mode string, version int64) (out domain.TSCJob, e error) {
+func (s *TSC) Create(ctx context.Context, token, id, key, mode string, version int64, formats ...domain.TSCFormatSelection) (out domain.TSCJob, e error) {
 	if _, e = domain.ID(key); e != nil {
 		return out, e
 	}
 	if mode != "local" && mode != "manual" && mode != "ollama" && mode != "gemini" && mode != "openai" {
 		return out, domain.Invalid("Choose an available draft preparation provider")
+	}
+	selection := domain.TSCFormatSelection{}
+	if len(formats) > 0 {
+		selection = formats[0]
+	}
+	if selection.ID != "" {
+		if _, err := domain.ID(selection.ID); err != nil {
+			return out, err
+		}
+		if selection.Version < 1 {
+			return out, domain.Invalid("The selected format version is required")
+		}
 	}
 	model := ""
 	provider := s.providerFor(mode)
@@ -68,7 +80,7 @@ func (s *TSC) Create(ctx context.Context, token, id, key, mode string, version i
 			return e
 		}
 		if old != nil {
-			if old.Mode != mode || old.DraftVersion != version {
+			if old.Mode != mode || old.DraftVersion != version || selection.ID != "" && (old.Input.FormatID != selection.ID || old.Input.FormatVersion != selection.Version) {
 				return domain.CaptureFailure(409, "idempotency_conflict", "Operation key belongs to another generation request")
 			}
 			out = *old
@@ -82,6 +94,9 @@ func (s *TSC) Create(ctx context.Context, token, id, key, mode string, version i
 		}
 		in, e := r.Snapshot(ctx, d)
 		if e != nil {
+			return e
+		}
+		if e = r.SelectFormat(ctx, selection, &in); e != nil {
 			return e
 		}
 		if mode != "manual" {

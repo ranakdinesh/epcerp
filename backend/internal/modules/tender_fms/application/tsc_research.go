@@ -22,6 +22,10 @@ func (s *TSC) Options(ctx context.Context, token, id string) (out domain.TSCOpti
 		if e != nil {
 			return e
 		}
+		out.Formats, e = r.Formats(ctx)
+		if e != nil {
+			return e
+		}
 		out.Providers = []domain.TSCProviderOption{{Mode: "local", Available: true}, {Mode: "manual", Available: true}}
 		for _, mode := range []string{"gemini", "openai", "ollama"} {
 			p := s.providerFor(mode)

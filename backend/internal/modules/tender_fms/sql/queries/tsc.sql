@@ -1,6 +1,6 @@
 -- name: CreateTSCJob :one
-INSERT INTO tender.tsc_jobs(id,draft_id,draft_version,actor_id,operation_key,mode,model,input_cipher,input_hash)
-VALUES(sqlc.arg(id),sqlc.arg(draft_id),sqlc.arg(draft_version),sqlc.arg(actor_id),sqlc.arg(operation_key),sqlc.arg(mode),sqlc.arg(model),sqlc.arg(input_cipher),sqlc.arg(input_hash)) RETURNING *;
+INSERT INTO tender.tsc_jobs(id,draft_id,draft_version,actor_id,operation_key,mode,model,input_cipher,input_hash,format_id,format_version)
+VALUES(sqlc.arg(id),sqlc.arg(draft_id),sqlc.arg(draft_version),sqlc.arg(actor_id),sqlc.arg(operation_key),sqlc.arg(mode),sqlc.arg(model),sqlc.arg(input_cipher),sqlc.arg(input_hash),sqlc.narg(format_id),sqlc.narg(format_version)) RETURNING *;
 -- name: FindTSCOperation :one
 SELECT * FROM tender.tsc_jobs WHERE draft_id=sqlc.arg(draft_id) AND actor_id=sqlc.arg(actor_id) AND operation_key=sqlc.arg(operation_key);
 -- name: GetTSCJob :one

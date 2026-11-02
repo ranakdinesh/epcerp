@@ -3,6 +3,7 @@
 @import "./compact-ui.css";
 @import "./ui-foundation.css";
 @import "../components/tenders/tsc-workspace.css";
+@import "../components/tenders/tsc-format-management.css";
 
 /* The app toggle owns the theme, independently of the operating-system theme. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

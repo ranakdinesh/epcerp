@@ -18,6 +18,7 @@ type Querier interface {
 	CaptureOperationLock(ctx context.Context, operationKey string) error
 	CaptureProvision(ctx context.Context, tenderID pgtype.UUID) (TenderTenderProvisionOperation, error)
 	ClaimTSCJob(ctx context.Context, claimID pgtype.UUID) (TenderTscJob, error)
+	ClearTSCFormatQuestions(ctx context.Context, formatID pgtype.UUID) error
 	CompleteTSCCloudCall(ctx context.Context, arg CompleteTSCCloudCallParams) (int64, error)
 	CountDocumentDrafts(ctx context.Context, arg CountDocumentDraftsParams) (int64, error)
 	CountNamedCaptures(ctx context.Context, arg CountNamedCapturesParams) (int64, error)
@@ -26,6 +27,7 @@ type Querier interface {
 	CreateManagerAction(ctx context.Context, arg CreateManagerActionParams) (TenderTenderSourceAction, error)
 	CreateManagerEmail(ctx context.Context, arg CreateManagerEmailParams) error
 	CreateProvisionOperation(ctx context.Context, arg CreateProvisionOperationParams) error
+	CreateTSCFormat(ctx context.Context, arg CreateTSCFormatParams) error
 	CreateTSCJob(ctx context.Context, arg CreateTSCJobParams) (TenderTscJob, error)
 	CurrentNamedGrantVersion(ctx context.Context, arg CurrentNamedGrantVersionParams) (int64, error)
 	DraftEvent(ctx context.Context, arg DraftEventParams) error
@@ -41,6 +43,7 @@ type Querier interface {
 	GetDocumentDraft(ctx context.Context, arg GetDocumentDraftParams) (TenderDocumentDraft, error)
 	GetIntake(ctx context.Context, id pgtype.UUID) (TenderTenderFmsIntake, error)
 	GetTSCBudget(ctx context.Context, draftID pgtype.UUID) (int64, error)
+	GetTSCFormat(ctx context.Context, id pgtype.UUID) (TenderTscFormat, error)
 	GetTSCJob(ctx context.Context, arg GetTSCJobParams) (TenderTscJob, error)
 	HandoverTenderOwner(ctx context.Context, arg HandoverTenderOwnerParams) (TenderTenderFmsIntake, error)
 	InsertIntake(ctx context.Context, arg InsertIntakeParams) (TenderTenderFmsIntake, error)
@@ -50,6 +53,8 @@ type Querier interface {
 	InsertNamedRecordEvent(ctx context.Context, arg InsertNamedRecordEventParams) error
 	InsertNamedTender(ctx context.Context, arg InsertNamedTenderParams) (TenderTenderFmsIntake, error)
 	InsertTSCEvent(ctx context.Context, arg InsertTSCEventParams) error
+	InsertTSCFormatEvent(ctx context.Context, arg InsertTSCFormatEventParams) error
+	InsertTSCFormatQuestion(ctx context.Context, arg InsertTSCFormatQuestionParams) error
 	IntakeHistory(ctx context.Context, subjectID pgtype.UUID) ([]IntakeHistoryRow, error)
 	LinkDraftSource(ctx context.Context, arg LinkDraftSourceParams) error
 	LinkManagerNotice(ctx context.Context, arg LinkManagerNoticeParams) error
@@ -57,6 +62,8 @@ type Querier interface {
 	ListDocumentDrafts(ctx context.Context, arg ListDocumentDraftsParams) ([]TenderDocumentDraft, error)
 	ListIntakes(ctx context.Context, owner string) ([]TenderTenderFmsIntake, error)
 	ListNamedCaptures(ctx context.Context, arg ListNamedCapturesParams) ([]pgtype.UUID, error)
+	ListTSCFormatQuestions(ctx context.Context, formatID pgtype.UUID) ([]ListTSCFormatQuestionsRow, error)
+	ListTSCFormats(ctx context.Context, activeOnly bool) ([]ListTSCFormatsRow, error)
 	ListTSCJobs(ctx context.Context, draftID pgtype.UUID) ([]ListTSCJobsRow, error)
 	LockIntakeUploads(ctx context.Context) error
 	LockNamedTender(ctx context.Context, id pgtype.UUID) (TenderTenderFmsIntake, error)
@@ -75,6 +82,7 @@ type Querier interface {
 	SaveCaptureOperation(ctx context.Context, arg SaveCaptureOperationParams) error
 	TouchDocumentDraft(ctx context.Context, arg TouchDocumentDraftParams) error
 	UpdateIntake(ctx context.Context, arg UpdateIntakeParams) (TenderTenderFmsIntake, error)
+	UpdateTSCFormat(ctx context.Context, arg UpdateTSCFormatParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

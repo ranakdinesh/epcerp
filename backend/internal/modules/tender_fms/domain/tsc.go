@@ -30,11 +30,12 @@ func TSCProviderFailure(err error) string {
 }
 
 type TSCQuestion struct {
-	ID      string `json:"id"`
-	Section string `json:"section"`
-	Number  string `json:"printed_number"`
-	Text    string `json:"question"`
-	Row     int    `json:"row"`
+	ManualReview bool   `json:"manual_review,omitempty"`
+	ID           string `json:"id"`
+	Section      string `json:"section"`
+	Number       string `json:"printed_number"`
+	Text         string `json:"question"`
+	Row          int    `json:"row"`
 }
 type TSCPassage struct {
 	ID           string   `json:"id"`
@@ -80,6 +81,9 @@ type TSCAnswer struct {
 	Origin     string        `json:"origin"`
 }
 type TSCInput struct {
+	FormatID             string              `json:"format_id,omitempty"`
+	FormatName           string              `json:"format_name,omitempty"`
+	FormatVersion        int64               `json:"format_version,omitempty"`
 	Schema               string              `json:"schema"`
 	RetrievalModel       string              `json:"retrieval_model,omitempty"`
 	ProposalVersion      string              `json:"proposal_version,omitempty"`
@@ -225,5 +229,5 @@ func SameTSCAnswerContent(a, b TSCAnswer) bool {
 }
 
 func TSCRequiresHumanReview(q TSCQuestion) bool {
-	return strings.HasPrefix(q.ID, "conclusion.") || q.Section == "work_location" || q.ID == "work_location.q01" || q.ID == "risk.q01" || q.ID == "risk.q02" || q.ID == "risk.q03"
+	return q.ManualReview || strings.HasPrefix(q.ID, "conclusion.") || q.Section == "work_location" || q.ID == "work_location.q01" || q.ID == "risk.q01" || q.ID == "risk.q02" || q.ID == "risk.q03"
 }

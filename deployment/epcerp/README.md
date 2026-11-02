@@ -563,3 +563,62 @@ overflow. Browser plugin was unavailable; existing Playwright was used. All nine
 local services stayed healthy, schema stayed 96 clean, and Gemini stayed enabled.
 This is synthetic UI verification and combined-stack smoke evidence; no real
 document or provider request was used for these checks. Remote server unchanged.
+
+### Named TSC formats in Global masters (migration 97, 2 November 2026)
+
+Open Global masters → TSC formats. Every format has a unique name, description,
+availability and revision. Create a blank format or copy an existing one; edit,
+add, remove/undo and reorder its questions, then Save format. Each question has
+a section, optional display number and document/AI or human-decision preparation.
+Formats contain 1–200 questions. Inactive formats remain readable but cannot be
+selected for a new generation. There is no destructive format-delete endpoint.
+
+The existing uploaded checklist is the first active format, **EPC Works —
+Standard TSC**, with all 70 questions. Repeated short prompts now identify their
+tender-fee, EMD, price-escalation or penalty context. Case, whitespace and
+punctuation cannot create duplicate question wording within one format; duplicate
+wording across different formats is allowed. UI feedback, API validation and a
+format-scoped PostgreSQL unique constraint enforce this. Format names are unique
+under the same normalization. This does not perform semantic paraphrase matching.
+
+Permissions are `settings.tsc_formats.view/read/write`; they are registered without
+granting ordinary roles extra authority. The API rechecks live read/write access.
+Saves require the loaded revision, lock the format, and atomically update questions,
+immutable before/after history and the central event journal. Stale edits return
+409 and leave the draft available for review/reload. Copies retain reviewed local
+extraction identities only for unchanged uploaded questions; changed legacy
+questions receive new identities so an unrelated extraction rule cannot fill them.
+
+Choose TSC format alongside draft preparation in Generate TSC. New jobs freeze its
+ID, name, revision, question order/text and preparation rules in their encrypted
+input. Master changes and question removal never rewrite existing jobs or answers.
+New named-format DOCX exports use that frozen variable-length question set; older
+jobs keep their original fixed-form export path. Cloud approval and the INR 100
+per-tender cap remain unchanged and shared across formats/generations.
+
+Migration 97 is Tender-owned, imports only the existing checklist master and adds
+format/history tables plus nullable immutable format references on jobs. Existing
+encrypted snapshots are untouched. Downgrade refuses retained format history or
+named jobs. Before upgrading, stop application writers and verify private backups
+of database, objects, document packages and environment/keys. Build API/migrator,
+frontend and document workers from the same combined checkout before startup.
+
+Verification: backend check/build and full disposable PostgreSQL integration gates
+passed, including native permissions, concurrent/stale saves, database duplicate
+bypass attempts, audit rollback/immutability, revisioned generation, replay,
+snapshot preservation, inactive formats and custom-length exports. Frontend: 230
+tests, TypeScript, targeted ESLint and production Docker builds. Actual components
+passed synthetic Chrome checks on development and Docker previews for create/copy,
+edit, duplicates, reorder, remove/undo, stale draft preservation/reload, read-only,
+active/inactive filters, selected format context and the existing full TSC flow.
+Desktop 1440px/mobile 390px and light/dark views were inspected. A synthetic custom
+DOCX was rendered and inspected. Browser plugin was unavailable; existing
+Playwright was used. No operational document or paid request was used in QA.
+
+The local stack was upgraded after a verified isolated PostgreSQL restore and
+object/package archive checks. Existing user/role/client/draft/job counts and TSC
+input identities were preserved; all nine services are healthy at schema 97 clean.
+Credentials, encryption keys, volumes and Gemini settings were preserved. Private
+backup/release manifests record exact source and image identities. Remote server
+and `main` are unchanged. Authenticated operational browser writes were not used
+as deployment smoke checks.

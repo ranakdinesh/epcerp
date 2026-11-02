@@ -1,11 +1,12 @@
 "use client";
 import {useEffect,useState} from "react";
 import {AuthUserProvider} from "@/components/auth-user-provider";
+import {TSCFormatManagement} from "@/components/tenders/tsc-format-management";
 import {TenderCaptureWorkspace} from "@/components/tenders/tender-capture-workspace";
 import type { Receipt, ReceiptFile, CapturedTender } from "@/components/tenders/tender-capture-model";
 type DeclaredFile = Pick<ReceiptFile, "client_file_key" | "filename" | "size_bytes" | "sha256">;
 const manager="18e66d87-c4db-4771-bbdb-03ad3684e345";
-export default function Preview(){const[ready,setReady]=useState(false),[audit,setAudit]=useState("");useEffect(()=>{const original=window.fetch;let receipt:(Receipt & {limit_profile_revision:number})|null=null;let rows:(CapturedTender & {provisioning_version:number})[]=[];let captureKey="",count=0;
+export default function Preview(){const[readOnlyFormats,setReadOnlyFormats]=useState(false);const[formatPreview,setFormatPreview]=useState(false);const[ready,setReady]=useState(false),[audit,setAudit]=useState("");useEffect(()=>{const original=window.fetch;let receipt:(Receipt & {limit_profile_revision:number})|null=null;let rows:(CapturedTender & {provisioning_version:number})[]=[];let captureKey="",count=0;
  const response=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json"}});
  window.fetch=async(input,init)=>{const url=new URL(typeof input==="string"?input:input instanceof URL?input.toString():input.url,window.location.href);if(!url.pathname.startsWith("/api/tender-fms/"))return original(input,init);const path=url.pathname.replace("/api/tender-fms/","");const method=init?.method??"GET";
  if(path.startsWith("assignment-options"))return response({items:[{id:manager,display_name:"Fixture Tender Manager"},{id:"28e66d87-c4db-4771-bbdb-03ad3684e345",display_name:"Fixture Backup Manager"}],total:2,page:1,page_size:100});
@@ -17,5 +18,5 @@ export default function Preview(){const[ready,setReady]=useState(false),[audit,s
  if(path==="records"||path.startsWith("records?"))return response({items:rows,total:rows.length,page:1,page_size:20});
  if(path.startsWith("records/")){if(method==="PATCH"){rows[0]={...rows[0],name:JSON.parse(String(init?.body)).name,business_version:rows[0].business_version+1};return response(rows[0]);}return response(rows[0]);}
  return response({detail:"Unsupported fixture route"},404);};const readyTimer=setTimeout(()=>setReady(true),0);return()=>{clearTimeout(readyTimer);window.fetch=original;};},[]);
- return <main className="mx-auto w-full max-w-7xl p-4 sm:p-8"><p className="mb-4 text-xs text-slate-500">Disposable UI fixture · no operational records, emails or permission grants</p><output className="text-xs" data-testid="fixture-audit">{audit}</output>{ready?<AuthUserProvider user={{id:"98e66d87-c4db-4771-bbdb-03ad3684e345",username:"Fixture Sales",email:"fixture@fixture.invalid",permissions:["system:admin"]}}><TenderCaptureWorkspace/></AuthUserProvider>:<p>Preparing fixture…</p>}</main>;
+ return <main className="mx-auto w-full max-w-7xl p-4 sm:p-8"><p className="mb-4 text-xs text-slate-500">Disposable UI fixture · no operational records, emails or permission grants</p><output className="text-xs" data-testid="fixture-audit">{audit}</output>{ready?<AuthUserProvider user={{id:"98e66d87-c4db-4771-bbdb-03ad3684e345",username:"Fixture Sales",email:"fixture@fixture.invalid",permissions:readOnlyFormats?["settings.tsc_formats.read"]:["system:admin"]}}><button type="button" className="ui-action ui-action--secondary mb-4" onClick={()=>setFormatPreview(p=>!p)}>{formatPreview?"Back to tender fixture":"Open TSC format fixture"}</button>{formatPreview?<><button type="button" className="ui-action ui-action--secondary mb-4" onClick={()=>setReadOnlyFormats(v=>!v)}>{readOnlyFormats?"Preview format editor":"Preview read-only formats"}</button><TSCFormatManagement/></>:<TenderCaptureWorkspace/>}</AuthUserProvider>:<p>Preparing fixture…</p>}</main>;
 }

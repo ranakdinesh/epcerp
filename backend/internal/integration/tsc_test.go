@@ -53,6 +53,7 @@ func verifyTSCNative(t *testing.T, ctx context.Context, pool *pgxpool.Pool, draf
 	if e != nil || job.State != "ready" || len(job.Result.Answers) != 70 {
 		t.Fatal("TSC result", e, job.State)
 	}
+	verifyNamedTSCFormats(t, ctx, pool, service, identity, journal, draft, owner, role)
 	if job.Input.Coverage.Version != "document-evidence-v1" || job.Input.Coverage.Documents < 1 || job.Input.Coverage.Blocks < 1 || len(job.Result.Diagnostics) != 70 {
 		t.Fatal("structured evidence/diagnostics missing")
 	}

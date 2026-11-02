@@ -1,11 +1,12 @@
 "use client";
 import { createRecordId } from "@/lib/record-id";
 
+import type { TSCFormat } from "./tsc-format-model";
 import { useRef, useState } from "react";
 import { ValidatedInput, ValidatedLabel, ValidatedSelect } from "@/components/ui/validated-controls";
 
 export type ProviderOption = { mode: string; model: string; available: boolean; cloud: boolean; allowance_paise: number };
-export type ProviderOptions = { providers: ProviderOption[]; limit_paise: number; reserved_paise: number };
+export type ProviderOptions = { formats?: TSCFormat[]; providers: ProviderOption[]; limit_paise: number; reserved_paise: number };
 type Passage = { id: string; filename: string; locator: string; text: string; method?: string; confidence?: number };
 type Proposal = { question_id: string; answer: string; status: string; origin: string; citations: { source_id: string; quote: string }[] };
 type Research = { retrieval?: { method?: string; fallback?: string; selected_bytes?: number; baseline_bytes?: number; context_gap?: boolean }; passages: Passage[]; proposal?: Proposal; warning: string };

@@ -2425,26 +2425,63 @@ type TenderTscEvent struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type TenderTscFormat struct {
+	ID          pgtype.UUID
+	Name        string
+	NameKey     pgtype.Text
+	Description string
+	IsActive    bool
+	Version     int64
+	CreatedByID pgtype.UUID
+	UpdatedByID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type TenderTscFormatEvent struct {
+	ID             pgtype.UUID
+	FormatID       pgtype.UUID
+	Version        int64
+	ActorID        pgtype.UUID
+	BeforeSnapshot []byte
+	AfterSnapshot  []byte
+	CreatedAt      pgtype.Timestamptz
+}
+
+type TenderTscFormatQuestion struct {
+	FormatID      pgtype.UUID
+	ID            string
+	Position      int32
+	Section       string
+	PrintedNumber string
+	Question      string
+	QuestionKey   pgtype.Text
+	ManualReview  bool
+	LegacyRow     int32
+}
+
 type TenderTscJob struct {
-	ID           pgtype.UUID
-	DraftID      pgtype.UUID
-	DraftVersion int64
-	ActorID      pgtype.UUID
-	OperationKey pgtype.UUID
-	Mode         string
-	Model        string
-	State        string
-	Version      int64
-	Attempts     int32
-	ClaimID      pgtype.UUID
-	LeaseUntil   pgtype.Timestamptz
-	ErrorCode    string
-	InputCipher  []byte
-	InputHash    string
-	ResultCipher []byte
-	ResultHash   pgtype.Text
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID            pgtype.UUID
+	DraftID       pgtype.UUID
+	DraftVersion  int64
+	ActorID       pgtype.UUID
+	OperationKey  pgtype.UUID
+	Mode          string
+	Model         string
+	State         string
+	Version       int64
+	Attempts      int32
+	ClaimID       pgtype.UUID
+	LeaseUntil    pgtype.Timestamptz
+	ErrorCode     string
+	InputCipher   []byte
+	InputHash     string
+	ResultCipher  []byte
+	ResultHash    pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	FormatID      pgtype.UUID
+	FormatVersion pgtype.Int8
 }
 
 type WorkCalendarChange struct {

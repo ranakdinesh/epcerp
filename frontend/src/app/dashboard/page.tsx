@@ -23,6 +23,7 @@ const ProcessMap = dynamic(() => import("@/components/processes/process-map").th
 const Projects = dynamic(() => import("@/components/projects/project-ownership-workspace").then(m => m.ProjectOwnershipWorkspace), { loading });
 const Clients = dynamic(() => import("@/components/clients/client-management").then(m => m.ClientManagement), { loading });
 const Categories = dynamic(() => import("@/components/items/category-directory").then(m => m.CategoryDirectory), { loading });
+const TSCFormats = dynamic(() => import("@/components/tenders/tsc-format-management").then(m => m.TSCFormatManagement), { loading });
 const TenderFMS = dynamic(() => import("@/components/tenders/tender-document-workspace").then(m => m.TenderDocumentWorkspace), { loading });
 const Items = dynamic(() => import("@/components/items/item-bank").then(m => m.ItemBank), { loading });
 const Manufacturers = dynamic(() => import("@/components/items/manufacturer-bank").then(m=>m.ManufacturerBank), {loading});
@@ -36,6 +37,7 @@ const Director = dynamic(()=>import("@/components/organisation-governance/direct
 const Roles = dynamic(() => import("@/components/roles/role-management").then(m => m.RoleManagement), { loading });
 
 const navigation = [
+ {screen:"tsc-formats",label:"TSC formats",group:"Global masters",permission:"settings.tsc_formats.view"},
  {screen:"my-team",label:"My team",group:"Communication",permission:"account.team.read"},
  {screen:"my-tasks",label:"My tasks",group:"Communication",permission:"work.tasks.view"},
  {screen:"purchase-advances",label:"Advance requests",group:"Accounts",permission:"accounts.purchase_advances.view"},
@@ -60,7 +62,7 @@ const navigation = [
   { screen: "users", label: "Users", group: "Administration", permission: "admin.users.view" },
   { screen: "roles", label: "Roles & permissions", group: "Administration", permission: "admin.roles.view" },
 ] as const;
-const icons = {offboarding:UsersIcon,organisation:UsersIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, director:ShieldCheckIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
+const icons = {"tsc-formats":FolderIcon,offboarding:UsersIcon,organisation:UsersIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, director:ShieldCheckIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
 function subscribePreference(cb: () => void) { window.addEventListener("epcerp-preference", cb); window.addEventListener("storage", cb); return () => { window.removeEventListener("epcerp-preference", cb); window.removeEventListener("storage", cb); }; }
 function preference(key: string) { try { return localStorage.getItem(key); } catch { return null; } }
 function savePreference(key: string, value: string) { try { localStorage.setItem(key, value); } catch {} window.dispatchEvent(new Event("epcerp-preference")); }
@@ -115,6 +117,7 @@ export default function DashboardPage() {
           </section>
           {permissions.has("projects.budgets.view")&&<p className="text-sm text-slate-600">Open <Link href="/dashboard?screen=projects" className="text-blue-700 underline">Projects</Link> to review budgets within your assigned Finance responsibility. Supplier reviews appear in My tasks; submitted quotations appear in Quotation approvals.</p>}
         </> : screen === "projects" ? <Projects />
+          : screen === "tsc-formats" ? <TSCFormats />
           : screen === "clients" ? <Clients />
           : screen === "holidays" ? <HolidayCalendar/>
           : screen === "suppliers" ? <Suppliers />

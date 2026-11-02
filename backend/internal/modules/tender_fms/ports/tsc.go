@@ -6,6 +6,8 @@ import (
 )
 
 type TSCRepository interface {
+	Formats(context.Context) ([]domain.TSCFormat, error)
+	SelectFormat(context.Context, domain.TSCFormatSelection, *domain.TSCInput) error
 	CloudBudget(context.Context, string) (int64, error)
 	ReserveCloud(context.Context, domain.TSCCloudCall) (domain.TSCCloudCall, bool, error)
 	CompleteCloud(context.Context, domain.TSCCloudCall, domain.TSCAnswer, string) error
