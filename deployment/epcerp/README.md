@@ -16,6 +16,18 @@ credentials into Git, reset persistent volumes, or run older images against a
 newer schema. Cloud approval remains false by default. `main` remains the reviewed
 release target; development synchronisation is not production acceptance.
 
+Verification on 2 November 2026 used application commit `fea00c5` (with shared
+agent tooling at `b059859`). Both fetched feature tips listed above are ancestors
+of that checkout. Backend `make check`, `make build` and `make verify` passed,
+including disposable PostgreSQL migration and API checks with race detection.
+Frontend: 228 tests, TypeScript, ESLint (zero errors; four warnings), and the
+production build passed. The build used
+`EPCERP_API_URL=http://127.0.0.1:8001/api/v1`. Shared skill scripts passed Node syntax
+checks. Changed/staged source scans found no private-key/provider-token patterns;
+environment files and backups were excluded. No Docker-stack smoke check or
+authenticated browser rerun was performed for this sync because the Docker daemon
+was unavailable. The deployed database version was not verified or changed.
+
 ## TSC draft worker
 
 Migration 92 and matching API/frontend images provide unapproved 70-question TSC
