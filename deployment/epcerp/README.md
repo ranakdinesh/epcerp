@@ -643,3 +643,16 @@ read-only access. Desktop 1440px/mobile 390px and both themes were inspected.
 The local frontend alone was replaced; schema remains 97 and provider settings
 are unchanged. Browser plugin unavailable; existing Playwright used. These checks
 use synthetic records and make no provider calls.
+
+### TSC format card grid (2 November 2026)
+
+The library uses clickable cards with names and question counts. The original
+format displays as EPC Works; its saved full name remains in the editor.
+Descriptions stay in Format details. Library instructional paragraphs and
+revision metadata are removed. Keep this browsing view free of explanatory copy.
+
+Verified: TypeScript, targeted ESLint, production build and synthetic Chrome
+flows on the deployed local frontend, including a three-card desktop grid,
+single-column mobile layout, keyboard opening and existing editing/validation
+flows. Schema remains 97 clean; all nine services are healthy. No operational
+records or provider calls were used. Remote server and main remain unchanged.
