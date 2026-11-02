@@ -7,8 +7,10 @@ export function hasSameOrigin(request: Request): boolean {
   if (!origin || !host) return false;
   try {
     const supplied = new URL(origin);
-    const expected = new URL(request.url);
-    expected.host = host;
+    // Build a fresh authority: assigning URL.host leaves the bind port behind
+    // when the browser Host has no explicit port (normal HTTP/HTTPS proxies).
+    const expected = new URL(`${new URL(request.url).protocol}//${host}`);
+    if (expected.username || expected.password || expected.pathname !== "/" || expected.search || expected.hash) return false;
     return origin === supplied.origin && supplied.origin === expected.origin;
   } catch {
     return false;

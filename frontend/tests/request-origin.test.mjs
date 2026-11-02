@@ -28,3 +28,16 @@ test("forwarded headers cannot authorize a foreign origin", () => {
     "x-forwarded-host": "evil.example", "x-forwarded-proto": "https",
   })), false);
 });
+
+test("default-port LAN authority replaces the internal bind port", () => {
+  assert.equal(hasSameOrigin(request("http://192.168.1.50", "192.168.1.50")), true);
+  assert.equal(hasSameOrigin(request("http://192.168.1.50", "192.168.1.50:80")), true);
+  assert.equal(hasSameOrigin(request("http://192.168.1.50:3001", "192.168.1.50")), false);
+  assert.equal(hasSameOrigin(request("http://[::1]", "[::1]")), true);
+});
+test("HTTPS proxy authority drops the internal port while rejecting foreign origins", () => {
+  const make = value => new Request("https://0.0.0.0:3000/api/auth/refresh", {headers: {host: "erp.example.invalid", origin: value}});
+  assert.equal(hasSameOrigin(make("https://erp.example.invalid")), true);
+  assert.equal(hasSameOrigin(make("https://erp.example.invalid:3000")), false);
+  assert.equal(hasSameOrigin(make("https://attacker.invalid")), false);
+});
