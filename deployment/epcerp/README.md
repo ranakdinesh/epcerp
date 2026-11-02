@@ -539,3 +539,27 @@ proves connectivity and structured proposal handling, not real-tender accuracy,
 the project's billing tier, or an invoiced cost. Tender domain/application/adapter
 race tests passed; isolated setup-script checks passed with and without provider
 configuration and preserved original credentials. Remote deployment was not changed.
+
+### TSC editing workspace (2 November 2026)
+
+The checklist opens with sources collapsed to give editing the full width. Use
+Show sources to open the reference column; on desktop the editor keeps the larger
+share. On smaller screens the same control switches between full-width editing
+and source reading. Closing sources returns keyboard focus to the toggle and
+retains manual edits, source filters and mounted reader state. Answers appear
+before supporting tools, grow with longer text, and remain manually resizable.
+Compact filters, acceptance progress and unsaved counts stay visible above the
+question list. Acceptance, citation, permission and source-version rules are
+unchanged; collapsing a panel does not save or accept an answer.
+
+Verification: 228 frontend tests, TypeScript, targeted ESLint and the production
+Docker frontend build passed. Existing Playwright/Chrome ran the synthetic
+70-question workflow on the isolated development frontend and rebuilt Docker
+preview: collapse/reopen, draft/filter preservation, restored focus, larger editor,
+long-answer growth, source selection/citations, proposal adoption, accept/reopen,
+exports and stale-source guards. Desktop 1440px/mobile 390px and both themes passed
+with no page errors, console warnings/errors, framework overlays or horizontal
+overflow. Browser plugin was unavailable; existing Playwright was used. All nine
+local services stayed healthy, schema stayed 96 clean, and Gemini stayed enabled.
+This is synthetic UI verification and combined-stack smoke evidence; no real
+document or provider request was used for these checks. Remote server unchanged.

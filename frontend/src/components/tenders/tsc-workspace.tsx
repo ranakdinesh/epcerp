@@ -1,7 +1,7 @@
 "use client";
 import { createRecordId } from "@/lib/record-id";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PlusIcon, DocumentTextIcon, ChevronDoubleRightIcon } from "@heroicons/react/24/outline";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedSelect, ValidatedTextarea } from "@/components/ui/validated-controls";
 import { editableTSCAnswer, placeholderTSCText } from "./tsc-presentation";
@@ -70,21 +70,25 @@ export function TSCWorkspace({ draftID, sourceVersion, readyForGeneration = true
  </section>;
 }
 
+const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ").trim();
+
 type Correction = Answer;
 function TSCReview({ job, draftID, editable, saved, providers, refreshBudget }: { job: Job; draftID: string; editable: boolean; saved: (job: Job) => void; providers: ProviderOptions["providers"]; refreshBudget: () => void }) {
  const [changes, setChanges] = useState<Record<string, Correction>>({});
+ const [sourcesOpen, setSourcesOpen] = useState(false);
+ const sourceToggle = useRef<HTMLButtonElement>(null);
+ const sourceSearch = useRef<HTMLInputElement>(null);
  const [active, setActive] = useState(job.input.questions[0]?.id || ""), [researchQuestion, setResearchQuestion] = useState("");
  const [search, setSearch] = useState(""), [documentID, setDocumentID] = useState("");
  const [questionSearch, setQuestionSearch] = useState(""), [stateFilter, setStateFilter] = useState("");
  const [saving, setSaving] = useState(""), [notice, setNotice] = useState("");
  const [errors, setErrors] = useState<Record<string, string>>({});
  const savingRef = useRef(false), reader = useRef<HTMLPreElement>(null);
- const documents = [...new Map(job.input.passages.map(p => [p.document_id, p.filename])).entries()];
+ const documents = useMemo(() => [...new Map(job.input.passages.map(p => [p.document_id, p.filename])).entries()], [job.input.passages]);
  function current(id: string): Correction { const stored = job.result.answers.find(a => a.question_id === id); return changes[id] || { ...(stored || { question_id: id, status: "needs_review", citations: [], origin: "manual" }), answer: editableTSCAnswer(stored), accepted: stored?.accepted || false }; }
  function update(id: string, patch: Partial<Correction>) { if (current(id).accepted) { setNotice("Uncheck Accepted before changing this answer."); return; } setChanges(previous => ({ ...previous, [id]: { ...current(id), ...patch } })); setErrors(previous => ({ ...previous, [id]: "" })); setNotice(""); }
- const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ").trim();
- const passages = job.input.passages.filter(p => (!documentID || p.document_id === documentID) && (!search.trim() || normalize(`${p.heading || ""} ${p.text} ${p.filename} ${p.locator}`).includes(normalize(search))));
- const markdown = "# Consolidated extracted documents\n\n" + passages.map(p => `## ${p.filename}\n\n### ${p.locator}${p.heading ? ` — ${p.heading}` : ""}\n\n${p.text}\n`).join("\n");
+ const passages = useMemo(() => job.input.passages.filter(p => (!documentID || p.document_id === documentID) && (!search.trim() || normalize(`${p.heading || ""} ${p.text} ${p.filename} ${p.locator}`).includes(normalize(search)))), [job.input.passages, documentID, search]);
+ const markdown = useMemo(() => "# Consolidated extracted documents\n\n" + passages.map(p => `## ${p.filename}\n\n### ${p.locator}${p.heading ? ` — ${p.heading}` : ""}\n\n${p.text}\n`).join("\n"), [passages]);
  const questions = job.input.questions.filter(q => (!questionSearch || normalize(`${q.question} ${q.section} ${current(q.id).answer}`).includes(normalize(questionSearch))) && (!stateFilter || (stateFilter === "accepted" ? current(q.id).accepted : stateFilter === "unaccepted" ? !current(q.id).accepted : current(q.id).status === stateFilter)));
  async function save(id: string, accepted: boolean) {
   if (savingRef.current || !editable) return; const answer = current(id);
@@ -102,23 +106,60 @@ function TSCReview({ job, draftID, editable, saved, providers, refreshBudget }: 
   const answer = current(active); if (answer.citations.length >= 8) { setNotice("This question already has eight citations."); return; }
   if (!answer.citations.some(c => c.source_id === source.id && c.quote === quote)) update(active, { citations: [...answer.citations, { source_id: source.id, quote }] }); setNotice("Selected source text attached to the active question.");
  }
- return <section aria-label="TSC split review" className="grid min-w-0 gap-4 lg:grid-cols-2">
- <section aria-label="Editable TSC" className="flex h-[78vh] min-h-[500px] min-w-0 flex-col rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
- <header className="space-y-2 border-b border-slate-200 p-3 dark:border-slate-700"><h3 className="font-bold">Tender Selection Checklist</h3><ValidatedLabel htmlFor="tsc-question-search">Filter TSC questions</ValidatedLabel><ValidatedInput id="tsc-question-search" className={control} value={questionSearch} onChange={e => setQuestionSearch(e.target.value)} /><ValidatedLabel htmlFor="tsc-state-filter">Answer filter</ValidatedLabel><ValidatedSelect id="tsc-state-filter" className={control} value={stateFilter} onChange={e => setStateFilter(e.target.value)}><option value="">All answers</option><option value="accepted">Accepted</option><option value="unaccepted">Not accepted</option>{["answered", "not_found", "needs_review", "conflicting"].map(s => <option key={s} value={s}>{s.replaceAll("_", " ")}</option>)}</ValidatedSelect><p className="text-xs">{questions.length} of {job.input.questions.length} questions · {job.result.answers.filter(a => a.accepted).length} accepted · {Object.keys(changes).length} unsaved</p></header>
- <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">{questions.map(q => { const answer = current(q.id); const diagnostic = job.result.diagnostics?.find(d => d.question_id === q.id); const prepared = job.result.question_evidence?.find(e => e.question_id === q.id)?.passages || []; return <ValidatedForm key={q.id} aria-label={`TSC question ${q.id}`} onFocusCapture={() => setActive(q.id)} onSubmit={e => e.preventDefault()} className={`space-y-3 rounded-xl border p-3 ${active === q.id ? "border-blue-600" : "border-slate-200 dark:border-slate-700"}`}>
- <h4 className="font-semibold">{q.printed_number} {q.question}</h4><p className="text-xs text-slate-500">{q.section.replaceAll("_", " ")}</p>
- {diagnostic?.method ? <p className="text-xs text-slate-600 dark:text-slate-300">Evidence: {diagnostic?.method === "bm25_minilm" ? "Local relevance ranking" : "Keyword search"} · {diagnostic?.selected_bytes || 0} bytes{diagnostic?.fallback ? " · keyword fallback" : ""}</p> : null}
- {prepared.length > 0 ? <details><summary className="cursor-pointer text-sm">Prepared source excerpts</summary>{prepared.map(p => <div key={p.id} className="my-2 border-l-2 border-blue-300 pl-2 text-xs"><p>{p.filename} · {p.locator}</p><p className="whitespace-pre-wrap break-words">{p.text}</p></div>)}</details> : null}
- <button type="button" disabled={!!answer.accepted} className={secondary} onClick={() => setResearchQuestion(previous => previous === q.id ? "" : q.id)}>Search sources for this question</button>
- {researchQuestion === q.id && !answer.accepted ? <TSCResearchPanel draftID={draftID} jobID={job.id} questionID={q.id} version={job.version} providers={providers} editable={editable} refreshBudget={refreshBudget} adopt={proposal => { update(q.id, { ...proposal, accepted: false }); setNotice("Proposal copied to the answer editor. Review it, then check Accepted."); }} attach={p => { const a = current(q.id); if (a.citations.length >= 8) { setNotice("At most eight citations per answer."); return; } if (!a.citations.some(c => c.source_id === p.id)) update(q.id, { citations: [...a.citations, { source_id: p.id, quote: p.text }] }); }} /> : null}
- <fieldset disabled={!editable || !!saving || !!answer.accepted} className="space-y-3"><ValidatedLabel htmlFor={`answer-${q.id}`}>Answer</ValidatedLabel><ValidatedTextarea id={`answer-${q.id}`} maxLength={8000} rows={2} className={control} value={answer.answer} onChange={e => { const text = e.target.value; const decision = q.id.startsWith("conclusion.") || q.section === "work_location" || ["risk.q01", "risk.q02", "risk.q03"].includes(q.id); const label = text.trim().toLowerCase(); const status = decision || label === "needs review" ? "needs_review" : label === "not found" ? "not_found" : label === "conflicting information" ? "conflicting" : "answered"; update(q.id, { answer: text, status }); }} />
- <details><summary className="cursor-pointer text-sm">Supporting evidence ({answer.citations.length})</summary>{answer.citations.map((c, i) => <div key={i} className="my-2 space-y-2 border-l-2 border-blue-300 pl-2 text-xs"><p>{job.input.passages.find(p => p.id === c.source_id)?.filename}</p><blockquote className="whitespace-pre-wrap break-words">{c.quote}</blockquote><button type="button" className={secondary} onClick={() => update(q.id, { citations: answer.citations.filter((_, index) => index !== i) })}>Remove citation</button></div>)}</details>
- </fieldset>
- <ValidatedLabel className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold"><ValidatedInput type="checkbox" className="h-5 w-5 accent-blue-700" checked={!!answer.accepted} disabled={!editable || !!saving} onChange={e => void save(q.id, e.target.checked)} />Accepted</ValidatedLabel>
- {answer.accepted ? <p className="text-xs text-emerald-800 dark:text-emerald-300">Accepted for this checklist. Uncheck to edit or request another proposal.</p> : null}
- {errors[q.id] ? <p role="alert" className="text-sm text-red-700">{errors[q.id]}</p> : null}
- {saving === q.id ? <p role="status" className="text-sm">Saving…</p> : null}
- </ValidatedForm>; })}{!questions.length ? <p>No questions match these filters.</p> : null}</div></section>
- <aside aria-label="Consolidated Markdown reader" className="flex h-[78vh] min-h-[500px] min-w-0 flex-col rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"><header className="space-y-2 border-b border-slate-200 p-3 dark:border-slate-700"><h3 className="font-bold">Consolidated extracted documents.md</h3><ValidatedLabel htmlFor="tsc-md-search">Search consolidated Markdown</ValidatedLabel><ValidatedInput id="tsc-md-search" className={control} value={search} onChange={e => setSearch(e.target.value)} /><ValidatedLabel htmlFor="tsc-md-document">Filter source document</ValidatedLabel><ValidatedSelect id="tsc-md-document" className={control} value={documentID} onChange={e => setDocumentID(e.target.value)}><option value="">All documents</option>{documents.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</ValidatedSelect><p role="status" className="text-xs">{passages.length} of {job.input.passages.length} source sections · {search || documentID ? "Filtered document" : "Complete consolidated document"}</p>{editable ? <button type="button" className={secondary} onMouseDown={e => e.preventDefault()} onClick={attachSelection}>Attach selected text to active question</button> : null}<p className="text-xs">Active question: {job.input.questions.find(q => q.id === active)?.question}</p>{notice ? <p role="status" className="text-sm text-blue-700 dark:text-blue-300">{notice}</p> : null}</header><pre ref={reader} aria-label="Consolidated Markdown document" tabIndex={0} className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words p-4 font-mono text-sm [overflow-wrap:anywhere]">{passages.length ? markdown : "No source text matches these filters."}</pre></aside>
+ const acceptedCount = job.result.answers.filter(a => a.accepted).length;
+ function toggleSources() {
+  setSourcesOpen(open => !open);
+  if (!sourcesOpen) requestAnimationFrame(() => sourceSearch.current?.focus({ preventScroll: true }));
+ }
+ function closeSources() { setSourcesOpen(false); sourceToggle.current?.focus({ preventScroll: true }); }
+ return <section aria-label="TSC split review" className="tsc-review" data-sources-open={sourcesOpen}>
+  <div className="tsc-review-toolbar">
+   <div className="tsc-review-progress"><span className="font-semibold">Review checklist</span><span>{acceptedCount} of {job.input.questions.length} accepted</span><progress aria-label="Checklist acceptance" value={acceptedCount} max={job.input.questions.length || 1} /></div>
+   <button ref={sourceToggle} type="button" className="ui-action ui-action--secondary" aria-expanded={sourcesOpen} aria-controls="tsc-source-panel" onClick={toggleSources}><DocumentTextIcon className="h-5 w-5" aria-hidden="true" />{sourcesOpen ? "Hide sources" : "Show sources"}<span className="tsc-document-count">{documents.length}</span></button>
+  </div>
+  {notice ? <p role="status" className="tsc-review-notice">{notice}</p> : null}
+  <div className="tsc-review-panes">
+   <section aria-label="Editable TSC" className="tsc-checklist tsc-review-pane">
+    <header className="tsc-pane-header">
+     <div className="tsc-heading-row"><h3 className="font-bold">Tender Selection Checklist</h3><span className="tsc-muted">{Object.keys(changes).length ? `${Object.keys(changes).length} unsaved` : "No unsaved edits"}</span></div>
+     <div className="tsc-question-filters">
+      <div><ValidatedLabel htmlFor="tsc-question-search">Filter TSC questions</ValidatedLabel><ValidatedInput id="tsc-question-search" type="search" placeholder="Find a question or answer…" className={control} value={questionSearch} onChange={e => setQuestionSearch(e.target.value)} /></div>
+      <div><ValidatedLabel htmlFor="tsc-state-filter">Answer filter</ValidatedLabel><ValidatedSelect id="tsc-state-filter" className={control} value={stateFilter} onChange={e => setStateFilter(e.target.value)}><option value="">All answers</option><option value="accepted">Accepted</option><option value="unaccepted">Not accepted</option>{["answered", "not_found", "needs_review", "conflicting"].map(s => <option key={s} value={s}>{s.replaceAll("_", " ")}</option>)}</ValidatedSelect></div>
+     </div>
+     <p className="tsc-muted">{questions.length} of {job.input.questions.length} questions · Edit answers, check evidence, then mark Accepted to save.</p>
+    </header>
+    <div className="tsc-question-list">{questions.map(q => {
+     const answer = current(q.id);
+     const diagnostic = job.result.diagnostics?.find(d => d.question_id === q.id);
+     const prepared = job.result.question_evidence?.find(e => e.question_id === q.id)?.passages || [];
+     return <ValidatedForm key={q.id} aria-label={`TSC question ${q.id}`} onFocusCapture={() => setActive(q.id)} onSubmit={e => e.preventDefault()} className="tsc-question" data-active={active === q.id}>
+      <div className="tsc-question-heading"><div><p className="tsc-section-label">{q.section.replaceAll("_", " ")}</p><h4 className="font-semibold">{q.printed_number} {q.question}</h4></div><span className="tsc-answer-badge" data-accepted={!!answer.accepted}>{answer.accepted ? "Accepted" : changes[q.id] ? "Unsaved" : answer.status.replaceAll("_", " ")}</span></div>
+      <fieldset disabled={!editable || !!saving || !!answer.accepted} className="space-y-3">
+       <ValidatedLabel htmlFor={`answer-${q.id}`}>Answer</ValidatedLabel>
+       <ValidatedTextarea id={`answer-${q.id}`} maxLength={8000} rows={4} className={`${control} tsc-answer-editor`} placeholder="Write your answer or refine the proposed text…" value={answer.answer} onChange={e => { const text = e.target.value; const decision = q.id.startsWith("conclusion.") || q.section === "work_location" || ["risk.q01", "risk.q02", "risk.q03"].includes(q.id); const label = text.trim().toLowerCase(); const status = decision || label === "needs review" ? "needs_review" : label === "not found" ? "not_found" : label === "conflicting information" ? "conflicting" : "answered"; update(q.id, { answer: text, status }); }} />
+       <details><summary className="cursor-pointer text-sm">Supporting evidence ({answer.citations.length})</summary>{answer.citations.map((c, i) => <div key={i} className="my-2 space-y-2 border-l-2 border-blue-300 pl-2 text-xs"><p>{job.input.passages.find(p => p.id === c.source_id)?.filename}</p><blockquote className="whitespace-pre-wrap break-words">{c.quote}</blockquote><button type="button" className={secondary} onClick={() => update(q.id, { citations: answer.citations.filter((_, index) => index !== i) })}>Remove citation</button></div>)}</details>
+      </fieldset>
+      {prepared.length > 0 ? <details><summary className="cursor-pointer text-sm">Prepared source excerpts</summary>{prepared.map(p => <div key={p.id} className="my-2 border-l-2 border-blue-300 pl-2 text-xs"><p>{p.filename} · {p.locator}</p><p className="whitespace-pre-wrap break-words">{p.text}</p></div>)}</details> : null}
+      <div className="tsc-question-actions"><ValidatedLabel className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold"><ValidatedInput type="checkbox" className="h-5 w-5 accent-blue-700" checked={!!answer.accepted} disabled={!editable || !!saving} onChange={e => void save(q.id, e.target.checked)} />Accepted</ValidatedLabel><button type="button" disabled={!!answer.accepted} className="ui-action ui-action--secondary" onClick={() => setResearchQuestion(previous => previous === q.id ? "" : q.id)}>Search sources for this question</button></div>
+      {researchQuestion === q.id && !answer.accepted ? <TSCResearchPanel draftID={draftID} jobID={job.id} questionID={q.id} version={job.version} providers={providers} editable={editable} refreshBudget={refreshBudget} adopt={proposal => { update(q.id, { ...proposal, accepted: false }); setNotice("Proposal copied to the answer editor. Review it, then check Accepted."); }} attach={p => { const a = current(q.id); if (a.citations.length >= 8) { setNotice("At most eight citations per answer."); return; } if (!a.citations.some(c => c.source_id === p.id)) update(q.id, { citations: [...a.citations, { source_id: p.id, quote: p.text }] }); }} /> : null}
+      {diagnostic?.method ? <p className="tsc-muted">Evidence: {diagnostic.method === "bm25_minilm" ? "Local relevance ranking" : "Keyword search"} · {diagnostic.selected_bytes || 0} bytes{diagnostic.fallback ? " · keyword fallback" : ""}</p> : null}
+      {answer.accepted ? <p className="text-xs text-emerald-800 dark:text-emerald-300">Accepted for this checklist. Uncheck to edit or request another proposal.</p> : null}
+      {errors[q.id] ? <p role="alert" className="text-sm text-red-700">{errors[q.id]}</p> : null}
+      {saving === q.id ? <p role="status" className="text-sm">Saving…</p> : null}
+     </ValidatedForm>;
+    })}{!questions.length ? <p>No questions match these filters.</p> : null}</div>
+   </section>
+   <aside id="tsc-source-panel" aria-label="Consolidated Markdown reader" hidden={!sourcesOpen} className="tsc-source-pane tsc-review-pane">
+    <header className="tsc-pane-header space-y-2">
+     <div className="tsc-heading-row"><div><h3 className="font-bold">Source documents</h3><p className="tsc-muted">Consolidated extracted text</p></div><button type="button" className="ui-action ui-action--secondary ui-action--icon" aria-label="Close source panel" onClick={closeSources}><ChevronDoubleRightIcon className="h-5 w-5" aria-hidden="true" /></button></div>
+     <ValidatedLabel htmlFor="tsc-md-search">Search consolidated Markdown</ValidatedLabel><ValidatedInput ref={sourceSearch} id="tsc-md-search" type="search" className={control} value={search} onChange={e => setSearch(e.target.value)} />
+     <ValidatedLabel htmlFor="tsc-md-document">Filter source document</ValidatedLabel><ValidatedSelect id="tsc-md-document" className={control} value={documentID} onChange={e => setDocumentID(e.target.value)}><option value="">All documents</option>{documents.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</ValidatedSelect>
+     <p role="status" className="tsc-muted">{passages.length} of {job.input.passages.length} source sections · {search || documentID ? "Filtered document" : "Complete consolidated document"}</p>
+     <div className="tsc-active-question"><span className="tsc-muted">Active question</span><p>{job.input.questions.find(q => q.id === active)?.question}</p></div>
+     {editable ? <button type="button" className="ui-action ui-action--secondary" onMouseDown={e => e.preventDefault()} onClick={attachSelection}>Attach selected text to active question</button> : null}
+    </header>
+    <pre ref={reader} aria-label="Consolidated Markdown document" tabIndex={0} className="tsc-source-text">{passages.length ? markdown : "No source text matches these filters."}</pre>
+   </aside>
+  </div>
  </section>;
 }
