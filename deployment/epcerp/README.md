@@ -689,3 +689,22 @@ count matched; object/package archives and credential copies were verified.
 Matching services run at schema 98 clean with preserved volumes, keys and Gemini
 settings. Private backup/verification manifests record commits, image identities
 and checks. This is a local preview update; main and the remote server are unchanged.
+
+### Gemini on the development server (2 November 2026)
+
+The user subsequently approved activation on the development server. Its API and
+TSC worker now load the supplied key from an owner-only `.env.gemini` through
+service `env_file` entries. Normal Compose restarts retain it without embedding
+the key in YAML. Preserve that private file alongside the original `.env` when
+moving to another release. OpenAI remains disabled.
+
+Both services join `cloud_outbound` for provider HTTPS; existing database,
+storage and document-reading networks remain internal. No host ports were added.
+The reusable Gemini override now includes this outbound network too, because
+loading a key alone cannot enable providers on an internal-only deployment.
+
+Google model metadata accepted the saved key from the host, API and TSC worker
+for `gemini-3.1-flash-lite`. No generateContent request or document upload was used
+for verification. Images, schema 98, credentials/encryption keys, local-first
+extraction and the INR 100 conservative allowance cap were preserved. Refresh the
+TSC workspace and choose Gemini Flash-Lite under Draft preparation.
