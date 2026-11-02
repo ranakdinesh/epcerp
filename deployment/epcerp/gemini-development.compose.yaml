@@ -1,8 +1,8 @@
 # Apply only to the development release, with its original .env plus a private
 # .env.gemini file. Never run `compose config` without --quiet: it expands secrets.
-# Inactive preparation only. Private documents must remain in India/on-premises;
-# the standard Gemini API has not been approved for that scope. Do not activate
-# it without a separately reviewed residency-compatible deployment.
+# Approval is explicit per deployment in its private environment file. The user
+# approved the public Gemini API for this Mac's preview on 2 November 2026.
+# This does not establish India-only processing or approve another deployment.
 # Cloud calls remain explicit user actions; local extraction/search stay available.
 services:
   api:

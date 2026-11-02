@@ -463,7 +463,7 @@ https://ai.google.dev/gemini-api/terms
 https://ai.google.dev/gemini-api/docs/pricing
 https://ai.google.dev/gemini-api/docs/rate-limits
 
-### Current private-document residency requirement (29 October 2026)
+### Private-document residency decision (29 October 2026)
 
 The user requires private tender documents and their inference processing to remain
 in India or on their own server. This overrides the proposed standard Gemini API
@@ -484,3 +484,58 @@ Current on-server processing is rule-based extraction and private MiniLM ranking
 there is no generative local LLM loaded. Adding generative inference requires a
 model/server capacity decision; no GPU purchase or paid India cloud resources are
 authorised by this residency statement alone.
+
+### Gemini on this Mac and economical client operation (2 November 2026)
+
+The user subsequently authorised the public Gemini API for this Mac's local
+preview. Its private `.env.gemini` enables cloud approval and supplies the Gemini
+key to API and TSC worker; OpenAI stays disabled. This supersedes the earlier
+cloud-off decision for this preview only. Google metadata accepted the saved key
+and confirmed `gemini-3.1-flash-lite`; key format alone was not a validity check.
+This is public cloud processing, including when the app itself runs locally.
+It does not prove India-only residency or authorise deploying another server.
+
+`setup.sh` loads `.env.gemini`, when present, after the original `.env` so later
+rebuilds retain the explicit provider settings. Keep both files owner-only and
+outside Git. For a provider-only change with unchanged images/schema, validate
+and recreate only the API and TSC worker from this directory:
+
+```sh
+docker compose --env-file .env --env-file .env.gemini -f compose.yaml -f gemini-development.compose.yaml config --quiet
+docker compose --env-file .env --env-file .env.gemini -f compose.yaml -f gemini-development.compose.yaml up -d --no-deps --wait api tsc-worker
+```
+
+Gemini generation already extracts explicit labelled facts first and skips cloud
+calls for those candidates. Only unresolved questions with usable bounded evidence
+go to Gemini. Source text is capped at 14,000 bytes/16 passages per proposal;
+output is capped at 2,048 tokens. Human decisions and missing/context-incomplete
+evidence stay for review. The same operation reuses its encrypted successful
+result; uncertain/failed requests keep their allowance and are never resent
+automatically. A new deliberate operation may incur another charge.
+
+For minimum API spend, generate with **Local extraction · no LLM**, then request
+Gemini proposals only for unresolved questions. Selecting **Gemini Flash-Lite**
+for generation uses the same local-first rule, then proposes remaining answers.
+The INR 100 per-tender cap remains, with INR 1.50 reserved per Gemini request.
+These allowances are conservative limits, not measured invoices or a promise of
+free-tier availability. Current standard Flash-Lite text pricing is USD 0.25 per
+million input tokens and USD 1.50 per million output tokens:
+https://ai.google.dev/gemini-api/docs/pricing
+
+Client machines need no generative local model. After separately configuring and
+approving their server key, set `EPCERP_TSC_RETRIEVAL=bm25` in its private provider
+environment file to use Go keyword retrieval instead of MiniLM. Recreate API/TSC
+with matching settings; scale `tsc-reranker` to zero only when no queued jobs are
+pinned to its retrieval model. Keep document workers and antivirus. This reduces
+model memory requirements but is not full-stack capacity acceptance. This Mac
+retains its existing MiniLM ranking; it is a small relevance model, not an LLM.
+
+Activation verification: both local API/TSC services loaded the saved key and
+explicit approval, remained healthy, and kept schema 96 clean. Images and
+persistent volumes were retained. The production Go adapter completed exactly
+one synthetic EMD proposal with HTTP 200, a valid exact-source citation, and
+398 input/53 output tokens. No private document was used for that test. This
+proves connectivity and structured proposal handling, not real-tender accuracy,
+the project's billing tier, or an invoiced cost. Tender domain/application/adapter
+race tests passed; isolated setup-script checks passed with and without provider
+configuration and preserved original credentials. Remote deployment was not changed.

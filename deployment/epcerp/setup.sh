@@ -38,4 +38,9 @@ if ! grep -q '^EPCERP_IMAGE_ENCRYPTION_KEY=' .env; then
   image_key=$(openssl rand -hex 32)
   printf 'EPCERP_IMAGE_ENCRYPTION_KEY=%s\n' "$image_key" >> .env
 fi
-docker compose --env-file .env -f compose.yaml up --build -d --wait
+# Provider approval is opt-in and kept outside Git. Preserve it on later rebuilds.
+set -- --env-file .env
+if [ -f .env.gemini ]; then
+  set -- "$@" --env-file .env.gemini
+fi
+docker compose "$@" -f compose.yaml up --build -d --wait
