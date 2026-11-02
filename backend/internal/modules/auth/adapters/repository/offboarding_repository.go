@@ -55,7 +55,7 @@ func (r *offboardingRepository) SaveCase(ctx context.Context, c domain.Offboardi
 	if c.ApprovedAt != nil {
 		stamp = dtos.Stamp(*c.ApprovedAt)
 	}
-	row, e := r.queries.SaveOffboardingCase(ctx, sqlc.SaveOffboardingCaseParams{ID: dtos.UUID(c.ID), UserID: dtos.UUID(c.UserID), ManagerID: dtos.UUID(c.ManagerID), ProfileVersion: c.ProfileVersion, State: c.State, Reason: c.Reason, Items: items, ApprovalByID: dtos.OptionalUUID(c.ApprovalByID), ApprovedAt: stamp, IsActive: c.Open(), ActorID: dtos.UUID(actor), ExpectedVersion: c.Version})
+	row, e := r.queries.SaveOffboardingCase(ctx, sqlc.SaveOffboardingCaseParams{ID: dtos.UUID(c.ID), UserID: dtos.UUID(c.UserID), ManagerID: dtos.OptionalUUID(c.ManagerID), ProfileVersion: c.ProfileVersion, State: c.State, Reason: c.Reason, Items: items, ApprovalByID: dtos.OptionalUUID(c.ApprovalByID), ApprovedAt: stamp, IsActive: c.Open(), ActorID: dtos.UUID(actor), ExpectedVersion: c.Version})
 	if errors.Is(e, pgx.ErrNoRows) {
 		return c, domain.ErrOffboardingStale
 	}
@@ -76,13 +76,6 @@ func (r *offboardingRepository) RecordOffboarding(ctx context.Context, c domain.
 	}
 	return r.events.Record(ctx, events.Event{ID: event, CorrelationID: c.ID, Module: "auth", EntityType: "offboarding", EntityID: c.ID, EntityVersion: c.Version, Action: action, ActorID: actor, ActorKind: "user", ScopeKind: "platform", Visibility: "restricted", OccurredAt: c.UpdatedAt}, nil)
 }
-func (r *offboardingRepository) ActiveSuperusers(ctx context.Context) (int64, error) {
-	return r.queries.CountActiveSuperusers(ctx)
-}
-func (r *offboardingRepository) Deactivate(ctx context.Context, id, actor string) error {
-	return (&userRepository{r.Store}).Deactivate(ctx, id, actor)
-}
-
 func (r *offboardingRepository) OffboardingHistory(ctx context.Context, id string) ([]domain.OffboardingChange, error) {
 	rows, e := r.queries.OffboardingHistory(ctx, dtos.UUID(id))
 	out := []domain.OffboardingChange{}

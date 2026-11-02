@@ -170,6 +170,9 @@ func TestPersonalContactSelfEditAndAudit(t *testing.T) {
 	if e = pool.QueryRow(ctx, "SELECT count(*) FROM auth.auth_personal_contact_changes WHERE user_id=$1 AND actor_id=$1 AND before_snapshot->>'first_name'='' AND after_snapshot->>'first_name'='First'", first).Scan(&n); e != nil || n != 1 {
 		t.Fatal("contact snapshots missing", e)
 	}
+	if e = pool.QueryRow(ctx, "SELECT count(*) FROM auth.administration_changes WHERE entity_id=$1 AND actor_id=$1 AND after_snapshot->>'first_name'='First'", first).Scan(&n); e != nil || n != 1 {
+		t.Fatal("self-service actor missing in administration history", e)
+	}
 	if _, e = pool.Exec(ctx, "UPDATE auth.auth_personal_contact_changes SET reason='Tampering with history' WHERE user_id=$1", first); e == nil {
 		t.Fatal("history mutable")
 	}

@@ -215,7 +215,8 @@ func TestProjectResponsibilityLiveFinanceScopeRevisionsAndAudit(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer m.Close()
-	if e = m.Steps(-(schema.LatestVersion - 36)); e == nil || errors.Is(e, migrate.ErrNoChange) || !strings.Contains(e.Error(), "populated project responsibility") {
+	// Auth history now prevents rollback before the older responsibility guard.
+	if e = m.Steps(-(schema.LatestVersion - 36)); e == nil || errors.Is(e, migrate.ErrNoChange) || !strings.Contains(e.Error(), "Security audit history exists") {
 		t.Fatal("populated responsibility rollback allowed", e)
 	}
 	if e = f.pool.QueryRow(ctx, "SELECT count(*) FROM project_responsibility_profiles").Scan(&count); e != nil || count != 1 {

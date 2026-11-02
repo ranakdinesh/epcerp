@@ -108,9 +108,7 @@ func (s *OffboardingService) Create(ctx context.Context, token, userID, reason s
 		if u == nil {
 			return domain.ErrUserMissing
 		}
-		if !u.IsActive {
-			return &domain.Error{Kind: domain.Conflict, Detail: "This account is already inactive."}
-		}
+
 		profile, e := liveEmployee(ctx, r, userID)
 		if e != nil {
 			return e
@@ -202,7 +200,7 @@ func (s *OffboardingService) Change(ctx context.Context, token, id, action strin
 		if e != nil {
 			return e
 		}
-		if action == "refresh" || action == "cancel" || action == "deactivate" {
+		if action == "refresh" || action == "cancel" || action == "complete" {
 			if !domain.HasPermission(*a, "admin.offboarding.write") {
 				return domain.ErrForbidden
 			}
@@ -215,6 +213,13 @@ func (s *OffboardingService) Change(ctx context.Context, token, id, action strin
 		case "refresh":
 			if profile.ManagerID == "" {
 				return &domain.Error{Kind: domain.Conflict, Detail: "Assign a live reporting manager before refreshing this case."}
+			}
+			manager, e := r.User(ctx, profile.ManagerID, true)
+			if e != nil {
+				return e
+			}
+			if manager == nil || !manager.IsActive || manager.MustChangePassword {
+				return &domain.Error{Kind: domain.Conflict, Detail: "Assign an active, ready reporting manager before loading handover inventory."}
 			}
 			work, e := r.WorkInventory(ctx, c.UserID)
 			if e != nil {
@@ -303,12 +308,9 @@ func (s *OffboardingService) Change(ctx context.Context, token, id, action strin
 					}
 				}
 			}
-		case "deactivate":
+		case "complete":
 			if c.State != "approved" || c.ProfileVersion != profile.Version || c.ManagerID != profile.ManagerID || c.ApprovalByID != profile.ManagerID {
 				return domain.ErrOffboardingStale
-			}
-			if a.ID == c.UserID {
-				return domain.ErrSelfDeactivation
 			}
 			manager, e := r.User(ctx, c.ManagerID, true)
 			if e != nil {
@@ -317,34 +319,10 @@ func (s *OffboardingService) Change(ctx context.Context, token, id, action strin
 			if manager == nil || !manager.IsActive || manager.MustChangePassword {
 				return domain.ErrOffboardingStale
 			}
-			u, e := r.User(ctx, c.UserID, true)
-			if e != nil {
-				return e
-			}
-			if u == nil {
-				return domain.ErrUserMissing
-			}
-			if !u.IsActive {
-				return domain.ErrOffboardingStale
-			}
-			if u.IsSuperuser {
-				n, e := r.ActiveSuperusers(ctx)
-				if e != nil {
-					return e
-				}
-				if n <= 1 {
-					return domain.ErrLastSuperadmin
-				}
-			}
 			if e = s.verify(ctx, r, *c, true); e != nil {
 				return e
 			}
-			if e = r.Deactivate(ctx, c.UserID, a.ID); e != nil {
-				return e
-			}
-			if e = r.RevokeUserSessions(ctx, c.UserID); e != nil {
-				return e
-			}
+			// Completing a handover never changes account access.
 			c.State = "completed"
 		default:
 			return &domain.Error{Kind: domain.Invalid, Detail: "Unknown offboarding action."}
@@ -363,7 +341,7 @@ func (s *OffboardingService) verify(ctx context.Context, r ports.OffboardingRepo
 		return e
 	}
 	if len(remaining) > 0 {
-		return &domain.Error{Kind: domain.Conflict, Detail: "Complete or transfer all live responsibilities in their owning workspaces before manager approval and deactivation."}
+		return &domain.Error{Kind: domain.Conflict, Detail: "Complete or transfer all live responsibilities in their owning workspaces before handover approval and completion."}
 	}
 	for _, item := range c.Items {
 		if item.ReplacementID != "" {

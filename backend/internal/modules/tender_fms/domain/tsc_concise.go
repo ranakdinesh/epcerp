@@ -55,7 +55,7 @@ func CompactTSCText(question, text string) string {
 }
 
 func ConciseTSCAnswer(a TSCAnswer) TSCAnswer {
-	if a.Status == "answered" && !a.Accepted && a.Origin != "manual" {
+	if a.Status == "answered" && !a.Accepted && a.Origin != "manual" && a.Origin != "labelled_source_candidate" {
 		a.Text = CompactTSCText(a.QuestionID, a.Text)
 	}
 	return a

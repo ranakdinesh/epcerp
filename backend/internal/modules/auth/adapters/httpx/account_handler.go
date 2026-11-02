@@ -34,3 +34,13 @@ func (h *accountHandler) email(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
 	}
 }
+
+func (h *accountHandler) verifyEmail(w http.ResponseWriter, r *http.Request) {
+	raw, ok := requestBody(w, r, dtos.ParseVerification)
+	if !ok {
+		return
+	}
+	if !failed(w, r, h.service.ConfirmEmail(r.Context(), raw)) {
+		w.WriteHeader(204)
+	}
+}

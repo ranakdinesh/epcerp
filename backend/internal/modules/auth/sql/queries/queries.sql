@@ -38,15 +38,13 @@ SELECT count(*) FROM auth.users u WHERE
 INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser,created_by_id,updated_by_id,first_name,last_name,mobile)
 VALUES($1,$2,$3,$4,true,sqlc.arg(is_superuser),$5,$5,$6,$7,$8) RETURNING *;
 -- name: UpdateUser :exec
-UPDATE auth.users SET email=COALESCE(sqlc.narg(email)::text,email), updated_by_id=sqlc.arg(actor_id),updated_at=now() WHERE id=sqlc.arg(id);
+UPDATE auth.users SET email=COALESCE(sqlc.narg(email)::text,email), first_name=COALESCE(sqlc.narg(first_name)::text,first_name), last_name=COALESCE(sqlc.narg(last_name)::text,last_name), mobile=COALESCE(sqlc.narg(mobile)::text,mobile), updated_by_id=sqlc.arg(actor_id),updated_at=now() WHERE id=sqlc.arg(id);
 -- name: ClearUserRoles :exec
 DELETE FROM auth.user_roles WHERE user_id=$1;
 -- name: AssignRole :exec
 INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2) ON CONFLICT DO NOTHING;
 -- name: SetPassword :exec
 UPDATE auth.users SET password_hash=$2,must_change_password=false,temporary_password_expires_at=NULL,credential_version=credential_version+1,updated_by_id=$3,updated_at=clock_timestamp() WHERE id=$1;
--- name: DeactivateUser :exec
-UPDATE auth.users SET is_active=false,updated_by_id=$2,updated_at=now() WHERE id=$1;
 -- name: CountActiveSuperusers :one
 SELECT count(*) FROM auth.users WHERE is_active AND is_superuser;
 -- name: CountSuperusers :one
@@ -97,3 +95,14 @@ FROM auth.users u WHERE u.is_active ORDER BY u.username;
 
 -- name: AdvanceAccountVersion :one
 UPDATE auth.users SET account_version=account_version+1 WHERE id=$1 RETURNING account_version,updated_at;
+
+-- name: SetUserActive :exec
+UPDATE auth.users SET is_active=sqlc.arg(is_active),credential_version=credential_version+1,updated_by_id=sqlc.arg(actor_id),updated_at=clock_timestamp() WHERE id=sqlc.arg(user_id);
+-- name: RecordUserStatusChange :exec
+INSERT INTO auth.auth_user_status_changes(id,user_id,actor_id,is_active,reason,credential_version)
+SELECT sqlc.arg(event_id),u.id,sqlc.arg(actor_id),u.is_active,sqlc.arg(reason),u.credential_version FROM auth.users u WHERE u.id=sqlc.arg(user_id);
+-- name: QueueUserHandover :execrows
+INSERT INTO auth.auth_offboarding_cases(id,user_id,manager_id,profile_version,state,reason,items,created_by_id,updated_by_id)
+SELECT sqlc.arg(case_id),u.id,r.manager_id,COALESCE(r.version,0),'pending',sqlc.arg(reason),'[]'::jsonb,sqlc.arg(actor_id),sqlc.arg(actor_id)
+FROM auth.users u LEFT JOIN auth.auth_reporting_lines r ON r.user_id=u.id AND r.is_active WHERE u.id=sqlc.arg(user_id)
+ON CONFLICT(user_id) WHERE state IN ('pending','planning','approved') DO NOTHING;

@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const LatestVersion = 94
+const LatestVersion = 96
 
 var ErrUnowned = errors.New("database is not an empty or epcERP-owned database")
 

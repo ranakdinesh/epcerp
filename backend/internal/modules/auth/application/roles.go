@@ -34,6 +34,9 @@ func (s *RoleService) Permissions(ctx context.Context, token string) ([]domain.P
 			return err
 		}
 		for _, code := range codes {
+			if code == "system:admin" {
+				return &domain.Error{Kind: domain.Invalid, Detail: "Full platform access is reserved for superadmin accounts; it cannot be granted by a role."}
+			}
 			for _, definition := range Registry() {
 				if code == definition.Code {
 					result = append(result, definition)
@@ -51,6 +54,9 @@ func validCodes(ctx context.Context, repo ports.RoleRepository, codes []string) 
 		return err
 	}
 	for _, code := range codes {
+		if code == "system:admin" {
+			return &domain.Error{Kind: domain.Invalid, Detail: "Full platform access is reserved for superadmin accounts; it cannot be granted by a role."}
+		}
 		declared, present := false, false
 		for _, p := range Registry() {
 			if p.Code == code {
@@ -91,6 +97,12 @@ func (s *RoleService) UpdateRole(ctx context.Context, token, roleID string, requ
 		}
 		if role == nil {
 			return domain.ErrRoleMissing
+		}
+		if role.Name == "superadmin" && !actor.IsSuperuser {
+			return domain.ErrForbidden
+		}
+		if request.ExpectedVersion != nil && *request.ExpectedVersion != role.EditVersion {
+			return &domain.Error{Kind: domain.Conflict, Detail: "This role changed while you were editing. Reload and review its permissions."}
 		}
 		if request.PermissionCodes != nil {
 			if err = validCodes(ctx, repo, *request.PermissionCodes); err != nil {
@@ -134,4 +146,14 @@ func (s *RoleService) FinancePresets(ctx context.Context, token string) ([]domai
 		return nil
 	})
 	return result, err
+}
+
+func (s *RoleService) History(ctx context.Context, token, entity string) ([]domain.AdministrationChange, error) {
+	out := []domain.AdministrationChange{}
+	e := authorized(ctx, s.unit, s.tokens, token, "admin.audit.read", false, func(ctx context.Context, r ports.RoleRepository, u domain.User) error {
+		var e error
+		out, e = r.AdministrationHistory(ctx, entity)
+		return e
+	})
+	return out, e
 }

@@ -61,7 +61,7 @@ func (q *Queries) RecoveryTokenValid(ctx context.Context, tokenHash string) (str
 }
 
 const recoveryUserByEmail = `-- name: RecoveryUserByEmail :many
-SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile FROM auth.users WHERE lower(email) = lower($1) LIMIT 2
+SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile, edit_version FROM auth.users WHERE lower(email) = lower($1) LIMIT 2
 `
 
 func (q *Queries) RecoveryUserByEmail(ctx context.Context, lower string) ([]AuthUser, error) {
@@ -91,6 +91,7 @@ func (q *Queries) RecoveryUserByEmail(ctx context.Context, lower string) ([]Auth
 			&i.FirstName,
 			&i.LastName,
 			&i.Mobile,
+			&i.EditVersion,
 		); err != nil {
 			return nil, err
 		}

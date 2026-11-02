@@ -12,10 +12,12 @@ type AccountService struct {
 	unit      ports.UnitOfWork[ports.AccountRepository]
 	passwords ports.Passwords
 	tokens    ports.Tokens
+	mail      ports.EmailSender
+	publicURL string
 }
 
 func NewAccount(u ports.UnitOfWork[ports.AccountRepository], p ports.Passwords, t ports.Tokens) *AccountService {
-	return &AccountService{u, p, t}
+	return &AccountService{unit: u, passwords: p, tokens: t}
 }
 func (s *AccountService) Change(ctx context.Context, token, current string, email, password *string) error {
 	if (email == nil) == (password == nil) || len(current) > 512 {
@@ -24,7 +26,12 @@ func (s *AccountService) Change(ctx context.Context, token, current string, emai
 	if password != nil && !domain.StrongPassword(*password) {
 		return &domain.Error{Kind: domain.Invalid, Detail: "Use a strong password of 8 to 128 characters"}
 	}
-	return s.unit.Within(ctx, func(ctx context.Context, r ports.AccountRepository) error {
+	verificationRaw := ""
+	recipient := ""
+	err := s.unit.Within(ctx, func(ctx context.Context, r ports.AccountRepository) error {
+		if _, e := resolveSelf(ctx, r, s.tokens, token); e != nil {
+			return e
+		}
 		id, e := s.tokens.Subject(token)
 		if e != nil {
 			return domain.ErrUnauthorized
@@ -43,6 +50,9 @@ func (s *AccountService) Change(ctx context.Context, token, current string, emai
 		if !s.passwords.Verify(ctx, current, user.PasswordHash) {
 			return &domain.Error{Kind: domain.Invalid, Detail: "Current password is incorrect"}
 		}
+		if e = r.SetActor(ctx, id); e != nil {
+			return e
+		}
 		action := "email_changed"
 		if password != nil {
 			if *password == current {
@@ -60,12 +70,23 @@ func (s *AccountService) Change(ctx context.Context, token, current string, emai
 			}
 			action = "password_changed"
 		} else if email != nil {
-			if _, e = r.UpdateUser(ctx, id, domain.UserUpdate{Email: email}, id); e != nil {
+			if s.mail == nil || !s.mail.Ready() {
+				return &domain.Error{Kind: domain.Unavailable, Detail: "Email verification delivery is not configured."}
+			}
+			raw, e := stageEmail(ctx, r, s.tokens, *user, *email, id)
+			if e != nil {
 				return e
 			}
+			verificationRaw = raw
+			recipient = *email
+			action = "email_verification_requested"
 		} else {
 			return &domain.Error{Kind: domain.Invalid, Detail: "A change is required"}
 		}
 		return r.RecordAccountChange(ctx, s.tokens.ID(), id, action)
 	})
+	if err == nil && verificationRaw != "" {
+		return sendVerification(ctx, s.mail, s.publicURL, recipient, verificationRaw)
+	}
+	return err
 }

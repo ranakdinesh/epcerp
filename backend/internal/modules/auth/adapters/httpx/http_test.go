@@ -77,7 +77,7 @@ func TestSafeDTOsNeverExposeCredentialHashes(t *testing.T) {
 	if err := json.Unmarshal(raw, &value); err != nil {
 		t.Fatal(err)
 	}
-	if len(value) != 12 {
+	if len(value) != 13 {
 		t.Fatal("user response fields drifted")
 	}
 }

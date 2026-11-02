@@ -111,7 +111,7 @@ func TestCredentialOnboardingAndForcedPasswordChange(t *testing.T) {
 	if e != nil || !self.MustChangePassword || len(domain.EffectivePermissions(*self)) != 0 {
 		t.Fatal("pending account permissions leaked", e)
 	}
-	users := app.NewUsers(out.NewUserUnitOfWork(pool), passwords, values, domain.Policy{})
+	users := app.NewUsers(out.NewUserUnitOfWork(pool), passwords, values, domain.Policy{}).WithEmailSender(mail, "https://example.invalid")
 	if _, e = users.Users(ctx, pair.AccessToken, domain.UserFilter{}); !errors.Is(e, domain.ErrForbidden) {
 		t.Fatal("temporary identity reached administration", e)
 	}
@@ -240,7 +240,7 @@ func TestCredentialOnboardingAndForcedPasswordChange(t *testing.T) {
 	if _, e = delivery.Deliver(ctx); e != nil {
 		t.Fatal(e)
 	}
-	if e = pool.QueryRow(ctx, "SELECT state,payload IS NULL FROM auth.auth_credential_emails WHERE user_id=$1", recipientUser.ID).Scan(&state, &wiped); e != nil || state != "cancelled" || !wiped || len(mail.messages) != 2 {
+	if e = pool.QueryRow(ctx, "SELECT state,payload IS NULL FROM auth.auth_credential_emails WHERE user_id=$1", recipientUser.ID).Scan(&state, &wiped); e != nil || state != "cancelled" || !wiped || len(mail.messages) != 3 {
 		t.Fatal("changed recipient received old credential", e)
 	}
 	// A crashed final attempt becomes terminal and erases the encrypted credential.

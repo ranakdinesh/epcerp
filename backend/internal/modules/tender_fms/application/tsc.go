@@ -226,6 +226,15 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 	if job.Input.RetrievalModel != "" && job.Input.RetrievalModel != s.evidence.Model() {
 		code = "retrieval_model_changed"
 	}
+	if job.Mode != "manual" && job.Input.ProposalVersion != "" {
+		expected := domain.TSCProposalVersion
+		if domain.TSCCloudAllowance(job.Mode) > 0 {
+			expected += "/" + domain.TSCCloudProposalVersion
+		}
+		if job.Input.ProposalVersion != expected {
+			code = "configured_extraction_changed"
+		}
+	}
 	candidates := domain.CollectTSCCandidates(job.Input)
 	for _, q := range job.Input.Questions {
 		if code != "" {

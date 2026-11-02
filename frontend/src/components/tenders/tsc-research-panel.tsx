@@ -1,4 +1,5 @@
 "use client";
+import { createRecordId } from "@/lib/record-id";
 
 import { useRef, useState } from "react";
 import { ValidatedInput, ValidatedLabel, ValidatedSelect } from "@/components/ui/validated-controls";
@@ -26,8 +27,8 @@ export function TSCResearchPanel({ draftID, jobID, questionID, version, provider
     setBusy(true); setError("");
     const requestedMode = paid ? selected?.mode : "search";
     const fingerprint = `${version}:${query}:${requestedMode}`;
-    if (operation.current?.fingerprint !== fingerprint) operation.current = { fingerprint, key: crypto.randomUUID() };
     try {
+      if (operation.current?.fingerprint !== fingerprint) operation.current = { fingerprint, key: createRecordId() };
       const response = await fetch(`/api/tender-fms/drafts/${draftID}/tsc/${jobID}/answers/${questionID}/research`, {
         method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": operation.current.key },
         body: JSON.stringify({ expected_version: version, query, mode: requestedMode }),

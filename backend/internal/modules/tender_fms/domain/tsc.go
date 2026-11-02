@@ -6,7 +6,7 @@ import (
 )
 
 const TSCVersion = "tsc-v1"
-const TSCProposalVersion = "tsc-local-rag-v4"
+const TSCProposalVersion = "tsc-local-rag-v5"
 
 // Only reviewed, non-sensitive categories cross the provider boundary.
 type TSCProviderError string

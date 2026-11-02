@@ -1,6 +1,6 @@
 /* Compact screen presentation shared by every epcERP page. Print layouts are independent. */
 @media screen {
-  :root { --ui-action-size: .75rem; --ui-page-gutter: 20px; }
+  :root { --ui-action-size: .875rem; --ui-page-gutter: 20px; }
 
   /* This product-wide label rule intentionally overrides individual utility sizes. */
   html body :is(button, input[type="button"], input[type="submit"], [role="button"], a[class*="min-h-11"], a.primary),

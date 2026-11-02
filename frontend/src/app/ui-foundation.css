@@ -1,0 +1,78 @@
+/* Semantic action colours and solid, readable drawer surfaces. */
+:root {
+  --citual-primary: #1d4ed8;
+  --citual-primary-foreground: #ffffff;
+  --citual-danger: #b91c1c;
+  --citual-danger-foreground: #ffffff;
+  --citual-success: #047857;
+  --citual-success-foreground: #ffffff;
+  --citual-warning: #fef3c7;
+  --citual-warning-foreground: #78350f;
+  --citual-warning-border: #b45309;
+  --citual-control-border: #78889f;
+  --citual-secondary: #ffffff;
+  --citual-secondary-foreground: #1e293b;
+  --citual-focus: #2563eb;
+}
+html[data-theme="dark"] {
+  --citual-primary: #93c5fd;
+  --citual-primary-foreground: #172554;
+  --citual-danger: #fda4af;
+  --citual-danger-foreground: #4c0519;
+  --citual-success: #6ee7b7;
+  --citual-success-foreground: #052e16;
+  --citual-warning: #422f16;
+  --citual-warning-foreground: #fde68a;
+  --citual-warning-border: #fbbf24;
+  --citual-control-border: #8293ad;
+  --citual-secondary: #172235;
+  --citual-secondary-foreground: #f1f5f9;
+  --citual-focus: #93c5fd;
+}
+.ui-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 44px;
+  padding: .625rem 1rem;
+  border: 1px solid var(--citual-control-border);
+  border-radius: .625rem;
+  background: var(--citual-secondary);
+  color: var(--citual-secondary-foreground);
+  font-size: .875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 120ms ease, box-shadow 120ms ease;
+}
+.ui-action--primary { background: var(--citual-primary); color: var(--citual-primary-foreground); border-color: var(--citual-primary); }
+.ui-action--danger { background: var(--citual-danger); color: var(--citual-danger-foreground); border-color: var(--citual-danger); }
+.ui-action--success { background: var(--citual-success); color: var(--citual-success-foreground); border-color: var(--citual-success); }
+.ui-action--warning { background: var(--citual-warning); color: var(--citual-warning-foreground); border-color: var(--citual-warning-border); }
+.ui-notice--warning { background: var(--citual-warning); color: var(--citual-warning-foreground); border: 1px solid var(--citual-warning-border); }
+.ui-action--icon { min-width: 44px; padding: .625rem; }
+.ui-action:not(:disabled):hover { filter: brightness(.92); box-shadow: 0 2px 5px rgb(15 23 42 / 15%); }
+.ui-action:focus-visible { outline: 3px solid var(--citual-focus); outline-offset: 3px; }
+.ui-action:disabled { opacity: .55; cursor: not-allowed; }
+.vtpl-modal.record-drawer { background: var(--go-panel); color: var(--go-ink); border: 1px solid var(--citual-control-border); border-top: 4px solid var(--citual-primary); }
+.vtpl-modal.record-drawer > .record-drawer-header { background: var(--go-page); border: 0; border-bottom: 1px solid var(--citual-control-border); border-radius: 0; }
+.record-drawer .record-drawer-actions { background: var(--go-panel); border-top: 1px solid var(--citual-control-border); }
+.vtpl-modal.record-drawer :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { background: var(--go-panel); color: var(--go-ink); border-color: var(--citual-control-border); font-size: 1rem; }
+.vtpl-modal.record-drawer :is(input,select,textarea):focus-visible { outline: 2px solid var(--citual-focus); outline-offset: 2px; }
+.vtpl-modal.record-drawer input[readonly] { background: var(--go-page); color: var(--go-muted); }
+.record-drawer :is(input[type="checkbox"],input[type="radio"]) { width: 18px; height: 18px; accent-color: var(--citual-primary); flex-shrink: 0; }
+.record-drawer .user-role-option { border-color: var(--citual-control-border); }
+.record-drawer .user-role-option:has(input:checked) { background: var(--go-hover); border-color: var(--citual-primary); box-shadow: inset 3px 0 var(--citual-primary); font-weight: 700; }
+.record-drawer .user-access-card { background: var(--go-page); border-color: var(--citual-control-border); }
+@media (prefers-reduced-motion: reduce) { .ui-action { transition: none; } }
+
+/* Account settings uses the same action and control contract as administration. */
+.go-personal-dialog { border-color: var(--citual-control-border); }
+.go-personal-dialog .ui-action--primary { background: var(--citual-primary); color: var(--citual-primary-foreground); border-color: var(--citual-primary); }
+.go-personal-dialog .ui-action--danger { background: var(--citual-danger); color: var(--citual-danger-foreground); border-color: var(--citual-danger); }
+.go-personal-dialog .ui-action--secondary { background: var(--citual-secondary); color: var(--citual-secondary-foreground); border-color: var(--citual-control-border); }
+.go-personal-dialog .go-personal-form :is(input,textarea) { border-color: var(--citual-control-border); font-size: 1rem; }
+html[data-theme="dark"] :is(.text-red-800,.text-red-900) { color: #fda4af; }
+html[data-theme="dark"] .text-amber-900 { color: #fde68a; }

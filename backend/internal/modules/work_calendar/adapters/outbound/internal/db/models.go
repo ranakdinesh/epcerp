@@ -8,6 +8,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuthAccessSession struct {
+	TokenHash string
+	UserID    pgtype.UUID
+	FamilyID  pgtype.UUID
+	ExpiresAt pgtype.Timestamptz
+	RevokedAt pgtype.Timestamptz
+}
+
+type AuthAdministrationChange struct {
+	ID             int64
+	EntityType     string
+	EntityID       pgtype.UUID
+	Action         string
+	ActorID        pgtype.UUID
+	BeforeSnapshot []byte
+	AfterSnapshot  []byte
+	OccurredAt     pgtype.Timestamptz
+}
+
 type AuthAuthBootstrapIdentity struct {
 	Singleton bool
 	UserID    pgtype.UUID
@@ -127,6 +146,16 @@ type AuthAuthReportingLine struct {
 	UpdatedByID   pgtype.UUID
 }
 
+type AuthAuthUserStatusChange struct {
+	ID                pgtype.UUID
+	UserID            pgtype.UUID
+	ActorID           pgtype.UUID
+	IsActive          bool
+	Reason            string
+	CredentialVersion int64
+	CreatedAt         pgtype.Timestamptz
+}
+
 type AuthAuthUsernameChange struct {
 	ID               pgtype.UUID
 	UserID           pgtype.UUID
@@ -135,6 +164,25 @@ type AuthAuthUsernameChange struct {
 	Username         string
 	CreatedByID      pgtype.UUID
 	CreatedAt        pgtype.Timestamptz
+}
+
+type AuthEmailChange struct {
+	TokenHash         string
+	UserID            pgtype.UUID
+	Email             string
+	PreviousEmail     string
+	CredentialVersion int64
+	CreatedByID       pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	ExpiresAt         pgtype.Timestamptz
+	ConsumedAt        pgtype.Timestamptz
+}
+
+type AuthLoginAttempt struct {
+	IdentifierHash  string
+	Failures        int32
+	WindowStartedAt pgtype.Timestamptz
+	BlockedUntil    pgtype.Timestamptz
 }
 
 type AuthPermission struct {
@@ -162,6 +210,7 @@ type AuthRole struct {
 	CreatedByID pgtype.UUID
 	UpdatedAt   pgtype.Timestamptz
 	UpdatedByID pgtype.UUID
+	EditVersion int64
 }
 
 type AuthRolePermission struct {
@@ -187,6 +236,7 @@ type AuthUser struct {
 	FirstName                  string
 	LastName                   string
 	Mobile                     string
+	EditVersion                int64
 }
 
 type AuthUserActivity struct {

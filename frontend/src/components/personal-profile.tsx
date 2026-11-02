@@ -2,6 +2,8 @@
 /* eslint-disable @next/next/no-img-element -- authenticated cookie-protected avatars bypass the public image optimizer */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { SessionManagement } from "@/components/auth/session-management";
+import { actionButtonClass } from "@/components/ui/action-button";
 import { UsernameEditor } from "@/components/auth/username-editor";
 import { prepareProfilePhoto } from "@/lib/auth/profile-photo";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
@@ -73,7 +75,7 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
  async function security(e: FormEvent<HTMLFormElement>, password: boolean) { e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); if (password && data.get("password") !== data.get("confirmation")) { setConfirmationError("Passwords do not match."); form.querySelector<HTMLInputElement>('[name="confirmation"]')?.focus(); return; } await run(async () => {
   await result(await fetch(password ? "/api/auth/me/password" : "/api/auth/me/email", { method: password ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(password ? { current_password: data.get("current_password"), password: data.get("password") } : { current_password: data.get("current_password"), email: data.get("email") }) }), form);
   // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full navigation prevents stale dashboard refreshes after cookie removal
-  form.reset(); if (password) { window.location.assign("/login?session=password-changed"); } else { setNotice("Email updated."); router.refresh(); }
+  form.reset(); if (password) { window.location.assign("/login?session=password-changed"); } else { setNotice("Verification email sent. Your sign-in email stays unchanged until you confirm the new address."); }
  }); }
  async function photo(file?: File) { await run(async () => {
   try {
@@ -108,13 +110,20 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
       <ValidatedLabel>Mobile number<ValidatedInput name="mobile" type="tel" defaultValue={profile?.contact?.mobile || ""} autoComplete="tel" maxLength={24} pattern={"(?=(?:[^0-9]*[0-9]){8,15}[^0-9]*$)\\+?[0-9\\(\\) \\-]+"} title="Use 8 to 15 digits, optionally with +, spaces, hyphens or parentheses." placeholder="e.g. +91 98765 43210" required /></ValidatedLabel>
      </div></fieldset>
      <div className="go-profile-contact-note"><span>Email address</span><strong>{user.email}</strong><button type="button" onClick={() => { setSection("security"); setSecurityMode("email"); }}>Change email →</button></div>
-     <div className="go-profile-footer"><p>Changes apply to your employee record.</p><button type="submit" disabled={busy}>{busy ? "Saving…" : "Save changes"}</button></div>
+     <div className="go-profile-footer"><p>Changes apply to your employee record.</p><button type="submit" className={actionButtonClass("primary")} disabled={busy}>{busy ? "Saving…" : "Save changes"}</button></div>
     </ValidatedForm>}
    </section><section hidden={section !== "security"}>
     <div className="go-profile-section-title"><h3>Account security</h3><p>Use your current password to confirm security changes.</p></div>
     <div className="go-security-options" aria-label="Security options"><button type="button" aria-pressed={securityMode === "email"} onClick={() => { setSecurityMode("email"); setError(""); }}>Email address</button><button type="button" aria-pressed={securityMode === "password"} onClick={() => { setSecurityMode("password"); setError(""); }}>Password</button></div>
-    {securityMode === "email" ? <ValidatedForm onSubmit={e => void security(e, false)} className="go-personal-form"><ValidatedLabel>Email address<ValidatedInput type="email" name="email" defaultValue={user.email} autoComplete="email" maxLength={255} required disabled={busy} /></ValidatedLabel><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-footer"><p>Your sign-in email will be updated.</p><button type="submit" disabled={busy}>{busy ? "Updating…" : "Update email"}</button></div></ValidatedForm> : <ValidatedForm onSubmit={e => void security(e, true)} className="go-personal-form"><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-fields"><ValidatedLabel>New password<ValidatedInput type="password" name="password" autoComplete="new-password" minLength={8} maxLength={128} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}" title="Use uppercase, lowercase, a number and a symbol." required disabled={busy} /></ValidatedLabel><ValidatedLabel>Confirm new password<ValidatedInput type="password" name="confirmation" autoComplete="new-password" maxLength={128} error={confirmationError} onChange={() => setConfirmationError("")} required disabled={busy} /></ValidatedLabel></div><p>Use at least 8 characters, with uppercase, lowercase, a number and a symbol. You’ll sign in again after changing your password.</p><div className="go-profile-footer"><button type="submit" disabled={busy}>{busy ? "Updating…" : "Change password"}</button></div></ValidatedForm>}
-   </section>
+    {securityMode === "email" ? <ValidatedForm onSubmit={e => void security(e, false)} className="go-personal-form"><ValidatedLabel>Email address<ValidatedInput type="email" name="email" defaultValue={user.email} autoComplete="email" maxLength={255} required disabled={busy} /></ValidatedLabel><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-footer"><p>Your current sign-in email stays active until you verify the new address.</p><button type="submit" className={actionButtonClass("primary")} disabled={busy}>{busy ? "Updating…" : "Send verification email"}</button></div></ValidatedForm> : <ValidatedForm onSubmit={e => void security(e, true)} className="go-personal-form"><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-fields"><ValidatedLabel>New password<ValidatedInput type="password" name="password" autoComplete="new-password" minLength={8} maxLength={128} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}" title="Use uppercase, lowercase, a number and a symbol." required disabled={busy} /></ValidatedLabel><ValidatedLabel>Confirm new password<ValidatedInput type="password" name="confirmation" autoComplete="new-password" maxLength={128} error={confirmationError} onChange={() => setConfirmationError("")} required disabled={busy} /></ValidatedLabel></div><p>Use at least 8 characters, with uppercase, lowercase, a number and a symbol. You’ll sign in again after changing your password.</p><div className="go-profile-footer"><button type="submit" className={actionButtonClass("primary")} disabled={busy}>{busy ? "Updating…" : "Change password"}</button></div></ValidatedForm>}
+   {section==="security"&&<SessionManagement/>}</section>
   </div>
  </dialog>;
+}
+
+export function ProfileCompletionReminder(){
+ const user=useAuthenticatedUser();const[open,setOpen]=useState(false);
+ const missing=typeof user.first_name==="string"&&(!user.first_name||!user.last_name||!user.mobile);
+ if(!missing)return null;
+ return <><aside role="status" className="ui-notice--warning m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"><p>Your profile is missing contact details. Complete your name and mobile number when available.</p><button type="button" className={actionButtonClass("secondary")} onClick={()=>setOpen(true)}>Complete my profile</button></aside>{open&&<PersonalAccountDialog mode="profile" close={()=>setOpen(false)}/>}</>;
 }

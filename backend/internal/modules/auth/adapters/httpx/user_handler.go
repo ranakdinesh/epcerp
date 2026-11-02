@@ -102,3 +102,20 @@ func (h *userHandler) online(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, map[string]any{"online_count": len(records), "items": dtos.Activities(records)})
 }
+
+func (h *userHandler) status(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "user_id")
+	if !ok {
+		return
+	}
+	request, ok := requestBody(w, r, dtos.ParseUserStatus)
+	if !ok {
+		return
+	}
+	user, err := h.service.SetActive(r.Context(), bearer(r), id, request.Active, request.Reason)
+	if failed(w, r, err) {
+		return
+	}
+	audit(r.Context(), "users.status_changed", true)
+	write(w, 200, dtos.User(*user))
+}

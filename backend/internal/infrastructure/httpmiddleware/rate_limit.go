@@ -58,6 +58,12 @@ func (l *Limiter) Allow(client string) bool {
 	return true
 }
 func RateLimit(limiter *Limiter) func(http.Handler) http.Handler {
+	return RateLimitByIdentity(limiter, nil)
+}
+
+// A verified identity gets its own quota, even when traffic passes through a BFF.
+// Invalid or absent credentials retain the network quota; arbitrary headers never choose a key.
+func RateLimitByIdentity(limiter *Limiter, identity func(*http.Request) string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "GET" && (r.URL.Path == "/api/v1/health/live" || r.URL.Path == "/api/v1/health/ready") {
@@ -71,6 +77,11 @@ func RateLimit(limiter *Limiter) func(http.Handler) http.Handler {
 			}
 			if client == "" {
 				client = "unknown"
+			}
+			if identity != nil {
+				if actor := identity(r); actor != "" {
+					client = "actor:" + actor
+				}
 			}
 			if !limiter.Allow(client) {
 				seconds := int64((limiter.window + time.Second - 1) / time.Second)

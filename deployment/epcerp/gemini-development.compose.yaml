@@ -1,0 +1,17 @@
+# Apply only to the development release, with its original .env plus a private
+# .env.gemini file. Never run `compose config` without --quiet: it expands secrets.
+# Inactive preparation only. Private documents must remain in India/on-premises;
+# the standard Gemini API has not been approved for that scope. Do not activate
+# it without a separately reviewed residency-compatible deployment.
+# Cloud calls remain explicit user actions; local extraction/search stay available.
+services:
+  api:
+    environment:
+      EPCERP_TSC_CLOUD_APPROVED: ${EPCERP_TSC_CLOUD_APPROVED:-false}
+      EPCERP_TSC_GEMINI_API_KEY: ${EPCERP_TSC_GEMINI_API_KEY:?Supply the private Gemini environment file}
+      EPCERP_TSC_OPENAI_API_KEY: ""
+  tsc-worker:
+    environment:
+      EPCERP_TSC_CLOUD_APPROVED: ${EPCERP_TSC_CLOUD_APPROVED:-false}
+      EPCERP_TSC_GEMINI_API_KEY: ${EPCERP_TSC_GEMINI_API_KEY:?Supply the private Gemini environment file}
+      EPCERP_TSC_OPENAI_API_KEY: ""

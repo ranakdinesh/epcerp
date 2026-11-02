@@ -166,6 +166,15 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 	if _, e = svc.Get(ctx, tokens[4], c.ID); !errors.Is(e, domain.ErrForbidden) {
 		t.Fatal("unrelated employee read departure", e)
 	}
+	// Access is revoked while live responsibilities are still assigned. The
+	// existing handover stays available for the manager to finish later.
+	users := app.NewUsers(out.NewUserUnitOfWork(pool), nil, v, domain.Policy{})
+	if inactive, err := users.Deactivate(ctx, tokens[0], ids[2]); err != nil || inactive.IsActive {
+		t.Fatal("immediate deactivation with unfinished handover", err)
+	}
+	if _, err := app.NewSessions(out.NewSessionUnitOfWork(pool), nil, v, domain.Policy{}).Me(ctx, tokens[2]); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatal("inactive user retained access during handover", err)
+	}
 	in := domain.HandoverPlan{Version: c.Version, Reason: "Manager reviewed replacement"}
 	if _, e = svc.Change(ctx, tokens[0], c.ID, "approve", in); !errors.Is(e, domain.ErrForbidden) {
 		t.Fatal("administrator bypassed manager approval", e)
@@ -208,12 +217,12 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 		t.Fatal("manager approval", e)
 	}
 	in.Version = c.Version
-	if _, e = svc.Change(ctx, tokens[1], c.ID, "deactivate", in); !errors.Is(e, domain.ErrForbidden) {
-		t.Fatal("manager deactivated without administrator permission", e)
+	if _, e = svc.Change(ctx, tokens[1], c.ID, "complete", in); !errors.Is(e, domain.ErrForbidden) {
+		t.Fatal("manager completed without administrator permission", e)
 	}
 	// A recipient that loses a capability required by Tender FMS must not pass clearance.
 	execFixture(t, pool, "DELETE FROM auth.role_permissions WHERE role_id=$1 AND permission_id IN(SELECT id FROM auth.permissions WHERE code='tenders.processing.write')", role)
-	if _, e = svc.Change(ctx, tokens[0], c.ID, "deactivate", in); e == nil {
+	if _, e = svc.Change(ctx, tokens[0], c.ID, "complete", in); e == nil {
 		t.Fatal("replacement lost required processing permission but departure completed")
 	}
 	execFixture(t, pool, "INSERT INTO auth.role_permissions(role_id,permission_id)SELECT $1,id FROM auth.permissions WHERE code='tenders.processing.write'", role)
@@ -223,7 +232,7 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = svc.Change(ctx, tokens[0], c.ID, "deactivate", in); !errors.Is(e, domain.ErrOffboardingStale) {
+	if _, e = svc.Change(ctx, tokens[0], c.ID, "complete", in); !errors.Is(e, domain.ErrOffboardingStale) {
 		t.Fatal("stale approval accepted", e)
 	}
 	c, e = svc.Change(ctx, tokens[0], c.ID, "refresh", in)
@@ -236,33 +245,17 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 		t.Fatal(e)
 	}
 	in.Version = c.Version
-	// A separately permissioned administrator cannot deactivate the final active
-	// recovery administrator, even with a valid reporting-manager approval.
-	adminRole := v.ID()
-	execFixture(t, pool, "INSERT INTO auth.roles(id,name,description,is_active)VALUES($1,'departure_admin','Fixture departure administrator',true)", adminRole)
-	for _, code := range []string{"admin.offboarding.read", "admin.offboarding.write"} {
-		execFixture(t, pool, "INSERT INTO auth.permissions(id,code,description)VALUES($1,$2,'Fixture permission')ON CONFLICT(code)DO NOTHING", v.ID(), code)
-		execFixture(t, pool, "INSERT INTO auth.role_permissions(role_id,permission_id)SELECT $1,id FROM auth.permissions WHERE code=$2", adminRole, code)
-	}
-	execFixture(t, pool, "INSERT INTO auth.user_roles(user_id,role_id)VALUES($1,$2)", ids[0], adminRole)
-	execFixture(t, pool, "UPDATE auth.users SET is_superuser=false WHERE id=$1", ids[0])
-	execFixture(t, pool, "UPDATE auth.users SET is_superuser=true WHERE id=$1", ids[2])
-	if _, e = svc.Change(ctx, tokens[0], c.ID, "deactivate", in); !errors.Is(e, domain.ErrLastSuperadmin) {
-		t.Fatal("final active recovery administrator deactivated", e)
-	}
-	execFixture(t, pool, "UPDATE auth.users SET is_superuser=true WHERE id=$1", ids[0])
-	execFixture(t, pool, "UPDATE auth.users SET is_superuser=false WHERE id=$1", ids[2])
-	// Audit failure rolls back deactivation and case completion together.
+	// A failed handover completion never restores the already revoked access.
 	broken := app.NewOffboarding(out.NewOffboardingUnitOfWork(pool, nil, workSources), v)
-	if _, e = broken.Change(ctx, tokens[0], c.ID, "deactivate", in); e == nil {
+	if _, e = broken.Change(ctx, tokens[0], c.ID, "complete", in); e == nil {
 		t.Fatal("audit failure committed departure")
 	}
 	var active bool
 	pool.QueryRow(ctx, "SELECT is_active FROM auth.users WHERE id=$1", ids[2]).Scan(&active)
-	if !active {
-		t.Fatal("partial departure commit")
+	if active {
+		t.Fatal("completion failure restored access")
 	}
-	c, e = svc.Change(ctx, tokens[0], c.ID, "deactivate", in)
+	c, e = svc.Change(ctx, tokens[0], c.ID, "complete", in)
 	if e != nil || c.State != "completed" {
 		t.Fatal("administrator finalization", e)
 	}
@@ -285,7 +278,7 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 		t.Fatal("old access survives deactivation", e)
 	}
 	history, e := svc.History(ctx, tokens[1], c.ID)
-	if e != nil || len(history) < 5 || history[0].Action != "deactivate" {
+	if e != nil || len(history) < 5 || history[0].Action != "complete" {
 		t.Fatal("manager cannot review completed audit history", e)
 	}
 	if _, e = svc.History(ctx, tokens[4], c.ID); !errors.Is(e, domain.ErrForbidden) {
@@ -294,8 +287,7 @@ func TestAuthOffboardingManagerApprovalAndAdminFinalization(t *testing.T) {
 	if _, e = pool.Exec(ctx, "DELETE FROM auth.auth_offboarding_changes"); e == nil {
 		t.Fatal("departure evidence mutable")
 	}
-	users := app.NewUsers(out.NewUserUnitOfWork(pool), nil, v, domain.Policy{})
-	if _, e = users.Deactivate(ctx, tokens[0], ids[4]); !errors.Is(e, domain.ErrOffboardingRequired) {
-		t.Fatal("legacy deactivation bypass", e)
+	if inactive, err := users.Deactivate(ctx, tokens[0], ids[4]); err != nil || inactive.IsActive {
+		t.Fatal("immediate deactivation failed", err)
 	}
 }

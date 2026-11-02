@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	AccessFamily(ctx context.Context, tokenHash string) (pgtype.UUID, error)
+	AccessRevoked(ctx context.Context, tokenHash string) (bool, error)
 	AdvanceAccountVersion(ctx context.Context, id pgtype.UUID) (AdvanceAccountVersionRow, error)
 	AdvancePersonalOrganisationVersion(ctx context.Context, updatedByID pgtype.UUID) error
 	AdvisoryLock(ctx context.Context, lockName string) error
@@ -20,8 +22,11 @@ type Querier interface {
 	BindBootstrapUser(ctx context.Context, userID pgtype.UUID) error
 	BoundBootstrapUser(ctx context.Context) (AuthUser, error)
 	CancelCredentialEmail(ctx context.Context, arg CancelCredentialEmailParams) error
+	CancelCredentialForUser(ctx context.Context, userID pgtype.UUID) error
+	CancelEmailChanges(ctx context.Context, userID pgtype.UUID) error
 	CancelStaleCredentialEmails(ctx context.Context) error
 	ClaimCredentialEmail(ctx context.Context, leaseID pgtype.UUID) (AuthAuthCredentialEmail, error)
+	ClearLoginFailures(ctx context.Context, identifierHash string) error
 	ClearRolePermissions(ctx context.Context, roleID pgtype.UUID) error
 	ClearUserRoles(ctx context.Context, userID pgtype.UUID) error
 	ConsumeRecoveryTokens(ctx context.Context, userID pgtype.UUID) error
@@ -29,8 +34,8 @@ type Querier interface {
 	CountSuperusers(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CredentialEmailStatus(ctx context.Context, userID pgtype.UUID) (string, error)
-	DeactivateUser(ctx context.Context, arg DeactivateUserParams) error
 	EnsureBootstrapRole(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
+	FailLogin(ctx context.Context, identifierHash string) error
 	FilterUsers(ctx context.Context, arg FilterUsersParams) ([]AuthUser, error)
 	FindBootstrapUser(ctx context.Context, username string) (AuthUser, error)
 	FindRole(ctx context.Context, name string) (AuthRole, error)
@@ -42,15 +47,20 @@ type Querier interface {
 	GetUser(ctx context.Context, id pgtype.UUID) (AuthUser, error)
 	GrantPermission(ctx context.Context, arg GrantPermissionParams) error
 	InsertBootstrapUser(ctx context.Context, arg InsertBootstrapUserParams) (pgtype.UUID, error)
+	InsertEmailChange(ctx context.Context, arg InsertEmailChangeParams) error
 	InsertRecoveryToken(ctx context.Context, arg InsertRecoveryTokenParams) error
 	InsertRefresh(ctx context.Context, arg InsertRefreshParams) error
 	InsertRole(ctx context.Context, arg InsertRoleParams) (AuthRole, error)
 	InsertUser(ctx context.Context, arg InsertUserParams) (AuthUser, error)
+	ListAdministrationChanges(ctx context.Context, entityID pgtype.UUID) ([]AuthAdministrationChange, error)
 	ListRoles(ctx context.Context) ([]AuthRole, error)
+	ListSessions(ctx context.Context, userID pgtype.UUID) ([]ListSessionsRow, error)
 	ListUserRoles(ctx context.Context, userID pgtype.UUID) ([]ListUserRolesRow, error)
 	LockAssignmentBundle(ctx context.Context, id pgtype.UUID) (AuthRole, error)
+	LockEmailChange(ctx context.Context, tokenHash string) (AuthEmailChange, error)
 	LockRefresh(ctx context.Context, tokenHash string) (AuthRefreshToken, error)
 	LockUser(ctx context.Context, id pgtype.UUID) (AuthUser, error)
+	LoginBlocked(ctx context.Context, identifierHash string) (bool, error)
 	OffboardingCase(ctx context.Context, id pgtype.UUID) (AuthAuthOffboardingCase, error)
 	OffboardingCases(ctx context.Context, arg OffboardingCasesParams) ([]AuthAuthOffboardingCase, error)
 	OffboardingHistory(ctx context.Context, caseID pgtype.UUID) ([]OffboardingHistoryRow, error)
@@ -58,6 +68,7 @@ type Querier interface {
 	OrganisationDepartments(ctx context.Context) ([]AuthAuthDepartment, error)
 	OrganisationEmployees(ctx context.Context) ([]OrganisationEmployeesRow, error)
 	QueueCredentialEmail(ctx context.Context, arg QueueCredentialEmailParams) error
+	QueueUserHandover(ctx context.Context, arg QueueUserHandoverParams) (int64, error)
 	ReconcilePermission(ctx context.Context, arg ReconcilePermissionParams) error
 	RecordActivity(ctx context.Context, arg RecordActivityParams) error
 	RecordCredentialChange(ctx context.Context, arg RecordCredentialChangeParams) error
@@ -65,6 +76,7 @@ type Querier interface {
 	RecordOrganisationDepartmentChange(ctx context.Context, arg RecordOrganisationDepartmentChangeParams) error
 	RecordOrganisationEmployeeChange(ctx context.Context, arg RecordOrganisationEmployeeChangeParams) error
 	RecordPersonalContactChange(ctx context.Context, arg RecordPersonalContactChangeParams) error
+	RecordUserStatusChange(ctx context.Context, arg RecordUserStatusChangeParams) error
 	RecordUsernameChange(ctx context.Context, arg RecordUsernameChangeParams) error
 	RecoveryRecentlyRequested(ctx context.Context, userID pgtype.UUID) (bool, error)
 	RecoveryTokenValid(ctx context.Context, tokenHash string) (string, error)
@@ -72,6 +84,8 @@ type Querier interface {
 	RecoveryUserID(ctx context.Context, tokenHash string) (pgtype.UUID, error)
 	RegisteredPermissions(ctx context.Context) ([]string, error)
 	RepairBootstrapUser(ctx context.Context, id pgtype.UUID) error
+	RevokeAccessFamily(ctx context.Context, familyID pgtype.UUID) error
+	RevokeAllAccess(ctx context.Context, userID pgtype.UUID) error
 	RevokeFamily(ctx context.Context, familyID pgtype.UUID) error
 	RevokeRefresh(ctx context.Context, tokenHash string) error
 	RevokeUserSessions(ctx context.Context, userID pgtype.UUID) error
@@ -82,8 +96,12 @@ type Querier interface {
 	SaveOrganisationEmployee(ctx context.Context, arg SaveOrganisationEmployeeParams) (AuthAuthReportingLine, error)
 	SaveProfile(ctx context.Context, arg SaveProfileParams) (AuthUserProfile, error)
 	SaveUsername(ctx context.Context, arg SaveUsernameParams) error
+	SessionOwner(ctx context.Context, familyID pgtype.UUID) (pgtype.UUID, error)
+	SetAuthActor(ctx context.Context, dollar_1 string) error
 	SetPassword(ctx context.Context, arg SetPasswordParams) error
 	SetTemporaryPassword(ctx context.Context, arg SetTemporaryPasswordParams) error
+	SetUserActive(ctx context.Context, arg SetUserActiveParams) error
+	TrackAccess(ctx context.Context, arg TrackAccessParams) error
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UsernameAvailable(ctx context.Context, arg UsernameAvailableParams) (pgtype.Bool, error)

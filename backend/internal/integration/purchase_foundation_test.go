@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
+	"github.com/ranakdinesh/epcERP/internal/infrastructure/schema"
 	masterRepository "github.com/ranakdinesh/epcERP/internal/modules/master/adapters/repository"
 	purchaseRepository "github.com/ranakdinesh/epcERP/internal/modules/purchase_fms/adapters/repository"
 
@@ -22,8 +23,20 @@ type purchaseFixture struct {
 
 func newPurchaseFixture(t *testing.T) purchaseFixture {
 	t.Helper()
+	return newPurchaseFixtureAtVersion(t, schema.LatestVersion)
+}
+
+func newPurchaseFixtureAtVersion(t *testing.T, version uint) purchaseFixture {
+	t.Helper()
 	dsn, pool := owned(t)
-	apply(t, dsn)
+	m, err := schema.Open(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	if err := m.Migrate(version); err != nil {
+		t.Fatal(err)
+	}
 	v := purchaseRepository.Values{}
 	f := purchaseFixture{dsn: dsn, pool: pool, actor: v.ID(), manager: v.ID(), outsider: v.ID(), client: v.ID(), otherClient: v.ID(), project: v.ID(), otherProject: v.ID(), make: v.ID(), category: v.ID(), subcategory: v.ID(), template: v.ID()}
 	for i, id := range []string{f.actor, f.manager, f.outsider} {

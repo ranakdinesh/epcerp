@@ -98,3 +98,12 @@ func TestCloudReservationAndProviderUseIdenticalSelectedEvidence(t *testing.T) {
 		t.Fatal("provider evidence differs from reservation or irrelevant source sent")
 	}
 }
+
+func TestQueuedSnapshotCannotSilentlyUseAnotherExtractionVersion(t *testing.T) {
+	ranker := &evidenceRanker{}
+	r := &tscWorkerRepository{job: domain.TSCJob{Mode: "local", DraftVersion: 1, Input: domain.TSCInput{ProposalVersion: "tsc-local-rag-v4", Questions: []domain.TSCQuestion{{ID: "particulars.q01"}}, Passages: []domain.TSCPassage{{ID: "a", Text: "Employer: Synthetic Board"}}}}}
+	_, err := NewTSC(tscWorkerUnit{r}, nil, nil, nil).WithEvidence(NewTSCEvidence(ranker)).Once(context.Background())
+	if err != nil || r.code != "configured_extraction_changed" || len(r.result.Answers) != 0 || ranker.calls != 0 {
+		t.Fatal("snapshot version changed silently", err, r.code)
+	}
+}

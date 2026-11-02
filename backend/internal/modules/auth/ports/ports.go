@@ -9,14 +9,26 @@ import (
 
 type IdentityReader interface {
 	User(context.Context, string, bool) (*domain.User, error)
+	AccessRevoked(context.Context, string) (bool, error)
 }
 
 type AdministrationRepository interface {
+	AccessRevoked(context.Context, string) (bool, error)
+	SetActor(context.Context, string) error
 	Lock(context.Context, string) error
 	User(context.Context, string, bool) (*domain.User, error)
 }
 
 type SessionRepository interface {
+	TrackAccess(context.Context, string, string, string, int64) error
+	Sessions(context.Context, string, string) ([]domain.Session, error)
+	RevokeSession(context.Context, string, string) error
+	RevokeAllSessions(context.Context, string) error
+	LoginBlocked(context.Context, string) (bool, error)
+	FailLogin(context.Context, string) error
+	ClearLoginFailures(context.Context, string) error
+	AccessRevoked(context.Context, string) (bool, error)
+	SetActor(context.Context, string) error
 	Lock(context.Context, string) error
 	User(context.Context, string, bool) (*domain.User, error)
 	FindUser(context.Context, string) (*domain.User, error)
@@ -32,6 +44,9 @@ type RoleDirectory interface {
 }
 
 type UserRepository interface {
+	EmailChangeRepository
+	AccessRevoked(context.Context, string) (bool, error)
+	SetActor(context.Context, string) error
 	Lock(context.Context, string) error
 	User(context.Context, string, bool) (*domain.User, error)
 	Users(context.Context, domain.UserFilter) (domain.UserPage, error)
@@ -39,13 +54,18 @@ type UserRepository interface {
 	CreateUser(context.Context, string, domain.UserCreate, string, string) (*domain.User, error)
 	UpdateUser(context.Context, string, domain.UserUpdate, string) (*domain.User, error)
 	SetPassword(context.Context, string, string, string) error
-	Deactivate(context.Context, string, string) error
+	SetActive(context.Context, string, bool, string) error
+	RecordStatusChange(context.Context, string, string, string, string) error
+	QueueHandover(context.Context, string, string, string, string, string) error
 	ActiveSuperusers(context.Context) (int64, error)
 	RevokeUserSessions(context.Context, string) error
 	Online(context.Context, int64) ([]domain.Activity, error)
 }
 
 type RoleRepository interface {
+	AdministrationHistory(context.Context, string) ([]domain.AdministrationChange, error)
+	AccessRevoked(context.Context, string) (bool, error)
+	SetActor(context.Context, string) error
 	Lock(context.Context, string) error
 	User(context.Context, string, bool) (*domain.User, error)
 	Roles(context.Context) ([]domain.Role, error)
@@ -56,6 +76,9 @@ type RoleRepository interface {
 }
 
 type AccountRepository interface {
+	EmailChangeRepository
+	AccessRevoked(context.Context, string) (bool, error)
+	SetActor(context.Context, string) error
 	Lock(context.Context, string) error
 	UsernameAvailable(context.Context, string, string) (bool, error)
 	SaveUsername(context.Context, string, string, string, string) error
@@ -118,3 +141,12 @@ type ImageStorage interface {
 	Retrieve(context.Context, string, string) ([]byte, error)
 }
 type ProfileValues interface{ ID() string }
+
+type EmailChangeRepository interface {
+	User(context.Context, string, bool) (*domain.User, error)
+	SetActor(context.Context, string) error
+	CancelEmailChanges(context.Context, string) error
+	CancelCredentialForUser(context.Context, string) error
+	SaveEmailChange(context.Context, domain.EmailChange) error
+	EmailChange(context.Context, string) (*domain.EmailChange, error)
+}

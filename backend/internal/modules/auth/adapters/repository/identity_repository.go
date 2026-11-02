@@ -62,11 +62,14 @@ func (r *Store) role(ctx context.Context, row sqlc.AuthRole) (*domain.Role, erro
 }
 
 func (r *Store) SetPassword(ctx context.Context, userID, hash, actor string) error {
+	if e := r.SetActor(ctx, actor); e != nil {
+		return e
+	}
 	return r.queries.SetPassword(ctx, sqlc.SetPasswordParams{ID: dtos.UUID(userID), PasswordHash: hash, UpdatedByID: dtos.UUID(actor)})
 }
 
 func (r *Store) RevokeUserSessions(ctx context.Context, userID string) error {
-	return r.queries.RevokeUserSessions(ctx, dtos.UUID(userID))
+	return r.queries.RevokeAllAccess(ctx, dtos.UUID(userID))
 }
 
 func (r *Store) GrantRolePermission(ctx context.Context, roleID, code string) error {

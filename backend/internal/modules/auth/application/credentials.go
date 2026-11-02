@@ -82,7 +82,14 @@ func (s *CredentialService) Create(ctx context.Context, token string, request do
 			}
 		}
 		request.RoleNames = domain.NormalizedRoles(request.RoleNames)
-		if e := rolesValid(ctx, r, request.RoleNames, domain.ErrUserConflict); e != nil {
+		if !actor.IsSuperuser {
+			for _, name := range request.RoleNames {
+				if name == "superadmin" {
+					return domain.ErrForbidden
+				}
+			}
+		}
+		if e := rolesValid(ctx, r, request.RoleNames, domain.ErrInactiveRole); e != nil {
 			return e
 		}
 		// A placeholder hash is never committed: issue and encrypted queue share this transaction.

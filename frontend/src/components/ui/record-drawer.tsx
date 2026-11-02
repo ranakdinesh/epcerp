@@ -1,4 +1,6 @@
 "use client";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { actionButtonClass } from "./action-button";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 export function RecordDrawer({
   title,
@@ -42,19 +44,19 @@ export function RecordDrawer({
         e.stopPropagation();
         onClose();
       }}
-      className={`vtpl-modal fixed ${centered ? `inset-0 m-auto h-fit max-h-[90dvh] w-[calc(100%-2rem)] ${extraWide ? "max-w-[1600px]" : wide ? "max-w-6xl" : "max-w-lg"} rounded-xl` : `inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full ${extraWide ? "max-w-[1600px]" : wide ? "max-w-6xl" : "max-w-4xl"}`} border-0 bg-slate-50 p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/45 ${footer ? "open:flex flex-col overflow-hidden" : "overflow-y-auto"}`}
+      className={`vtpl-modal record-drawer fixed ${centered ? `inset-0 m-auto h-fit max-h-[90dvh] w-[calc(100%-2rem)] ${extraWide ? "max-w-[1600px]" : wide ? "max-w-6xl" : "max-w-lg"} rounded-xl` : `inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full ${extraWide ? "max-w-[1600px]" : wide ? "max-w-6xl" : "max-w-4xl"}`} border-0 bg-slate-50 p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/45 ${footer ? "open:flex flex-col overflow-hidden" : "overflow-y-auto"}`}
     >
-      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
+      <div className="record-drawer-header sticky top-0 z-10 flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
         <h2 id={titleId} className="text-lg font-bold">
           {title}
         </h2>
         <button
           type="button"
           aria-label="Close panel"
-          className="min-h-11 min-w-11 rounded-lg border border-slate-200 text-xl"
+          className={actionButtonClass("secondary", true)}
           onClick={onClose}
         >
-          ×
+          <XMarkIcon className="h-5 w-5" aria-hidden="true"/>
         </button>
       </div>
       <div className={`space-y-4 p-4 sm:p-6 ${footer ? "min-h-0 flex-1 overflow-y-auto" : ""}`}>{children}</div>

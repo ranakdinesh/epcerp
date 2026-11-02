@@ -12,7 +12,4 @@ type OffboardingRepository interface {
 	Case(context.Context, string) (*domain.OffboardingCase, error)
 	SaveCase(context.Context, domain.OffboardingCase, string) (domain.OffboardingCase, error)
 	RecordOffboarding(context.Context, domain.OffboardingCase, string, string, string, string) error
-	ActiveSuperusers(context.Context) (int64, error)
-	Deactivate(context.Context, string, string) error
-	RevokeUserSessions(context.Context, string) error
 }

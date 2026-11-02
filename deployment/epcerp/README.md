@@ -1,5 +1,21 @@
 # Independent local epcERP Docker stack
 
+## Development code synchronisation (2 November 2026)
+
+Use `codex/development` for the combined development source. This branch includes
+the Auth/main baseline `7563358`, Tender FMS `1c7c4f6`, local MiniLM extraction
+`75d3102`, and the subsequent Auth security, extraction-v5 and HTTP upload fixes.
+The source migration head is **96**; the running database version must be checked
+separately. Auth upgrade details are in `docs/AUTH_COMPLETION.md` and
+`docs/AUTH_USER_STATUS.md`. Migration 96 requires everyone to sign in again.
+
+Pushing source does not update an existing deployment. On another machine, fetch
+and check out `codex/development`, provide its private environment configuration,
+and follow the backup/migration/matching-image procedure below. Never copy keys or
+credentials into Git, reset persistent volumes, or run older images against a
+newer schema. Cloud approval remains false by default. `main` remains the reviewed
+release target; development synchronisation is not production acceptance.
+
 ## TSC draft worker
 
 Migration 92 and matching API/frontend images provide unapproved 70-question TSC
@@ -358,3 +374,101 @@ providers remain explicit and gated; selected evidence is bounded and tied to
 the same paid-call identity. No automatic provider activation or paid retry occurs.
 Run `docker compose --env-file .env -f compose.yaml exec tsc-reranker python smoke.py`
 for the synthetic real-model check. See ../../docs/GO_TSC_LOCAL_RAG_SLICE.md.
+
+## Table and multiline TSC facts (extraction v5)
+
+Local extraction now reads aligned PDF rows, Markdown/tab-separated cells,
+numbered labels, wrapped labels/values, and adjacent same-page table fragments.
+Labelled completion clauses can span a heading and its immediately adjacent
+paragraph. Exact row excerpts retain original passage IDs; long source passages
+no longer invalidate a short fact by exceeding the citation limit.
+
+Twenty-one explicit field families are recognised. GST-inclusive/exclusive values
+require a stated tax basis; no tax calculation is inferred. Tender fee and EMD
+remain separate. Compound fee/payment/exemption questions and financial/security/
+payment clauses are proposed as needs-review text, without deciding applicability,
+company qualification, or approval. Different values remain conflicts; repeated
+copies cannot crowd an amended value out of the citation budget.
+
+Rebuild API/TSC and document workers/frontend from the same integration checkout.
+Schema remains 94; no database migration or key change is needed. Generate a NEW
+TSC with Local extraction (no LLM) to use proposal version tsc-local-rag-v5.
+Completed snapshots stay unchanged. Queued jobs pinned to an older explicit
+extraction version fail visibly instead of silently using changed extraction.
+Cloud proposals remain optional, separately configured and explicitly approved;
+this change does not activate providers or download a generative model.
+
+### HTTP tender creation correction (29 October 2026)
+
+Plain HTTP IP origins do not expose `crypto.randomUUID` or `crypto.subtle`.
+Tender creation previously generated its operation key outside `try/finally`,
+leaving the form on `Creating...` before a request was sent. Tender operations
+now use the existing cryptographic `getRandomValues` UUID fallback. File checksums
+use WebCrypto where available and a lazy, pinned SHA-256 implementation otherwise;
+HTTP fallback hashing is chunked and retains server checksum verification.
+Creation errors release the busy state. A 30-second response deadline offers a
+retry with the same operation key and frozen name when the outcome is unknown.
+
+Feature verification: 226 frontend tests, lint and TypeScript checks; Chrome on
+an actual non-secure QA HTTP origin at 1440px and 390px reproduced the original
+failure, then passed RNG-error recovery, a real 30-second timeout, same-key retry,
+draft opening and synthetic file checksum/upload without page errors. Browser
+plugin unavailable, so `frontend/scripts/verify-tender-http.mjs` uses the existing
+Playwright runtime and disposable preview route. No operational records or
+provider calls are made by that script. Both active remote feature tips remain
+ancestors of `codex/development` base `75d3102`; working-tree hashes and deployment
+smoke checks are recorded separately in the development release manifest.
+
+### Development Gemini activation
+
+`gemini-development.compose.yaml` is an explicit development-only override for
+image-only releases that otherwise pin cloud inference off. It enables Gemini in
+both API and TSC worker, retains local extraction/relevance ranking, and leaves
+OpenAI disabled. It does not install a generative local LLM.
+
+Store the Gemini variable in a separate owner-only `.env.gemini` beside the active
+server release; keep the original `.env`, all encryption keys and volumes intact.
+Supply both environment files and both Compose files when recreating **only**
+`api` and `tsc-worker`. Validate with `config --quiet`; ordinary `config` expands
+secrets and must never be logged. Do not embed the key in YAML, shell arguments,
+Git, browser code or API responses. Preserve this private environment and override
+when moving to a later development release, otherwise the release defaults disable
+cloud inference again. No schema migration is needed for activation.
+
+Gemini 3.1 Flash-Lite has a free tier, but project-specific quotas apply. Confirm
+the Google project is on the Free tier with billing disabled when zero provider
+charges are required; an API key alone does not prove billing status. The app's
+INR 100 per-tender allowance accounting remains conservative and is not a provider
+invoice or a guarantee that a billing-enabled project cannot be charged. There
+is no automatic provider switch or paid retry. Use explicit question proposals
+for small comparisons before attempting a whole checklist.
+
+Google's unpaid-service terms permit use of submitted content and responses for
+product improvement and prohibit sensitive/confidential/personal information.
+Use public or synthetic evidence for free-tier evaluation; review paid API data
+handling before using private documents. References:
+https://ai.google.dev/gemini-api/terms
+https://ai.google.dev/gemini-api/docs/pricing
+https://ai.google.dev/gemini-api/docs/rate-limits
+
+### Current private-document residency requirement (29 October 2026)
+
+The user requires private tender documents and their inference processing to remain
+in India or on their own server. This overrides the proposed standard Gemini API
+activation above. Cloud inference remains disabled; the supplied key is retained
+only in an owner-only, Git-ignored local file and has not been sent to the server
+or used for a provider request. The prepared override now defaults approval to false.
+
+Paid API no-training terms do not establish India-only processing. Google's current
+Gemini 3.1 Flash-Lite Cloud model page lists global/US/EU availability and US/EU ML
+processing, so it has not been approved for this deployment. A future India-hosted
+provider must be reviewed for both storage AND inference processing, including
+logs and any external fallback, before activation. Selecting a Mumbai endpoint name
+alone is not evidence of residency. References checked 29 October 2026:
+https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-flash-lite
+https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/data-residency
+
+Current on-server processing is rule-based extraction and private MiniLM ranking;
+there is no generative local LLM loaded. Adding generative inference requires a
+model/server capacity decision; no GPU purchase or paid India cloud resources are
+authorised by this residency statement alone.

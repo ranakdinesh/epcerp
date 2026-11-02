@@ -39,7 +39,7 @@ func (q *Queries) OffboardingCase(ctx context.Context, id pgtype.UUID) (AuthAuth
 }
 
 const offboardingCases = `-- name: OffboardingCases :many
-SELECT c.id, c.user_id, c.manager_id, c.profile_version, c.state, c.reason, c.items, c.approval_by_id, c.approved_at, c.is_active, c.version, c.created_at, c.updated_at, c.created_by_id, c.updated_by_id FROM auth.auth_offboarding_cases c JOIN auth.auth_reporting_lines r ON r.user_id=c.user_id
+SELECT c.id, c.user_id, c.manager_id, c.profile_version, c.state, c.reason, c.items, c.approval_by_id, c.approved_at, c.is_active, c.version, c.created_at, c.updated_at, c.created_by_id, c.updated_by_id FROM auth.auth_offboarding_cases c LEFT JOIN auth.auth_reporting_lines r ON r.user_id=c.user_id AND r.is_active
 WHERE $1::boolean OR (c.manager_id=$2 AND r.manager_id=$2) ORDER BY c.created_at DESC,c.id LIMIT 1000
 `
 

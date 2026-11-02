@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { hasSameOrigin } from "@/lib/auth/request-origin";
 import { AUTH_COOKIE_NAMES } from "@/lib/auth/session";
 
 export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !hasSameOrigin(request)) {
+    return NextResponse.json({message:"Same-origin request required"},{status:403});
+  }
   const hasAccessToken = Boolean(request.cookies.get(AUTH_COOKIE_NAMES.accessToken)?.value);
   const { pathname, search } = request.nextUrl;
 
@@ -27,5 +31,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/tenders/:path*", "/login"],
+  matcher: ["/api/:path*", "/dashboard/:path*", "/tenders/:path*", "/login"],
 };

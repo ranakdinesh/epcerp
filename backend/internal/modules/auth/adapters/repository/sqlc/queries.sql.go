@@ -181,20 +181,6 @@ func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, 
 	return count, err
 }
 
-const deactivateUser = `-- name: DeactivateUser :exec
-UPDATE auth.users SET is_active=false,updated_by_id=$2,updated_at=now() WHERE id=$1
-`
-
-type DeactivateUserParams struct {
-	ID          pgtype.UUID
-	UpdatedByID pgtype.UUID
-}
-
-func (q *Queries) DeactivateUser(ctx context.Context, arg DeactivateUserParams) error {
-	_, err := q.db.Exec(ctx, deactivateUser, arg.ID, arg.UpdatedByID)
-	return err
-}
-
 const ensureBootstrapRole = `-- name: EnsureBootstrapRole :one
 INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,'superadmin','Platform super administrator',true) ON CONFLICT(name) DO UPDATE SET name=roles.name RETURNING id
 `
@@ -206,7 +192,7 @@ func (q *Queries) EnsureBootstrapRole(ctx context.Context, id pgtype.UUID) (pgty
 }
 
 const filterUsers = `-- name: FilterUsers :many
-SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile FROM auth.users u WHERE
+SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile, edit_version FROM auth.users u WHERE
 ($1::boolean IS NULL OR u.is_active=$1) AND
 ($2::text='' OR lower(u.username) LIKE '%' || lower($2) || '%' OR lower(u.email) LIKE '%' || lower($2) || '%') AND
 ($3::text='' OR EXISTS(SELECT 1 FROM auth.user_roles ur JOIN auth.roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name=$3))
@@ -257,6 +243,7 @@ func (q *Queries) FilterUsers(ctx context.Context, arg FilterUsersParams) ([]Aut
 			&i.FirstName,
 			&i.LastName,
 			&i.Mobile,
+			&i.EditVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -269,7 +256,7 @@ func (q *Queries) FilterUsers(ctx context.Context, arg FilterUsersParams) ([]Aut
 }
 
 const findBootstrapUser = `-- name: FindBootstrapUser :one
-SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile FROM auth.users WHERE username=$1
+SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile, edit_version FROM auth.users WHERE username=$1
 `
 
 func (q *Queries) FindBootstrapUser(ctx context.Context, username string) (AuthUser, error) {
@@ -293,12 +280,13 @@ func (q *Queries) FindBootstrapUser(ctx context.Context, username string) (AuthU
 		&i.FirstName,
 		&i.LastName,
 		&i.Mobile,
+		&i.EditVersion,
 	)
 	return i, err
 }
 
 const findRole = `-- name: FindRole :one
-SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id FROM auth.roles WHERE name=$1
+SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id, edit_version FROM auth.roles WHERE name=$1
 `
 
 func (q *Queries) FindRole(ctx context.Context, name string) (AuthRole, error) {
@@ -313,12 +301,13 @@ func (q *Queries) FindRole(ctx context.Context, name string) (AuthRole, error) {
 		&i.CreatedByID,
 		&i.UpdatedAt,
 		&i.UpdatedByID,
+		&i.EditVersion,
 	)
 	return i, err
 }
 
 const findUser = `-- name: FindUser :many
-SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile FROM auth.users WHERE username=$1::text OR email=lower($1::text) LIMIT 2
+SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile, edit_version FROM auth.users WHERE username=$1::text OR email=lower($1::text) LIMIT 2
 `
 
 func (q *Queries) FindUser(ctx context.Context, identifier string) ([]AuthUser, error) {
@@ -348,6 +337,7 @@ func (q *Queries) FindUser(ctx context.Context, identifier string) ([]AuthUser, 
 			&i.FirstName,
 			&i.LastName,
 			&i.Mobile,
+			&i.EditVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -379,7 +369,7 @@ func (q *Queries) GetRefresh(ctx context.Context, tokenHash string) (AuthRefresh
 }
 
 const getRole = `-- name: GetRole :one
-SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id FROM auth.roles WHERE id=$1
+SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id, edit_version FROM auth.roles WHERE id=$1
 `
 
 func (q *Queries) GetRole(ctx context.Context, id pgtype.UUID) (AuthRole, error) {
@@ -394,12 +384,13 @@ func (q *Queries) GetRole(ctx context.Context, id pgtype.UUID) (AuthRole, error)
 		&i.CreatedByID,
 		&i.UpdatedAt,
 		&i.UpdatedByID,
+		&i.EditVersion,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile FROM auth.users WHERE id=$1
+SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile, edit_version FROM auth.users WHERE id=$1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (AuthUser, error) {
@@ -423,6 +414,7 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (AuthUser, error)
 		&i.FirstName,
 		&i.LastName,
 		&i.Mobile,
+		&i.EditVersion,
 	)
 	return i, err
 }
@@ -488,7 +480,7 @@ func (q *Queries) InsertRefresh(ctx context.Context, arg InsertRefreshParams) er
 }
 
 const insertRole = `-- name: InsertRole :one
-INSERT INTO auth.roles(id,name,description,is_active,created_by_id,updated_by_id) VALUES($1,$2,$3,true,$4,$4) RETURNING id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id
+INSERT INTO auth.roles(id,name,description,is_active,created_by_id,updated_by_id) VALUES($1,$2,$3,true,$4,$4) RETURNING id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id, edit_version
 `
 
 type InsertRoleParams struct {
@@ -515,13 +507,14 @@ func (q *Queries) InsertRole(ctx context.Context, arg InsertRoleParams) (AuthRol
 		&i.CreatedByID,
 		&i.UpdatedAt,
 		&i.UpdatedByID,
+		&i.EditVersion,
 	)
 	return i, err
 }
 
 const insertUser = `-- name: InsertUser :one
 INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser,created_by_id,updated_by_id,first_name,last_name,mobile)
-VALUES($1,$2,$3,$4,true,$9,$5,$5,$6,$7,$8) RETURNING id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile
+VALUES($1,$2,$3,$4,true,$9,$5,$5,$6,$7,$8) RETURNING id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile, edit_version
 `
 
 type InsertUserParams struct {
@@ -567,12 +560,13 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (AuthUse
 		&i.FirstName,
 		&i.LastName,
 		&i.Mobile,
+		&i.EditVersion,
 	)
 	return i, err
 }
 
 const listRoles = `-- name: ListRoles :many
-SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id FROM auth.roles ORDER BY name
+SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id, edit_version FROM auth.roles ORDER BY name
 `
 
 func (q *Queries) ListRoles(ctx context.Context) ([]AuthRole, error) {
@@ -593,6 +587,7 @@ func (q *Queries) ListRoles(ctx context.Context) ([]AuthRole, error) {
 			&i.CreatedByID,
 			&i.UpdatedAt,
 			&i.UpdatedByID,
+			&i.EditVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -605,7 +600,7 @@ func (q *Queries) ListRoles(ctx context.Context) ([]AuthRole, error) {
 }
 
 const listUserRoles = `-- name: ListUserRoles :many
-SELECT r.id, r.name, r.description, r.is_active, r.created_at, r.created_by_id, r.updated_at, r.updated_by_id, COALESCE((SELECT jsonb_agg(p.code ORDER BY p.code) FROM auth.permissions p JOIN auth.role_permissions rp ON rp.permission_id=p.id WHERE rp.role_id=r.id),'[]'::jsonb)::jsonb AS permission_codes
+SELECT r.id, r.name, r.description, r.is_active, r.created_at, r.created_by_id, r.updated_at, r.updated_by_id, r.edit_version, COALESCE((SELECT jsonb_agg(p.code ORDER BY p.code) FROM auth.permissions p JOIN auth.role_permissions rp ON rp.permission_id=p.id WHERE rp.role_id=r.id),'[]'::jsonb)::jsonb AS permission_codes
 FROM auth.roles r JOIN auth.user_roles ur ON ur.role_id=r.id WHERE ur.user_id=$1 ORDER BY r.name
 `
 
@@ -618,6 +613,7 @@ type ListUserRolesRow struct {
 	CreatedByID     pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	UpdatedByID     pgtype.UUID
+	EditVersion     int64
 	PermissionCodes []byte
 }
 
@@ -639,6 +635,7 @@ func (q *Queries) ListUserRoles(ctx context.Context, userID pgtype.UUID) ([]List
 			&i.CreatedByID,
 			&i.UpdatedAt,
 			&i.UpdatedByID,
+			&i.EditVersion,
 			&i.PermissionCodes,
 		); err != nil {
 			return nil, err
@@ -652,7 +649,7 @@ func (q *Queries) ListUserRoles(ctx context.Context, userID pgtype.UUID) ([]List
 }
 
 const lockAssignmentBundle = `-- name: LockAssignmentBundle :one
-SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id FROM auth.roles WHERE id=$1 FOR SHARE
+SELECT id, name, description, is_active, created_at, created_by_id, updated_at, updated_by_id, edit_version FROM auth.roles WHERE id=$1 FOR SHARE
 `
 
 func (q *Queries) LockAssignmentBundle(ctx context.Context, id pgtype.UUID) (AuthRole, error) {
@@ -667,6 +664,7 @@ func (q *Queries) LockAssignmentBundle(ctx context.Context, id pgtype.UUID) (Aut
 		&i.CreatedByID,
 		&i.UpdatedAt,
 		&i.UpdatedByID,
+		&i.EditVersion,
 	)
 	return i, err
 }
@@ -691,7 +689,7 @@ func (q *Queries) LockRefresh(ctx context.Context, tokenHash string) (AuthRefres
 }
 
 const lockUser = `-- name: LockUser :one
-SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile FROM auth.users WHERE id=$1 FOR UPDATE
+SELECT id, username, email, password_hash, is_active, is_superuser, created_at, updated_at, created_by_id, updated_by_id, account_version, must_change_password, temporary_password_expires_at, credential_version, first_name, last_name, mobile, edit_version FROM auth.users WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockUser(ctx context.Context, id pgtype.UUID) (AuthUser, error) {
@@ -715,6 +713,7 @@ func (q *Queries) LockUser(ctx context.Context, id pgtype.UUID) (AuthUser, error
 		&i.FirstName,
 		&i.LastName,
 		&i.Mobile,
+		&i.EditVersion,
 	)
 	return i, err
 }
@@ -755,6 +754,33 @@ func (q *Queries) OnlineActivity(ctx context.Context, since pgtype.Timestamptz) 
 	return items, nil
 }
 
+const queueUserHandover = `-- name: QueueUserHandover :execrows
+INSERT INTO auth.auth_offboarding_cases(id,user_id,manager_id,profile_version,state,reason,items,created_by_id,updated_by_id)
+SELECT $1,u.id,r.manager_id,COALESCE(r.version,0),'pending',$2,'[]'::jsonb,$3,$3
+FROM auth.users u LEFT JOIN auth.auth_reporting_lines r ON r.user_id=u.id AND r.is_active WHERE u.id=$4
+ON CONFLICT(user_id) WHERE state IN ('pending','planning','approved') DO NOTHING
+`
+
+type QueueUserHandoverParams struct {
+	CaseID  pgtype.UUID
+	Reason  string
+	ActorID pgtype.UUID
+	UserID  pgtype.UUID
+}
+
+func (q *Queries) QueueUserHandover(ctx context.Context, arg QueueUserHandoverParams) (int64, error) {
+	result, err := q.db.Exec(ctx, queueUserHandover,
+		arg.CaseID,
+		arg.Reason,
+		arg.ActorID,
+		arg.UserID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const reconcilePermission = `-- name: ReconcilePermission :exec
 INSERT INTO auth.permissions(id,code,description) VALUES($1,$2,$3) ON CONFLICT(code) DO UPDATE SET description=excluded.description
 `
@@ -781,6 +807,28 @@ type RecordActivityParams struct {
 
 func (q *Queries) RecordActivity(ctx context.Context, arg RecordActivityParams) error {
 	_, err := q.db.Exec(ctx, recordActivity, arg.UserID, arg.CurrentPage)
+	return err
+}
+
+const recordUserStatusChange = `-- name: RecordUserStatusChange :exec
+INSERT INTO auth.auth_user_status_changes(id,user_id,actor_id,is_active,reason,credential_version)
+SELECT $1,u.id,$2,u.is_active,$3,u.credential_version FROM auth.users u WHERE u.id=$4
+`
+
+type RecordUserStatusChangeParams struct {
+	EventID pgtype.UUID
+	ActorID pgtype.UUID
+	Reason  string
+	UserID  pgtype.UUID
+}
+
+func (q *Queries) RecordUserStatusChange(ctx context.Context, arg RecordUserStatusChangeParams) error {
+	_, err := q.db.Exec(ctx, recordUserStatusChange,
+		arg.EventID,
+		arg.ActorID,
+		arg.Reason,
+		arg.UserID,
+	)
 	return err
 }
 
@@ -883,6 +931,21 @@ func (q *Queries) SetPassword(ctx context.Context, arg SetPasswordParams) error 
 	return err
 }
 
+const setUserActive = `-- name: SetUserActive :exec
+UPDATE auth.users SET is_active=$1,credential_version=credential_version+1,updated_by_id=$2,updated_at=clock_timestamp() WHERE id=$3
+`
+
+type SetUserActiveParams struct {
+	IsActive bool
+	ActorID  pgtype.UUID
+	UserID   pgtype.UUID
+}
+
+func (q *Queries) SetUserActive(ctx context.Context, arg SetUserActiveParams) error {
+	_, err := q.db.Exec(ctx, setUserActive, arg.IsActive, arg.ActorID, arg.UserID)
+	return err
+}
+
 const updateRole = `-- name: UpdateRole :exec
 UPDATE auth.roles SET description=COALESCE($1::text,description),is_active=COALESCE($2::boolean,is_active),updated_by_id=$3,updated_at=now() WHERE id=$4
 `
@@ -905,16 +968,26 @@ func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) error {
 }
 
 const updateUser = `-- name: UpdateUser :exec
-UPDATE auth.users SET email=COALESCE($1::text,email), updated_by_id=$2,updated_at=now() WHERE id=$3
+UPDATE auth.users SET email=COALESCE($1::text,email), first_name=COALESCE($2::text,first_name), last_name=COALESCE($3::text,last_name), mobile=COALESCE($4::text,mobile), updated_by_id=$5,updated_at=now() WHERE id=$6
 `
 
 type UpdateUserParams struct {
-	Email   pgtype.Text
-	ActorID pgtype.UUID
-	ID      pgtype.UUID
+	Email     pgtype.Text
+	FirstName pgtype.Text
+	LastName  pgtype.Text
+	Mobile    pgtype.Text
+	ActorID   pgtype.UUID
+	ID        pgtype.UUID
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
-	_, err := q.db.Exec(ctx, updateUser, arg.Email, arg.ActorID, arg.ID)
+	_, err := q.db.Exec(ctx, updateUser,
+		arg.Email,
+		arg.FirstName,
+		arg.LastName,
+		arg.Mobile,
+		arg.ActorID,
+		arg.ID,
+	)
 	return err
 }

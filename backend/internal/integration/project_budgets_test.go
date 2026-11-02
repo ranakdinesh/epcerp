@@ -175,7 +175,8 @@ func TestNativeBudgetDraftPricingScopeAuditAndMigration(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer m.Close()
-	if e = m.Steps(-(schema.LatestVersion - 37)); e == nil || !strings.Contains(e.Error(), "populated budget draft") {
+	// Auth history now prevents rollback before the older budget guard.
+	if e = m.Steps(-(schema.LatestVersion - 37)); e == nil || !strings.Contains(e.Error(), "Security audit history exists") {
 		t.Fatal("populated budget migration discarded evidence", e)
 	}
 	if e = f.pool.QueryRow(ctx, "SELECT count(*) FROM project_budgets").Scan(&count); e != nil || count != 1 {

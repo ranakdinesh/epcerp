@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"github.com/ranakdinesh/epcERP/helpers"
 	"net/http"
 
 	"github.com/ranakdinesh/epcERP/internal/modules/auth/adapters/httpx/dtos"
@@ -66,4 +67,20 @@ func (h *roleHandler) finance(w http.ResponseWriter, r *http.Request) {
 	}
 	audit(r.Context(), "roles.finance.installed", false)
 	write(w, 200, items)
+}
+
+func (h *roleHandler) history(w http.ResponseWriter, r *http.Request) {
+	entity := r.URL.Query().Get("entity_id")
+	if entity != "" {
+		id, e := helpers.CanonicalID(entity)
+		if e != nil {
+			write(w, 422, map[string]string{"detail": "Invalid entity ID"})
+			return
+		}
+		entity = id
+	}
+	out, e := h.service.History(r.Context(), bearer(r), entity)
+	if !failed(w, r, e) {
+		write(w, 200, dtos.AdministrationChanges(out))
+	}
 }

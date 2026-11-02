@@ -168,3 +168,29 @@ func TestRateMiddlewareHealthBypassAndForwardedAddressSpoofing(t *testing.T) {
 		t.Fatal("clients not isolated")
 	}
 }
+
+func TestVerifiedIdentityQuotaDoesNotPoolBFFUsers(t *testing.T) {
+	handler := RateLimitByIdentity(NewLimiter(1, time.Minute), func(r *http.Request) string {
+		switch r.Header.Get("Authorization") {
+		case "Bearer verified-a":
+			return "a"
+		case "Bearer verified-b":
+			return "b"
+		}
+		return ""
+	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+	for _, tc := range []struct {
+		token  string
+		status int
+	}{{"verified-a", 204}, {"verified-b", 204}, {"verified-a", 429}, {"invalid-a", 204}, {"invalid-b", 429}} {
+		r := httptest.NewRequest("GET", "/api/v1/users", nil)
+		r.RemoteAddr = "127.0.0.1:3000"
+		r.Header.Set("Authorization", "Bearer "+tc.token)
+		r.Header.Set("X-Forwarded-For", tc.token)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != tc.status {
+			t.Fatalf("%s: %d", tc.token, w.Code)
+		}
+	}
+}

@@ -68,7 +68,8 @@ func TestAuthSchemaUpgradePreservesRecordsRelationsAndGuards(t *testing.T) {
 			}
 		}
 	}
-	if err := m.Up(); err != nil {
+	// Exercise relocation alone; later migrations intentionally change user rows.
+	if err := m.Migrate(89); err != nil {
 		t.Fatal(err)
 	}
 	assertPreserved("auth")
@@ -94,7 +95,7 @@ func TestAuthSchemaUpgradePreservesRecordsRelationsAndGuards(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertPreserved("public")
-	if err := m.Up(); err != nil {
+	if err := m.Migrate(89); err != nil {
 		t.Fatal(err)
 	}
 	assertPreserved("auth")

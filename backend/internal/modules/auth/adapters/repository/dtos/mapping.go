@@ -9,7 +9,7 @@ import (
 )
 
 func User(row sqlc.AuthUser) *domain.User {
-	user := &domain.User{MustChangePassword: row.MustChangePassword, CredentialVersion: row.CredentialVersion, ID: row.ID.String(), Username: row.Username, FirstName: row.FirstName, LastName: row.LastName, Mobile: row.Mobile, Email: row.Email, PasswordHash: row.PasswordHash, IsActive: row.IsActive, IsSuperuser: row.IsSuperuser, CreatedAt: row.CreatedAt.Time, Roles: []domain.Role{}}
+	user := &domain.User{EditVersion: row.EditVersion, MustChangePassword: row.MustChangePassword, CredentialVersion: row.CredentialVersion, ID: row.ID.String(), Username: row.Username, FirstName: row.FirstName, LastName: row.LastName, Mobile: row.Mobile, Email: row.Email, PasswordHash: row.PasswordHash, IsActive: row.IsActive, IsSuperuser: row.IsSuperuser, CreatedAt: row.CreatedAt.Time, Roles: []domain.Role{}}
 	if row.TemporaryPasswordExpiresAt.Valid {
 		expiry := row.TemporaryPasswordExpiresAt.Time
 		user.TemporaryExpiresAt = &expiry
@@ -19,10 +19,10 @@ func User(row sqlc.AuthUser) *domain.User {
 func UserRole(row sqlc.ListUserRolesRow) (domain.Role, error) {
 	codes := []string{}
 	err := json.Unmarshal(row.PermissionCodes, &codes)
-	return domain.Role{ID: row.ID.String(), Name: row.Name, Description: row.Description, IsActive: row.IsActive, Permissions: codes}, err
+	return domain.Role{EditVersion: row.EditVersion, ID: row.ID.String(), Name: row.Name, Description: row.Description, IsActive: row.IsActive, Permissions: codes}, err
 }
 func Role(row sqlc.AuthRole, codes []string) *domain.Role {
-	return &domain.Role{ID: row.ID.String(), Name: row.Name, Description: row.Description, IsActive: row.IsActive, Permissions: codes}
+	return &domain.Role{EditVersion: row.EditVersion, ID: row.ID.String(), Name: row.Name, Description: row.Description, IsActive: row.IsActive, Permissions: codes}
 }
 func Refresh(row sqlc.AuthRefreshToken) *domain.Refresh {
 	v := &domain.Refresh{ID: row.ID.String(), UserID: row.UserID.String(), Hash: row.TokenHash, FamilyID: row.FamilyID.String(), ExpiresAt: row.ExpiresAt.Time}

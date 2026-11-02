@@ -51,7 +51,10 @@ func (r *sessionRepository) RevokeRefresh(ctx context.Context, hash string) erro
 }
 
 func (r *sessionRepository) RevokeFamily(ctx context.Context, family string) error {
-	return r.queries.RevokeFamily(ctx, dtos.UUID(family))
+	if e := r.queries.RevokeFamily(ctx, dtos.UUID(family)); e != nil {
+		return e
+	}
+	return r.queries.RevokeAccessFamily(ctx, dtos.UUID(family))
 }
 
 func (r *sessionRepository) RecordActivity(ctx context.Context, userID, page string) error {

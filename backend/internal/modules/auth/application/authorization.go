@@ -12,6 +12,13 @@ func resolveSelf(ctx context.Context, repo ports.IdentityReader, tokens ports.To
 	if err != nil {
 		return nil, domain.ErrUnauthorized
 	}
+	revoked, err := repo.AccessRevoked(ctx, tokens.HashRefresh(token))
+	if err != nil {
+		return nil, err
+	}
+	if revoked {
+		return nil, domain.ErrUnauthorized
+	}
 	user, err := repo.User(ctx, id, false)
 	if err != nil {
 		return nil, err
@@ -47,6 +54,11 @@ func authorized[R ports.AdministrationRepository](ctx context.Context, unit port
 		}
 		if !domain.HasPermission(*actor, permission) {
 			return domain.ErrForbidden
+		}
+		if write {
+			if err := repo.SetActor(ctx, actor.ID); err != nil {
+				return err
+			}
 		}
 		return work(ctx, repo, *actor)
 	})

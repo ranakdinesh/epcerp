@@ -1,4 +1,5 @@
 "use client";
+import { createRecordId } from "@/lib/record-id";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
@@ -47,7 +48,7 @@ export function TSCWorkspace({ draftID, sourceVersion, readyForGeneration = true
  const stale = job?.stale || (job && job.draft_version !== sourceVersion);
  async function generate() {
   setBusy(true); setError("");
-  try { const fingerprint = `${draftID}:${selectedMode}:${sourceVersion}`; if (operation.current?.fingerprint !== fingerprint) operation.current = { fingerprint, key: crypto.randomUUID() };
+  try { const fingerprint = `${draftID}:${selectedMode}:${sourceVersion}`; if (operation.current?.fingerprint !== fingerprint) operation.current = { fingerprint, key: createRecordId() };
    const result = await call<Job>(base, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": operation.current.key }, body: JSON.stringify({ mode: selectedMode, expected_version: sourceVersion }) });
    operation.current = null; setJob(result); setSelectedID(result.id); await load(); await loadOptions();
   } catch (e) { setError(message(e)); } finally { setBusy(false); }

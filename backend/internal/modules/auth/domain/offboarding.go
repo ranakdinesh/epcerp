@@ -22,7 +22,6 @@ type HandoverPlan struct {
 	Selections []HandoverSelection
 }
 
-var ErrOffboardingRequired = &Error{Conflict, "Start an offboarding case. The reporting manager must approve completed handovers before an administrator can deactivate this user."}
 var ErrOffboardingStale = &Error{Conflict, "Handover or reporting information changed. Refresh the case and obtain manager approval again."}
 
 func EligibleReplacement(u User, departing string, w Responsibility) bool {
@@ -36,7 +35,9 @@ func EligibleReplacement(u User, departing string, w Responsibility) bool {
 	}
 	return true
 }
-func (c OffboardingCase) Open() bool { return c.State == "planning" || c.State == "approved" }
+func (c OffboardingCase) Open() bool {
+	return c.State == "pending" || c.State == "planning" || c.State == "approved"
+}
 
 type OffboardingChange struct {
 	ID, Action, Reason, ActorID, ActorName string

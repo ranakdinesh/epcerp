@@ -373,7 +373,7 @@ func TestNativeAPI(t *testing.T) {
 		call("GET", "/api/v1/auth/user_profile/"+staffID+"/photo", token, nil, 204)
 	}
 	call("PATCH", "/api/v1/auth/me/email", staff, map[string]any{"email": "changed@example.invalid", "current_password": rand.Text()}, 422)
-	call("PATCH", "/api/v1/auth/me/email", staff, map[string]any{"email": "changed@example.invalid", "current_password": staffPassword}, 204)
+	call("PATCH", "/api/v1/auth/me/email", staff, map[string]any{"email": "changed@example.invalid", "current_password": staffPassword}, 503)
 	// A rejected central event must roll back identity and session changes too.
 	execFixture(t, pool, `CREATE FUNCTION reject_account_event() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture'; END; $$; CREATE CONSTRAINT TRIGGER reject_account_event AFTER INSERT ON business_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN(NEW.source_module='auth') EXECUTE FUNCTION reject_account_event();`)
 	replacement := "Aa1!" + rand.Text()

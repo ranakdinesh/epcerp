@@ -60,7 +60,7 @@ func (r *userRepository) assignNames(ctx context.Context, userID string, names [
 }
 
 func (r *userRepository) UpdateUser(ctx context.Context, userID string, request domain.UserUpdate, actor string) (*domain.User, error) {
-	err := r.queries.UpdateUser(ctx, sqlc.UpdateUserParams{ID: dtos.UUID(userID), Email: dtos.Nullable(request.Email), ActorID: dtos.UUID(actor)})
+	err := r.queries.UpdateUser(ctx, sqlc.UpdateUserParams{ID: dtos.UUID(userID), Email: dtos.Nullable(request.Email), FirstName: dtos.Nullable(request.FirstName), LastName: dtos.Nullable(request.LastName), Mobile: dtos.Nullable(request.Mobile), ActorID: dtos.UUID(actor)})
 	if unique(err) {
 		return nil, domain.ErrEmailConflict
 	}
@@ -76,10 +76,6 @@ func (r *userRepository) UpdateUser(ctx context.Context, userID string, request 
 		}
 	}
 	return r.User(ctx, userID, false)
-}
-
-func (r *userRepository) Deactivate(ctx context.Context, userID, actor string) error {
-	return r.queries.DeactivateUser(ctx, sqlc.DeactivateUserParams{ID: dtos.UUID(userID), UpdatedByID: dtos.UUID(actor)})
 }
 
 func (r *userRepository) ActiveSuperusers(ctx context.Context) (int64, error) {
@@ -104,4 +100,21 @@ func (r *userRepository) Online(ctx context.Context, since int64) ([]domain.Acti
 
 func (r *userRepository) Roles(ctx context.Context) ([]domain.Role, error) {
 	return (&roleRepository{r.Store}).Roles(ctx)
+}
+
+func (r *userRepository) SetActive(ctx context.Context, id string, active bool, actor string) error {
+	return r.queries.SetUserActive(ctx, sqlc.SetUserActiveParams{UserID: dtos.UUID(id), IsActive: active, ActorID: dtos.UUID(actor)})
+}
+func (r *userRepository) RecordStatusChange(ctx context.Context, event, id, actor, reason string) error {
+	return r.queries.RecordUserStatusChange(ctx, sqlc.RecordUserStatusChangeParams{EventID: dtos.UUID(event), UserID: dtos.UUID(id), ActorID: dtos.UUID(actor), Reason: reason})
+}
+
+// Only Auth-owned data is touched here. Inventory is loaded later, so a missing
+// manager or unavailable source module cannot hold up access revocation.
+func (r *userRepository) QueueHandover(ctx context.Context, id, caseID, event, actor, reason string) error {
+	rows, err := r.queries.QueueUserHandover(ctx, sqlc.QueueUserHandoverParams{UserID: dtos.UUID(id), CaseID: dtos.UUID(caseID), ActorID: dtos.UUID(actor), Reason: reason})
+	if err != nil || rows == 0 {
+		return err
+	}
+	return r.queries.RecordOffboardingChange(ctx, sqlc.RecordOffboardingChangeParams{EventID: dtos.UUID(event), CaseID: dtos.UUID(caseID), ActorID: dtos.UUID(actor), Action: "access_revoked", Reason: reason})
 }

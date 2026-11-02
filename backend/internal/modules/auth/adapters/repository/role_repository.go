@@ -57,7 +57,7 @@ func (r *roleRepository) CreateRole(ctx context.Context, roleID string, request 
 			return nil, err
 		}
 	}
-	return r.role(ctx, row)
+	return r.Role(ctx, row.ID.String())
 }
 
 func (r *roleRepository) UpdateRole(ctx context.Context, roleID string, request domain.RoleUpdate, actor string) (*domain.Role, error) {

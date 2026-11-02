@@ -76,3 +76,24 @@ func (h *sessionHandler) activity(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(204)
 }
+
+func (h *sessionHandler) sessions(w http.ResponseWriter, r *http.Request) {
+	out, e := h.service.ListSessions(r.Context(), bearer(r))
+	if !failed(w, r, e) {
+		write(w, 200, dtos.Sessions(out))
+	}
+}
+func (h *sessionHandler) revokeSession(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "session_id")
+	if !ok {
+		return
+	}
+	if !failed(w, r, h.service.RevokeSession(r.Context(), bearer(r), id, false)) {
+		w.WriteHeader(204)
+	}
+}
+func (h *sessionHandler) revokeAll(w http.ResponseWriter, r *http.Request) {
+	if !failed(w, r, h.service.RevokeSession(r.Context(), bearer(r), "", true)) {
+		w.WriteHeader(204)
+	}
+}

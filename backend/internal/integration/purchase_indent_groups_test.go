@@ -42,7 +42,14 @@ func TestBOGroupVendorIssueAndInvitationSnapshotsCapacityDirect(t *testing.T) {
 }
 
 func verifyBOGroupVendorIssueAndInvitationSnapshots(t *testing.T, direct bool, allocationMode string) {
-	f := newPurchaseFixture(t)
+	// The legacy-terms case deliberately rolls back historical purchasing schema.
+	// Start before immutable Auth history; its upgrade is exercised by that case.
+	var f purchaseFixture
+	if !direct && allocationMode == "whole" {
+		f = newPurchaseFixtureAtVersion(t, 95)
+	} else {
+		f = newPurchaseFixture(t)
+	}
 	ctx := context.Background()
 	scope := []string{"projects.purchase_workflow.view", "projects.purchase_workflow.read", "projects.purchase_bo.read", "projects.purchase_indent_groups.read", "projects.purchase_indent_groups.view"}
 	all := append(append([]string{}, scope...), "settings.items.read", "settings.items.write", "projects.items.write", "projects.purchase_bo.write", "projects.purchase_bo.complete", "projects.purchase_indent_groups.write", "projects.purchase_group_vendors.write", "projects.purchase_indent_documents.generate", "projects.purchase_indent_documents.dispatch")

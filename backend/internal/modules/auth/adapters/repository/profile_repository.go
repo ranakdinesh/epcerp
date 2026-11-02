@@ -29,6 +29,9 @@ func (r *profileRepository) Save(ctx context.Context, id string, name *string, k
 }
 
 func (r *profileRepository) SaveContact(ctx context.Context, id string, c domain.PersonalContact, eventID, reason string) error {
+	if e := r.SetActor(ctx, id); e != nil {
+		return e
+	}
 	if e := r.queries.SaveEmployeeContact(ctx, sqlc.SaveEmployeeContactParams{ID: dtos.UUID(id), FirstName: c.FirstName, LastName: c.LastName, Mobile: c.Mobile, UpdatedByID: dtos.UUID(id)}); e != nil {
 		return e
 	}

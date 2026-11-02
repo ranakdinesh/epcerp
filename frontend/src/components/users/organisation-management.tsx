@@ -1,4 +1,5 @@
 "use client";
+import { actionButtonClass } from "@/components/ui/action-button";
 import {useEffect,useState,useRef,type SubmitEvent} from "react";
 import {useRouter} from "next/navigation";
 import {EyeIcon,PencilSquareIcon,PlusIcon} from "@heroicons/react/24/outline";
@@ -10,7 +11,7 @@ import {displayServerErrors} from "@/components/ui/server-field-errors";
 type Employee={id:string;username:string;email:string;first_name:string;last_name:string;mobile:string;department_id:string;manager_id:string;is_active:boolean;is_company_root:boolean;version:number};
 type Department={id:string;code:string;name:string;manager_id:string;is_active:boolean;version:number};
 const control="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900";
-const action="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-blue-50 focus:ring-2 focus:ring-blue-600 disabled:opacity-50";
+const action=actionButtonClass("secondary");
 type Work={id:string;source:string;kind:string;title:string;state:string;link:string;due_date:string};
 const name=(e:Employee)=>[e.first_name,e.last_name].filter(Boolean).join(" ")||e.username;
 export function OrganisationManagement({team=false}:{team?:boolean}){
@@ -54,7 +55,7 @@ export function OrganisationManagement({team=false}:{team?:boolean}){
    {key:"manager",label:"Reports to",value:e=>e.is_company_root?"Company root":managerName(e.manager_id)},
    {key:"profile",label:"Profile",value:e=>e.version>0?"Configured":"Setup required"},
    {key:"status",label:"Status",value:e=>e.is_active?"Active":"Inactive"},
-  ]} actions={e=><div className="flex justify-end gap-1">{team&&<button className={action} aria-label={`View work for ${e.username}`} onClick={()=>void openWork(e)}>View work</button>}<button className={action} aria-label={`View profile for ${e.username}`} onClick={()=>open({kind:"employee",view:true,employee:e})}><EyeIcon className="h-4 w-4"/></button>{write&&e.is_active&&<button className={action} aria-label={`Edit profile for ${e.username}`} onClick={()=>open({kind:"employee",view:false,employee:e})}><PencilSquareIcon className="h-4 w-4"/></button>}</div>}/>:<DataGrid label="Departments" rows={departments} loading={loading} stateKey="organisation-departments" initialSort="name" status={d=>d.is_active?"Active":"Inactive"} columns={[
+  ]} actions={e=><div className="flex justify-end gap-1">{team&&<button className={action} aria-label={`View work for ${e.username}`} onClick={()=>void openWork(e)}>View work</button>}<button className={action} aria-label={`View profile for ${e.username}`} onClick={()=>open({kind:"employee",view:true,employee:e})}><EyeIcon className="h-4 w-4"/></button>{write&&<button className={action} aria-label={`Edit profile for ${e.username}`} onClick={()=>open({kind:"employee",view:false,employee:e})}><PencilSquareIcon className="h-4 w-4"/></button>}</div>}/>:<DataGrid label="Departments" rows={departments} loading={loading} stateKey="organisation-departments" initialSort="name" status={d=>d.is_active?"Active":"Inactive"} columns={[
    {key:"code",label:"Code",value:d=>d.code},{key:"name",label:"Department",value:d=>d.name},{key:"manager",label:"Department manager",value:d=>managerName(d.manager_id)},{key:"status",label:"Status",value:d=>d.is_active?"Active":"Inactive"},
   ]} actions={d=><div className="flex justify-end gap-1"><button className={action} aria-label={`View ${d.name}`} onClick={()=>open({kind:"department",view:true,department:d})}><EyeIcon className="h-4 w-4"/></button>{write&&<button className={action} aria-label={`Edit ${d.name}`} onClick={()=>open({kind:"department",view:false,department:d})}><PencilSquareIcon className="h-4 w-4"/></button>}</div>}/>}
   {dialog&&<RecordDrawer title={dialog.kind==="department"?(department?department.name:"Add department"):(employee?name(employee):"Employee profile")} onClose={()=>{if(!busy){workRequest.current++;setDialog(null);}}}>
@@ -73,7 +74,7 @@ export function OrganisationManagement({team=false}:{team?:boolean}){
     </>}
     <ValidatedLabel required className="block text-sm font-bold">Change reason<ValidatedTextarea name="reason" required minLength={10} maxLength={1000} rows={3} className={control}/></ValidatedLabel>
     {formError&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{formError}</p>}
-    <div className="flex justify-end gap-2 border-t border-slate-200 pt-4"><button type="button" disabled={busy} className={action} onClick={()=>setDialog(null)}>Cancel</button><button type="submit" disabled={busy} className={action+" bg-blue-700 text-white"}>{busy?"Saving…":"Save changes"}</button></div>
+    <div className="record-drawer-actions flex justify-end gap-3 pt-4"><button type="button" disabled={busy} className={action} onClick={()=>setDialog(null)}>Cancel</button><button type="submit" disabled={busy} className={actionButtonClass("primary")}>{busy?"Saving…":"Save changes"}</button></div>
    </ValidatedForm>}
   </RecordDrawer>}
  </section>;

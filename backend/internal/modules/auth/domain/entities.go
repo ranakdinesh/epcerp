@@ -13,11 +13,13 @@ type User struct {
 	MustChangePassword                bool
 	TemporaryExpiresAt                *time.Time
 	CredentialVersion                 int64
+	EditVersion                       int64
 	EmailStatus                       string
 	CreatedAt                         time.Time
 	Roles                             []Role
 }
 type Role struct {
+	EditVersion           int64
 	ID, Name, Description string
 	IsActive              bool
 	Permissions           []string
@@ -62,15 +64,22 @@ type UserCreate struct {
 	FirstName, LastName, Mobile string
 	RoleNames                   []string
 }
+type UserStatusChange struct {
+	Active bool
+	Reason string
+}
+
 type UserUpdate struct {
-	Email     *string
-	RoleNames *[]string
+	ExpectedVersion                    *int64
+	Email, FirstName, LastName, Mobile *string
+	RoleNames                          *[]string
 }
 type RoleCreate struct {
 	Name, Description string
 	PermissionCodes   []string
 }
 type RoleUpdate struct {
+	ExpectedVersion *int64
 	Description     *string
 	PermissionCodes *[]string
 	Active          *bool
@@ -102,6 +111,7 @@ var (
 	ErrForbidden         = &Error{Forbidden, "Insufficient permission"}
 	ErrUserMissing       = &Error{Missing, "User not found"}
 	ErrRoleMissing       = &Error{Missing, "Role not found"}
+	ErrInactiveRole      = &Error{Invalid, "Inactive roles cannot be assigned"}
 	ErrUnknownRole       = &Error{Invalid, "Unknown role"}
 	ErrUnknownPermission = &Error{Invalid, "Unknown permission"}
 	ErrUserConflict      = &Error{Conflict, "Username or email is already in use"}
@@ -113,7 +123,7 @@ var (
 )
 
 func EffectivePermissions(user User) []string {
-	if user.MustChangePassword {
+	if !user.IsActive || user.MustChangePassword {
 		return []string{}
 	}
 	codes := map[string]bool{}
@@ -125,7 +135,9 @@ func EffectivePermissions(user User) []string {
 	for _, role := range user.Roles {
 		if role.IsActive {
 			for _, code := range role.Permissions {
-				codes[code] = true
+				if code != "system:admin" {
+					codes[code] = true
+				}
 			}
 		}
 	}

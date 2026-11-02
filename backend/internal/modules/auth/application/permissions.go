@@ -165,6 +165,7 @@ func Registry() []domain.Permission {
 		{Code: "system:admin", Description: "Full platform administration", Group: "system"},
 		{Code: "admin.users.view", Description: "Open the user administration workspace", Group: "administration"},
 		{Code: "admin.users.read", Description: "Read user accounts and current activity", Group: "administration"},
+		{Code: "admin.audit.read", Description: "Read restricted account and permission change history", Group: "administration"},
 		{Code: "admin.users.write", Description: "Create and change user accounts and sessions", Group: "administration"},
 		{Code: "admin.roles.view", Description: "Open the role and permission workspace", Group: "administration"},
 		{Code: "admin.roles.read", Description: "Read roles and the permission catalogue", Group: "administration"},

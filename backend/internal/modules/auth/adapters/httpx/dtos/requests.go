@@ -120,12 +120,41 @@ func ParseCreateUser(reader io.Reader) (domain.UserCreate, error) {
 }
 func ParseUpdateUser(reader io.Reader) (domain.UserUpdate, error) {
 	var payload struct {
-		Email *string   `json:"email"`
-		Roles *[]string `json:"role_names"`
+		ExpectedVersion *int64    `json:"expected_version"`
+		FirstName       *string   `json:"first_name"`
+		LastName        *string   `json:"last_name"`
+		Mobile          *string   `json:"mobile"`
+		Email           *string   `json:"email"`
+		Roles           *[]string `json:"role_names"`
 	}
-	object, err := Decode(reader, &payload, "email", "role_names")
+	object, err := Decode(reader, &payload, "email", "role_names", "first_name", "last_name", "mobile", "expected_version")
 	if err != nil {
 		return domain.UserUpdate{}, err
+	}
+	for _, field := range []struct {
+		name  string
+		value **string
+		max   int
+	}{
+		{"first_name", &payload.FirstName, 100},
+		{"last_name", &payload.LastName, 100},
+		{"mobile", &payload.Mobile, 24},
+	} {
+		if _, present := object[field.name]; !present {
+			continue
+		}
+		value, err := Text(object, field.name, *field.value, 1, field.max, true, true)
+		if err != nil {
+			return domain.UserUpdate{}, err
+		}
+		valid := domain.ValidEmployeeContact(value, "Name", "9000000000")
+		if field.name == "mobile" {
+			valid = domain.ValidEmployeeContact("First", "Last", value)
+		}
+		if !valid {
+			return domain.UserUpdate{}, Invalid(field.name, "Provide a valid name or mobile number (8 to 15 digits)", "value_error")
+		}
+		*field.value = &value
 	}
 	if payload.Email != nil {
 		address, err := Text(object, "email", payload.Email, 5, 255, true, false)
@@ -142,7 +171,7 @@ func ParseUpdateUser(reader io.Reader) (domain.UserUpdate, error) {
 		return domain.UserUpdate{}, err
 	}
 
-	return domain.UserUpdate{Email: payload.Email, RoleNames: payload.Roles}, nil
+	return domain.UserUpdate{ExpectedVersion: payload.ExpectedVersion, Email: payload.Email, FirstName: payload.FirstName, LastName: payload.LastName, Mobile: payload.Mobile, RoleNames: payload.Roles}, nil
 }
 func ParsePassword(reader io.Reader) (string, error) {
 	var payload struct {
@@ -195,11 +224,12 @@ func ParseCreateRole(reader io.Reader) (domain.RoleCreate, error) {
 }
 func ParseUpdateRole(reader io.Reader) (domain.RoleUpdate, error) {
 	var payload struct {
-		Description *string   `json:"description"`
-		Codes       *[]string `json:"permission_codes"`
-		Active      *bool     `json:"is_active"`
+		ExpectedVersion *int64    `json:"expected_version"`
+		Description     *string   `json:"description"`
+		Codes           *[]string `json:"permission_codes"`
+		Active          *bool     `json:"is_active"`
 	}
-	object, err := Decode(reader, &payload, "description", "permission_codes", "is_active")
+	object, err := Decode(reader, &payload, "description", "permission_codes", "is_active", "expected_version")
 	if err != nil {
 		return domain.RoleUpdate{}, err
 	}
@@ -210,9 +240,29 @@ func ParseUpdateRole(reader io.Reader) (domain.RoleUpdate, error) {
 		}
 		payload.Description = &description
 	}
-	if err := List("permission_codes", payload.Codes, 1, 100, false); err != nil {
+	if err := List("permission_codes", payload.Codes, 0, 100, false); err != nil {
 		return domain.RoleUpdate{}, err
 	}
 
-	return domain.RoleUpdate{Description: payload.Description, PermissionCodes: payload.Codes, Active: payload.Active}, nil
+	return domain.RoleUpdate{ExpectedVersion: payload.ExpectedVersion, Description: payload.Description, PermissionCodes: payload.Codes, Active: payload.Active}, nil
+}
+
+// Status uses a separate action so missing profile fields never block revocation.
+func ParseUserStatus(reader io.Reader) (domain.UserStatusChange, error) {
+	var payload struct {
+		Active *bool   `json:"is_active"`
+		Reason *string `json:"reason"`
+	}
+	object, err := Decode(reader, &payload, "is_active", "reason")
+	if err != nil {
+		return domain.UserStatusChange{}, err
+	}
+	if payload.Active == nil {
+		return domain.UserStatusChange{}, Invalid("is_active", "Choose active or inactive", "missing")
+	}
+	reason, err := Text(object, "reason", payload.Reason, 10, 1000, true, true)
+	if err != nil {
+		return domain.UserStatusChange{}, err
+	}
+	return domain.UserStatusChange{Active: *payload.Active, Reason: reason}, nil
 }

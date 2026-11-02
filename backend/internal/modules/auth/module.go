@@ -77,11 +77,12 @@ func New(ctx context.Context, dependencies Dependencies) (*Module, error) {
 		Credentials:  credentials,
 		Recovery:     application.NewRecovery(repository.NewRecoveryUnitOfWork(pool, dependencies.Events), passwords, tokens, mail),
 		Sessions:     sessions,
-		Users:        application.NewUsers(repository.NewUserUnitOfWork(pool), passwords, tokens, cfg.Policy),
+		Users:        application.NewUsers(repository.NewUserUnitOfWork(pool), passwords, tokens, cfg.Policy).WithEmailSender(dependencies.Email, dependencies.Email.PublicURL),
 		Roles:        application.NewRoles(repository.NewRoleUnitOfWork(pool), tokens),
-		Account:      application.NewAccount(repository.NewAccountUnitOfWork(pool, dependencies.Events), passwords, tokens),
+		Account:      application.NewAccount(repository.NewAccountUnitOfWork(pool, dependencies.Events), passwords, tokens).WithEmailSender(dependencies.Email, dependencies.Email.PublicURL),
 	}
 	identity := authIdentity.NewIdentityResolver(sessions)
+	dependencies.Router.RateIdentity = infrastructure.NewAuthBridge(identity)
 	storageConfig, err := storage.LoadConfig(os.LookupEnv)
 	if err != nil {
 		return nil, err

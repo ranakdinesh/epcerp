@@ -1,19 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState, type SubmitEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
 import {useRouter} from "next/navigation";
-import { EyeIcon, PencilSquareIcon, KeyIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, PencilSquareIcon, KeyIcon, PlusIcon, NoSymbolIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import { actionButtonClass } from "@/components/ui/action-button";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
-import { UserAvatar, UserIdentity } from "@/components/personal-profile";
+import { UserDetails, type UserDetailRecord } from "@/components/users/user-details";
+import { UserAvatar } from "@/components/personal-profile";
 import { DataGrid, type GridQuery } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { displayServerErrors } from "@/components/ui/server-field-errors";
 import { RequiredSelection, ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedTextarea } from "@/components/ui/validated-controls";
 
-type PlatformUser = { id: string; username: string; first_name:string;last_name:string;mobile:string; email: string; roles: string[]; is_active: boolean; is_superuser: boolean; must_change_password: boolean; email_status: string; onlinePage?: string };
-type Role = { id: string; name: string };
-type DialogMode = "create" | "view" | "edit" | "reset" | null;
-const button = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600";
+type PlatformUser = UserDetailRecord;
+type Role = { is_active?: boolean; id: string; name: string };
+type DialogMode = "create" | "view" | "edit" | "reset" | "status" | null;
+const button = actionButtonClass("secondary", true);
 const input = "mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900";
 const deliveryLabel = (state: string) => ({pending:"Email queued",sending:"Email sending",delivered:"Email accepted",failed:"Email failed",cancelled:"Email cancelled"}[state] ?? "No invitation issued");
 
@@ -29,9 +31,13 @@ export function UserManagement() {
   const [notice, setNotice] = useState("");
   const [loadError, setLoadError] = useState("");
   const [formError, setFormError] = useState("");
+ const[conflict,setConflict]=useState(false);
   const [rolesError, setRolesError] = useState("");
   const [busy, setBusy] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
+  const detailRequest = useRef<AbortController | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
   const [selectedUser, setSelectedUser] = useState<PlatformUser | null>(null);
   const [selectedRoleNames, setSelectedRoleNames] = useState<string[]>([]);
   const [superadmin, setSuperadmin] = useState(false);
@@ -65,30 +71,62 @@ export function UserManagement() {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [gridQuery, revision]);
 
-  function openDialog(mode: DialogMode, user: PlatformUser | null = null) {
-    setRolesError(""); setFormError(""); setSelectedUser(user); setSelectedRoleNames(user?.roles ?? []); setSuperadmin(false); setDialogMode(mode);
+  useEffect(() => () => detailRequest.current?.abort(), []);
+
+  function closeDialog() {
+    if (busy) return;
+    detailRequest.current?.abort();
+    setDetailsLoading(false);
+    setDialogMode(null);
+  }
+
+  async function openDialog(mode: DialogMode, user: PlatformUser | null = null) {
+    detailRequest.current?.abort();
+    setRolesError(""); setFormError(""); setDetailsError("");
+    setSelectedUser(user); setSelectedRoleNames(user?.roles ?? []); setSuperadmin(false); setDialogMode(mode);
+    const needsDetails = user !== null && (mode === "edit" || mode === "view");
+    setDetailsLoading(needsDetails);
+    if (!needsDetails) return;
+    const controller = new AbortController();
+    detailRequest.current = controller;
+    try {
+      const response = await fetch(`/api/administration/users/${user.id}`, {cache:"no-store", signal:controller.signal});
+      if (!response.ok) throw new Error("Unable to load user");
+      const fresh = await response.json() as PlatformUser;
+      if (fresh.id !== user.id || typeof fresh.username !== "string" || typeof fresh.email !== "string"
+        || typeof fresh.first_name !== "string" || typeof fresh.last_name !== "string" || typeof fresh.mobile !== "string"
+        || !Array.isArray(fresh.roles) || !fresh.roles.every(role => typeof role === "string")) throw new Error("Incomplete user response");
+      if (controller.signal.aborted) return;
+      setSelectedUser({...user,...fresh});
+      setSelectedRoleNames(fresh.roles);
+    } catch {
+      if (!controller.signal.aborted) setDetailsError("Unable to load this user’s saved details. Retry to continue.");
+    } finally {
+      if (!controller.signal.aborted) setDetailsLoading(false);
+    }
   }
   async function saveUser(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault(); if(busy) return;
     const submittedForm = event.currentTarget;
     const form = new FormData(submittedForm);
-    if (dialogMode !== "reset" && !rolesOptional && !selectedRoleNames.length) {setRolesError("Select at least one role."); return;}
-    setBusy(true); setFormError("");
+    if (dialogMode !== "reset" && dialogMode !== "status" && !rolesOptional && !selectedRoleNames.length) {setRolesError("Select at least one role."); return;}
+    setBusy(true); setFormError("");setConflict(false);
     const editing = dialogMode === "edit";
     const resetting = dialogMode === "reset";
-    const payload = resetting ? {reason:String(form.get("reason") ?? "").trim()} : { ...(editing ? {} : {is_superuser:actor.is_superuser === true && superadmin,username:String(form.get("username") ?? "").trim(),first_name:String(form.get("first_name")??"").trim(),last_name:String(form.get("last_name")??"").trim(),mobile:String(form.get("mobile")??"").trim()}),email:String(form.get("email") ?? "").trim(),...(editing && selectedUser?.is_superuser && selectedRoleNames.length===0 ? {} : {role_names:selectedRoleNames})};
-    const url = resetting ? `/api/administration/users/${selectedUser?.id}/password` : editing ? `/api/administration/users/${selectedUser?.id}` : "/api/administration/users";
+    const changingStatus = dialogMode === "status";
+    const payload = changingStatus ? {is_active:!selectedUser?.is_active,reason:String(form.get("reason")??"").trim()} : resetting ? {reason:String(form.get("reason") ?? "").trim()} : { ...(editing ? {expected_version:selectedUser?.edit_version} : {is_superuser:actor.is_superuser === true && superadmin,username:String(form.get("username") ?? "").trim()}),first_name:String(form.get("first_name")??"").trim(),last_name:String(form.get("last_name")??"").trim(),mobile:String(form.get("mobile")??"").trim(),email:String(form.get("email") ?? "").trim(),...(editing && selectedUser?.is_superuser && selectedRoleNames.length===0 ? {} : {role_names:selectedRoleNames})};
+    const url = changingStatus ? `/api/administration/users/${selectedUser?.id}/status` : resetting ? `/api/administration/users/${selectedUser?.id}/password` : editing ? `/api/administration/users/${selectedUser?.id}` : "/api/administration/users";
     try {
       const response = await fetch(url, {method:editing?"PATCH":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-      if(!response.ok){const error=await response.json().catch(()=>({detail:"Unable to save user."}));if(!displayServerErrors(submittedForm,error))setFormError(typeof error.detail === "string" ? error.detail : "Unable to save user.");return;}
-      setDialogMode(null);if(editing&&selectedUser?.id===actor.id)router.refresh();setNotice(resetting ? "Temporary password email queued. The user must change it at next login." : editing ? "User updated." : "User created. Welcome email queued with temporary credentials and the login link.");setRevision(value=>value+1);
+      if(!response.ok){if(response.status===409)setConflict(true);const error=await response.json().catch(()=>({detail:"Unable to save user."}));if(!displayServerErrors(submittedForm,error))setFormError(typeof error.detail === "string" ? error.detail : "Unable to save user.");return;}
+      setDialogMode(null);if(editing&&selectedUser?.id===actor.id)router.refresh();setNotice(changingStatus ? selectedUser?.is_active ? "User deactivated. Access revoked immediately; handover can be completed later." : "User reactivated. A new sign-in is required; revoked sessions remain invalid." : resetting ? "Temporary password email queued. The user must change it at next login." : editing ? selectedUser?.email!==String(form.get("email")??"").trim()?"User updated. Verification was sent to the new email; the current sign-in email remains unchanged until confirmation.":"User updated." : "User created. Welcome email queued with temporary credentials and the login link.");setRevision(value=>value+1);
     } catch {setFormError("Unable to reach user administration. Please try again.");}
     finally {setBusy(false);}
   }
 
 
   return <section className="mx-auto w-full max-w-[1500px] space-y-5">
-    <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Administration</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Users</h2></div>{canWrite&&<button type="button" onClick={()=>openDialog("create")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white"><PlusIcon className="h-4 w-4"/>Create user</button>}</div>
+    <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Administration</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Users</h2></div>{canWrite&&<button type="button" onClick={()=>openDialog("create")} className={actionButtonClass("primary")}><PlusIcon className="h-4 w-4"/>Create user</button>}</div>
     <div className="grid gap-3 sm:grid-cols-3">{[["Matching users",total],["Active on this page",users.filter(u=>u.is_active).length],["Password change due on this page",users.filter(u=>u.must_change_password).length]].map(([label,value])=><div key={label} className="rounded-2xl border border-slate-200 bg-white p-4"><span className="block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</span><span className="mt-1 block text-2xl font-extrabold text-slate-900">{value}</span></div>)}</div>
     {notice&&<p role="status" className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">{notice}</p>}
     {loadError&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{loadError}</p>}
@@ -100,19 +138,27 @@ export function UserManagement() {
       {key:"activity",label:"Activity",value:u=>u.onlinePage??"No recent activity",sortable:false},
     ]} actions={user=><div className="flex justify-end gap-1">
       <button className={button} aria-label={`View ${user.username}`} title="View user" onClick={()=>openDialog("view",user)}><EyeIcon className="h-4 w-4"/></button>
-      {canManage(user)&&<><button className={button} aria-label={`Edit ${user.username}`} title="Edit user" onClick={()=>openDialog("edit",user)}><PencilSquareIcon className="h-4 w-4"/></button>{user.is_active&&user.id!==actor.id&&<button className={button} aria-label={`Reset password for ${user.username}`} title="Reset password" onClick={()=>openDialog("reset",user)}><KeyIcon className="h-4 w-4"/></button>}</>}
+      {canManage(user)&&<><button className={button} aria-label={`Edit ${user.username}`} title="Edit user" onClick={()=>openDialog("edit",user)}><PencilSquareIcon className="h-4 w-4"/></button>{user.id!==actor.id&&<button className={actionButtonClass(user.is_active?"danger":"success",true)} aria-label={`${user.is_active?"Deactivate":"Reactivate"} ${user.username}`} title={user.is_active?"Deactivate user":"Reactivate user"} onClick={()=>openDialog("status",user)}>{user.is_active?<NoSymbolIcon className="h-4 w-4"/>:<ArrowPathIcon className="h-4 w-4"/>}</button>}{user.is_active&&user.id!==actor.id&&<button className={actionButtonClass("warning",true)} aria-label={`Reset password for ${user.username}`} title="Reset password" onClick={()=>openDialog("reset",user)}><KeyIcon className="h-4 w-4"/></button>}</>}
     </div>}/>
     {users.some(user=>user.onlinePage)&&<div className="rounded-2xl bg-slate-950 p-5 text-white"><p className="text-xs font-bold uppercase tracking-wider text-cyan-300">Live workspace insight</p><p className="mt-2 font-bold">Online users on this page</p><div className="mt-4 flex flex-wrap gap-3">{users.filter(user=>user.onlinePage).map(user=><div key={user.id} className="rounded-xl border border-slate-700 p-3"><span className="font-bold">{user.username}</span><p className="mt-1 text-xs text-slate-300">{user.onlinePage}</p></div>)}</div></div>}
-    {dialogMode&&<RecordDrawer title={dialogMode==="create"?"Create user":dialogMode==="reset"?"Reset user password":dialogMode==="edit"?"Edit user":"User details"} onClose={()=>{if(!busy)setDialogMode(null);}}>
-      {dialogMode==="view"&&selectedUser ? <div className="space-y-5"><UserIdentity id={selectedUser.id} name={selectedUser.username} active={selectedUser.is_active}/><p>{selectedUser.first_name} {selectedUser.last_name}</p><p>{selectedUser.email}</p><p>{selectedUser.mobile||"Mobile setup required"}</p><a className="text-sm font-bold text-blue-700 underline" href="/dashboard?screen=organisation">Open organisation profile</a><p className="text-sm">Access: {selectedUser.is_superuser?"Superadmin (full platform access)":selectedUser.roles.join(", ")}</p><p className="text-sm">{deliveryLabel(selectedUser.email_status)}</p>{canManage(selectedUser)&&selectedUser.is_active&&selectedUser.id!==actor.id&&<div className="flex flex-wrap gap-3"><button className={button+" gap-2 px-3"} onClick={()=>openDialog("reset",selectedUser)}><KeyIcon className="h-4 w-4"/>Reset password</button><a className={button+" gap-2 px-3"} href="/dashboard?screen=offboarding">Start handover</a></div>}{formError&&<p role="alert" className="text-sm text-red-700">{formError}</p>}</div> : <ValidatedForm key={`${dialogMode}-${selectedUser?.id??"new"}`} onSubmit={saveUser} className="space-y-5">
-        {dialogMode==="reset" ? <><p className="text-sm leading-6 text-slate-600">Send a new temporary password to <strong>{selectedUser?.email}</strong>. Existing credentials and sessions will be revoked. The temporary password expires in 24 hours and must be changed at first login.</p><ValidatedLabel required className="block text-sm font-bold">Reset reason<ValidatedTextarea name="reason" required minLength={10} maxLength={1000} className={input} rows={3}/></ValidatedLabel></> : <>
-          {dialogMode==="create"&&<><p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">The user will receive a welcome email with a generated temporary password and a link to erp.vishaltechnopower.in. They must change the password at first login.</p><div className="grid gap-3 sm:grid-cols-2"><ValidatedLabel required className="block text-sm font-bold">First name<ValidatedInput name="first_name" required maxLength={100} className={input}/></ValidatedLabel><ValidatedLabel required className="block text-sm font-bold">Last name<ValidatedInput name="last_name" required maxLength={100} className={input}/></ValidatedLabel></div><ValidatedLabel required className="block text-sm font-bold">Mobile number<ValidatedInput name="mobile" type="tel" required minLength={8} maxLength={24} className={input}/></ValidatedLabel><ValidatedLabel required className="block text-sm font-bold">Username<ValidatedInput name="username" required minLength={3} maxLength={64} pattern="[a-zA-Z0-9._-]+" className={input}/></ValidatedLabel></>}
+    {dialogMode&&<RecordDrawer title={dialogMode==="status"?selectedUser?.is_active?"Deactivate user":"Reactivate user":dialogMode==="create"?"Create user":dialogMode==="reset"?"Reset user password":dialogMode==="edit"?"Edit user":"User details"} onClose={closeDialog}>
+      {detailsLoading ? <p role="status" className="text-sm text-slate-600">Loading saved user details…</p> : detailsError ? <div className="space-y-3"><p role="alert" className="text-sm text-red-700">{detailsError}</p><button type="button" className={button+" px-3 font-bold"} onClick={()=>openDialog(dialogMode,selectedUser)}>Retry loading user</button></div> : dialogMode==="view"&&selectedUser ? <UserDetails user={selectedUser} deliveryStatus={deliveryLabel(selectedUser.email_status)} canManage={canManage(selectedUser)} onEdit={()=>openDialog("edit",selectedUser)} onReset={()=>openDialog("reset",selectedUser)} onStatus={()=>openDialog("status",selectedUser)}/> : <ValidatedForm key={`${dialogMode}-${selectedUser?.id??"new"}`} onSubmit={saveUser} className="space-y-5">
+        {dialogMode==="status" ? <>
+          <p className="text-sm leading-6 text-slate-600">{selectedUser?.is_active?<>Deactivate <strong>{selectedUser.username}</strong> now. Login and existing sessions will be blocked immediately. A pending handover will be opened or the existing case retained. Work can be reassigned later, even if no reporting manager is configured.</>:<>Reactivate <strong>{selectedUser?.username}</strong>. The user must sign in again. Previously revoked sessions stay invalid, and existing handover work remains recorded.</>}</p>
+          <ValidatedLabel required className="block text-sm font-bold">Status change reason<ValidatedTextarea name="reason" required minLength={10} maxLength={1000} rows={3} className={input}/></ValidatedLabel>
+        </> : dialogMode==="reset" ? <><p className="text-sm leading-6 text-slate-600">Send a new temporary password to <strong>{selectedUser?.email}</strong>. Existing credentials and sessions will be revoked. The temporary password expires in 24 hours and must be changed at first login.</p><ValidatedLabel required className="block text-sm font-bold">Reset reason<ValidatedTextarea name="reason" required minLength={10} maxLength={1000} className={input} rows={3}/></ValidatedLabel></> : <>
+          {dialogMode==="edit"&&selectedUser&&<>
+            <ValidatedLabel className="block text-sm font-bold">Username<ValidatedInput name="username" readOnly defaultValue={selectedUser.username} className={input+" bg-slate-100"}/></ValidatedLabel>
+            {(!selectedUser.first_name||!selectedUser.last_name||!selectedUser.mobile)&&<p role="status" className="ui-notice--warning rounded-xl p-3 text-sm">No saved value for {[!selectedUser.first_name&&"first name",!selectedUser.last_name&&"last name",!selectedUser.mobile&&"mobile number"].filter(Boolean).join(", ")}. Enter the missing details to complete this user’s profile.</p>}
+          </>}
+          {dialogMode==="create"&&<><p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">The user will receive a welcome email with a generated temporary password and a link to erp.vishaltechnopower.in. They must change the password at first login.</p></>}<div className="grid gap-3 sm:grid-cols-2"><ValidatedLabel required className="block text-sm font-bold">First name<ValidatedInput name="first_name" required maxLength={100} defaultValue={selectedUser?.first_name} className={input}/></ValidatedLabel><ValidatedLabel required className="block text-sm font-bold">Last name<ValidatedInput name="last_name" required maxLength={100} defaultValue={selectedUser?.last_name} className={input}/></ValidatedLabel></div><ValidatedLabel required className="block text-sm font-bold">Mobile number<ValidatedInput name="mobile" type="tel" required minLength={8} maxLength={24} defaultValue={selectedUser?.mobile} className={input}/></ValidatedLabel>{dialogMode==="create"&&<><ValidatedLabel required className="block text-sm font-bold">Username<ValidatedInput name="username" required minLength={3} maxLength={64} pattern="[a-zA-Z0-9._-]+" className={input}/></ValidatedLabel></>}
           <ValidatedLabel required className="block text-sm font-bold">Email<ValidatedInput name="email" type="email" required maxLength={255} defaultValue={selectedUser?.email} className={input}/></ValidatedLabel>
+          {dialogMode==="edit"&&selectedUser&&<div className="user-access-card space-y-3 rounded-xl border p-4 text-sm"><p className="font-bold">Account status: {selectedUser.is_active?"Active":"Inactive"}</p><p className="text-slate-600">Deactivation blocks access immediately. Handovers are tracked separately and can be completed later.</p>{selectedUser.id!==actor.id&&<button type="button" className={actionButtonClass(selectedUser.is_active?"danger":"success")} onClick={()=>openDialog("status",selectedUser)}>{selectedUser.is_active?"Deactivate user":"Reactivate user"}</button>}</div>}
           {dialogMode==="create"&&actor.is_superuser===true&&<div className="space-y-2"><ValidatedLabel className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-bold"><ValidatedInput type="checkbox" name="is_superuser" checked={superadmin} onChange={event=>{setSuperadmin(event.target.checked);setRolesError("");}}/>Superadmin</ValidatedLabel><p className="text-sm text-slate-600">Full platform access. Only an existing superadmin can create another. Maximum two accounts, including inactive accounts.</p></div>}
-          <fieldset><legend className="text-sm font-bold">Assigned roles {!rolesOptional&&<span aria-hidden="true" className="text-red-600">*</span>}</legend><RequiredSelection selectionCount={rolesOptional?Math.max(1,selectedRoleNames.length):selectedRoleNames.length} onInvalid={()=>setRolesError("Select at least one role.")} className="mt-3 grid gap-2 sm:grid-cols-2">{roles.map(role=><ValidatedLabel key={role.id} className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm"><ValidatedInput type="checkbox" checked={selectedRoleNames.includes(role.name)} onChange={()=>{setRolesError("");setSelectedRoleNames(names=>names.includes(role.name)?names.filter(name=>name!==role.name):[...names,role.name]);}}/>{role.name}</ValidatedLabel>)}</RequiredSelection>{rolesError&&<p role="alert" className="mt-2 text-sm text-red-700">{rolesError}</p>}</fieldset>
+          <fieldset><legend className="text-sm font-bold">Assigned roles {!rolesOptional&&<span aria-hidden="true" className="text-red-600">*</span>}</legend><RequiredSelection selectionCount={rolesOptional?Math.max(1,selectedRoleNames.length):selectedRoleNames.length} onInvalid={()=>setRolesError("Select at least one role.")} className="mt-3 grid gap-2 sm:grid-cols-2">{roles.filter(role=>role.is_active!==false||selectedRoleNames.includes(role.name)).map(role=><ValidatedLabel key={role.id} className="user-role-option flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm"><ValidatedInput type="checkbox" checked={selectedRoleNames.includes(role.name)} disabled={role.is_active===false&&!selectedRoleNames.includes(role.name)} onChange={()=>{setRolesError("");setSelectedRoleNames(names=>names.includes(role.name)?names.filter(name=>name!==role.name):[...names,role.name]);}}/>{role.name}{role.is_active===false?" (Inactive)":""}</ValidatedLabel>)}</RequiredSelection>{rolesError&&<p role="alert" className="mt-2 text-sm text-red-700">{rolesError}</p>}</fieldset>
         </>}
-        {formError&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{formError}</p>}
-        <div className="sticky bottom-0 flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 py-4 sm:flex-row sm:justify-end"><button type="button" disabled={busy} onClick={()=>setDialogMode(null)} className={button+" px-4"}>Cancel</button><button type="submit" disabled={busy} className="min-h-11 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white disabled:opacity-50">{busy?"Saving…":dialogMode==="reset"?"Send temporary password":dialogMode==="create"?"Create user & email access":"Save changes"}</button></div>
+        {formError&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{formError}</p>}{conflict&&dialogMode==="edit"&&<button type="button" className={actionButtonClass("secondary")} onClick={()=>{setConflict(false);void openDialog("edit",selectedUser);}}>Reload saved user (discard unsaved changes)</button>}
+        <div className="record-drawer-actions sticky bottom-0 flex flex-col-reverse gap-3 py-4 sm:flex-row sm:justify-end"><button type="button" disabled={busy} onClick={closeDialog} className={actionButtonClass("secondary")}>Cancel</button><button type="submit" disabled={busy} className={actionButtonClass(dialogMode==="status"?(selectedUser?.is_active?"danger":"success"):dialogMode==="reset"?"warning":"primary")}>{busy?"Saving…":dialogMode==="status"?selectedUser?.is_active?"Deactivate user now":"Reactivate user":dialogMode==="reset"?"Send temporary password":dialogMode==="create"?"Create user & email access":"Save changes"}</button></div>
       </ValidatedForm>}
     </RecordDrawer>}
   </section>;

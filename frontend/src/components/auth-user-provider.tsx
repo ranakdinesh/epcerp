@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { PersonalProfileProvider } from "@/components/personal-profile";
+import { PersonalProfileProvider,ProfileCompletionReminder } from "@/components/personal-profile";
 import type { AuthenticatedUser } from "@/lib/auth/session";
 
 import { renewSession, withSessionLock } from "@/lib/auth/renew-session";
@@ -43,7 +43,7 @@ export function AuthUserProvider({
     };
     return () => { window.fetch = originalFetch; };
   }, [router]);
-  return <AuthUserContext value={user}><PersonalProfileProvider>{children}</PersonalProfileProvider></AuthUserContext>;
+  return <AuthUserContext value={user}><PersonalProfileProvider><ProfileCompletionReminder/>{children}</PersonalProfileProvider></AuthUserContext>;
 }
 
 export function useAuthenticatedUser(): AuthenticatedUser {

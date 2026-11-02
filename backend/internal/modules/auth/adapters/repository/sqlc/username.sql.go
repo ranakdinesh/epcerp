@@ -21,7 +21,7 @@ func (q *Queries) BindBootstrapUser(ctx context.Context, userID pgtype.UUID) err
 }
 
 const boundBootstrapUser = `-- name: BoundBootstrapUser :one
-SELECT u.id, u.username, u.email, u.password_hash, u.is_active, u.is_superuser, u.created_at, u.updated_at, u.created_by_id, u.updated_by_id, u.account_version, u.must_change_password, u.temporary_password_expires_at, u.credential_version, u.first_name, u.last_name, u.mobile FROM auth.users u JOIN auth.auth_bootstrap_identity b ON b.user_id=u.id WHERE b.singleton
+SELECT u.id, u.username, u.email, u.password_hash, u.is_active, u.is_superuser, u.created_at, u.updated_at, u.created_by_id, u.updated_by_id, u.account_version, u.must_change_password, u.temporary_password_expires_at, u.credential_version, u.first_name, u.last_name, u.mobile, u.edit_version FROM auth.users u JOIN auth.auth_bootstrap_identity b ON b.user_id=u.id WHERE b.singleton
 `
 
 func (q *Queries) BoundBootstrapUser(ctx context.Context) (AuthUser, error) {
@@ -45,6 +45,7 @@ func (q *Queries) BoundBootstrapUser(ctx context.Context) (AuthUser, error) {
 		&i.FirstName,
 		&i.LastName,
 		&i.Mobile,
+		&i.EditVersion,
 	)
 	return i, err
 }

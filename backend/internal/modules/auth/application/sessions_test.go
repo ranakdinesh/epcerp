@@ -102,3 +102,7 @@ func TestProtectedUseCasesRejectInactiveAndUnprivilegedActors(t *testing.T) {
 }
 
 func (t fakeTokens) Version(string) (int64, error) { return 0, nil }
+
+func (r *fakeRepo) AccessRevoked(context.Context, string) (bool, error)              { return false, nil }
+func (r *fakeRepo) SetActor(context.Context, string) error                           { return nil }
+func (r *fakeRepo) TrackAccess(context.Context, string, string, string, int64) error { return nil }

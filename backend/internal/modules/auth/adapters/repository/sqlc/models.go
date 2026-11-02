@@ -8,6 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuthAdministrationChange struct {
+	ID             int64
+	EntityType     string
+	EntityID       pgtype.UUID
+	Action         string
+	ActorID        pgtype.UUID
+	BeforeSnapshot []byte
+	AfterSnapshot  []byte
+	OccurredAt     pgtype.Timestamptz
+}
+
 type AuthAuthCredentialEmail struct {
 	ID                pgtype.UUID
 	UserID            pgtype.UUID
@@ -70,6 +81,18 @@ type AuthAuthReportingLine struct {
 	UpdatedByID   pgtype.UUID
 }
 
+type AuthEmailChange struct {
+	TokenHash         string
+	UserID            pgtype.UUID
+	Email             string
+	PreviousEmail     string
+	CredentialVersion int64
+	CreatedByID       pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	ExpiresAt         pgtype.Timestamptz
+	ConsumedAt        pgtype.Timestamptz
+}
+
 type AuthRefreshToken struct {
 	ID        pgtype.UUID
 	UserID    pgtype.UUID
@@ -89,6 +112,7 @@ type AuthRole struct {
 	CreatedByID pgtype.UUID
 	UpdatedAt   pgtype.Timestamptz
 	UpdatedByID pgtype.UUID
+	EditVersion int64
 }
 
 type AuthUser struct {
@@ -109,6 +133,7 @@ type AuthUser struct {
 	FirstName                  string
 	LastName                   string
 	Mobile                     string
+	EditVersion                int64
 }
 
 type AuthUserProfile struct {

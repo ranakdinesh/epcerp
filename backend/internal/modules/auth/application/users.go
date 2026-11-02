@@ -12,6 +12,8 @@ type UserService struct {
 	tokens    ports.Tokens
 	passwords ports.Passwords
 	policy    domain.Policy
+	mail      ports.EmailSender
+	publicURL string
 }
 
 func NewUsers(unit ports.UnitOfWork[ports.UserRepository], passwords ports.Passwords, tokens ports.Tokens, policy domain.Policy) *UserService {
@@ -68,7 +70,82 @@ func rolesValid(ctx context.Context, repo ports.RoleDirectory, names []string, i
 
 func (s *UserService) UpdateUser(ctx context.Context, token, userID string, request domain.UserUpdate) (*domain.User, error) {
 	var result *domain.User
+	raw, recipient := "", ""
 	err := authorized(ctx, s.unit, s.tokens, token, "admin.users.write", true, func(ctx context.Context, repo ports.UserRepository, actor domain.User) error {
+		user, err := repo.User(ctx, userID, true)
+		if err != nil {
+			return err
+		}
+		if user == nil {
+			return domain.ErrUserMissing
+		}
+		if request.ExpectedVersion != nil && *request.ExpectedVersion != user.EditVersion {
+			return &domain.Error{Kind: domain.Conflict, Detail: "This user changed while you were editing. Reload and review the saved details."}
+		}
+		if user.IsSuperuser && !actor.IsSuperuser {
+			return domain.ErrForbidden
+		}
+		if request.RoleNames != nil {
+			names := domain.NormalizedRoles(*request.RoleNames)
+			if !actor.IsSuperuser {
+				for _, name := range names {
+					if name == "superadmin" {
+						return domain.ErrForbidden
+					}
+				}
+			}
+			request.RoleNames = &names
+			newNames := []string{}
+			for _, name := range names {
+				existed := false
+				for _, old := range user.Roles {
+					if old.Name == name {
+						existed = true
+						break
+					}
+				}
+				if !existed {
+					newNames = append(newNames, name)
+				}
+			}
+			if err = rolesValid(ctx, repo, newNames, domain.ErrInactiveRole); err != nil {
+				return err
+			}
+		}
+		if request.Email != nil && *request.Email != user.Email {
+			if s.mail == nil || !s.mail.Ready() {
+				return &domain.Error{Kind: domain.Unavailable, Detail: "Email verification delivery is not configured."}
+			}
+			recipient = *request.Email
+			raw, err = stageEmail(ctx, repo, s.tokens, *user, recipient, actor.ID)
+			if err != nil {
+				return err
+			}
+			request.Email = nil
+		}
+		result, err = repo.UpdateUser(ctx, userID, request, actor.ID)
+		return err
+	})
+	if err == nil && raw != "" {
+		err = sendVerification(ctx, s.mail, s.publicURL, recipient, raw)
+	}
+	return result, err
+}
+
+// Deactivate keeps the existing endpoint safe for older clients.
+func (s *UserService) Deactivate(ctx context.Context, token, userID string) (*domain.User, error) {
+	return s.SetActive(ctx, token, userID, false, "Administrator revoked account access.")
+}
+
+func (s *UserService) SetActive(ctx context.Context, token, userID string, active bool, reason string) (*domain.User, error) {
+	if !domain.ValidResetReason(reason) {
+		return nil, &domain.Error{Kind: domain.Invalid, Detail: "Provide a status change reason of 10 to 1000 characters."}
+	}
+	var result *domain.User
+	err := authorized(ctx, s.unit, s.tokens, token, "admin.users.write", true, func(ctx context.Context, repo ports.UserRepository, actor domain.User) error {
+		if !active && actor.ID == userID {
+			return domain.ErrSelfDeactivation
+		}
 		user, err := repo.User(ctx, userID, true)
 		if err != nil {
 			return err
@@ -79,33 +156,11 @@ func (s *UserService) UpdateUser(ctx context.Context, token, userID string, requ
 		if user.IsSuperuser && !actor.IsSuperuser {
 			return domain.ErrForbidden
 		}
-		if request.RoleNames != nil {
-			names := domain.NormalizedRoles(*request.RoleNames)
-			request.RoleNames = &names
-			if err = rolesValid(ctx, repo, names, domain.ErrEmailConflict); err != nil {
-				return err
-			}
+		if user.IsActive == active {
+			result = user
+			return nil
 		}
-		result, err = repo.UpdateUser(ctx, userID, request, actor.ID)
-		return err
-	})
-	return result, err
-}
-
-func (s *UserService) Deactivate(ctx context.Context, token, userID string) (*domain.User, error) {
-	var result *domain.User
-	err := authorized(ctx, s.unit, s.tokens, token, "admin.users.write", true, func(ctx context.Context, repo ports.UserRepository, actor domain.User) error {
-		if actor.ID == userID {
-			return domain.ErrSelfDeactivation
-		}
-		user, err := repo.User(ctx, userID, true)
-		if err != nil {
-			return err
-		}
-		if user == nil {
-			return domain.ErrUserMissing
-		}
-		if user.IsActive && user.IsSuperuser {
+		if !active && user.IsSuperuser {
 			count, err := repo.ActiveSuperusers(ctx)
 			if err != nil {
 				return err
@@ -114,7 +169,24 @@ func (s *UserService) Deactivate(ctx context.Context, token, userID string) (*do
 				return domain.ErrLastSuperadmin
 			}
 		}
-		return domain.ErrOffboardingRequired
+		// Both transitions advance the credential version. Reactivation cannot
+		// resurrect an access token or refresh session issued before revocation.
+		if err = repo.SetActive(ctx, userID, active, actor.ID); err != nil {
+			return err
+		}
+		if err = repo.RevokeUserSessions(ctx, userID); err != nil {
+			return err
+		}
+		if err = repo.RecordStatusChange(ctx, s.tokens.ID(), userID, actor.ID, reason); err != nil {
+			return err
+		}
+		if !active {
+			if err = repo.QueueHandover(ctx, userID, s.tokens.ID(), s.tokens.ID(), actor.ID, reason); err != nil {
+				return err
+			}
+		}
+		result, err = repo.User(ctx, userID, false)
+		return err
 	})
 	return result, err
 }

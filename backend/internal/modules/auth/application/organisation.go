@@ -125,9 +125,8 @@ func (s *OrganisationService) SaveEmployee(ctx context.Context, token, id string
 		if user == nil {
 			return domain.ErrUserMissing
 		}
-		if !user.IsActive {
-			return &domain.Error{Kind: domain.Invalid, Detail: "Inactive employee profiles cannot be reassigned."}
-		}
+		// Administrators may correct an inactive employee's reporting profile so
+		// a pending handover can be managed without restoring account access.
 		all, e := r.Employees(ctx)
 		if e != nil {
 			return e

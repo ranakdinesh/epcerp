@@ -28,8 +28,11 @@ func (s *SessionService) Me(ctx context.Context, token string) (*domain.User, er
 	return result, err
 }
 
-func (s *SessionService) pair(user domain.User, raw string, expiry int64) (domain.TokenPair, error) {
+func (s *SessionService) pair(ctx context.Context, repo ports.SessionRepository, user domain.User, raw string, expiry int64, family string) (domain.TokenPair, error) {
 	access, lifetime, err := s.tokens.Issue(user.ID, expiry, user.CredentialVersion)
+	if err == nil {
+		err = repo.TrackAccess(ctx, s.tokens.HashRefresh(access), user.ID, family, s.tokens.Now()+int64(lifetime))
+	}
 	remaining := int(expiry - s.tokens.Now())
 	if remaining < 0 {
 		remaining = 0
@@ -39,17 +42,29 @@ func (s *SessionService) pair(user domain.User, raw string, expiry int64) (domai
 
 func (s *SessionService) Login(ctx context.Context, identifier, password string) (domain.TokenPair, error) {
 	var pair domain.TokenPair
+	valid := false
 	err := s.unit.Within(ctx, func(ctx context.Context, repo ports.SessionRepository) error {
 		user, err := repo.FindUser(ctx, identifier)
 		if err != nil {
 			return err
 		}
+		key := s.tokens.HashRefresh("login:" + domain.RecoveryEmail(identifier))
+		if user != nil {
+			key = s.tokens.HashRefresh("login:" + user.ID)
+		}
+		blocked, e := repo.LoginBlocked(ctx, key)
+		if e != nil {
+			return e
+		}
+		if blocked {
+			return nil
+		}
 		if user == nil {
 			s.passwords.VerifyAbsent(ctx, password)
-			return domain.ErrUnauthorized
+			return repo.FailLogin(ctx, key)
 		}
 		if !s.passwords.Verify(ctx, password, user.PasswordHash) || !user.IsActive || !user.TemporaryValid(s.tokens.Now()) {
-			return domain.ErrUnauthorized
+			return repo.FailLogin(ctx, key)
 		}
 		locked, err := repo.User(ctx, user.ID, true)
 		if err != nil {
@@ -59,17 +74,28 @@ func (s *SessionService) Login(ctx context.Context, identifier, password string)
 			return domain.ErrUnauthorized
 		}
 		raw, hash := s.tokens.Refresh()
+		family := s.tokens.ID()
 		expiry := s.tokens.Now() + int64(s.policy.SessionLifetime.Seconds())
 		if locked.MustChangePassword && expiry > s.tokens.Now()+900 {
 			expiry = s.tokens.Now() + 900
 		}
-		if err = repo.CreateRefresh(ctx, domain.Refresh{ID: s.tokens.ID(), UserID: user.ID, Hash: hash, FamilyID: s.tokens.ID(), ExpiresAt: domain.At(expiry)}); err != nil {
+		if err = repo.CreateRefresh(ctx, domain.Refresh{ID: s.tokens.ID(), UserID: user.ID, Hash: hash, FamilyID: family, ExpiresAt: domain.At(expiry)}); err != nil {
 			return err
 		}
-		pair, err = s.pair(*locked, raw, expiry)
+		if err = repo.ClearLoginFailures(ctx, key); err != nil {
+			return err
+		}
+		pair, err = s.pair(ctx, repo, *locked, raw, expiry, family)
+		valid = err == nil
 		return err
 	})
-	return pair, err
+	if err != nil {
+		return domain.TokenPair{}, err
+	}
+	if !valid {
+		return domain.TokenPair{}, domain.ErrUnauthorized
+	}
+	return pair, nil
 }
 
 func (s *SessionService) Refresh(ctx context.Context, raw string) (domain.TokenPair, error) {
@@ -105,7 +131,7 @@ func (s *SessionService) Refresh(ctx context.Context, raw string) (domain.TokenP
 		if err = repo.CreateRefresh(ctx, domain.Refresh{ID: s.tokens.ID(), UserID: user.ID, Hash: replacementHash, FamilyID: token.FamilyID, ExpiresAt: token.ExpiresAt}); err != nil {
 			return err
 		}
-		pair, err = s.pair(*user, replacement, token.ExpiresAt.Unix())
+		pair, err = s.pair(ctx, repo, *user, replacement, token.ExpiresAt.Unix(), token.FamilyID)
 		valid = err == nil
 		return err
 	})
@@ -131,7 +157,7 @@ func (s *SessionService) Logout(ctx context.Context, raw string) error {
 		if err = repo.Lock(ctx, "auth.refresh.family:"+initial.FamilyID); err != nil {
 			return err
 		}
-		return repo.RevokeRefresh(ctx, hash)
+		return repo.RevokeFamily(ctx, initial.FamilyID)
 	})
 }
 
@@ -142,5 +168,33 @@ func (s *SessionService) Activity(ctx context.Context, token, page string) error
 			return err
 		}
 		return repo.RecordActivity(ctx, user.ID, page)
+	})
+}
+
+func (s *SessionService) ListSessions(ctx context.Context, token string) ([]domain.Session, error) {
+	out := []domain.Session{}
+	err := s.unit.Within(ctx, func(ctx context.Context, r ports.SessionRepository) error {
+		u, e := resolve(ctx, r, s.tokens, token)
+		if e != nil {
+			return e
+		}
+		out, e = r.Sessions(ctx, u.ID, s.tokens.HashRefresh(token))
+		return e
+	})
+	return out, err
+}
+func (s *SessionService) RevokeSession(ctx context.Context, token, family string, all bool) error {
+	return s.unit.Within(ctx, func(ctx context.Context, r ports.SessionRepository) error {
+		u, e := resolve(ctx, r, s.tokens, token)
+		if e != nil {
+			return e
+		}
+		if e = r.SetActor(ctx, u.ID); e != nil {
+			return e
+		}
+		if all {
+			return r.RevokeAllSessions(ctx, u.ID)
+		}
+		return r.RevokeSession(ctx, u.ID, family)
 	})
 }

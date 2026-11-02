@@ -8,6 +8,7 @@ import (
 )
 
 type UserResponse struct {
+	EditVersion        int64     `json:"edit_version"`
 	FirstName          string    `json:"first_name"`
 	LastName           string    `json:"last_name"`
 	Mobile             string    `json:"mobile"`
@@ -28,10 +29,11 @@ func User(user domain.User) UserResponse {
 		roles = append(roles, role.Name)
 	}
 	slices.Sort(roles)
-	return UserResponse{ID: user.ID, Username: user.Username, FirstName: user.FirstName, LastName: user.LastName, Mobile: user.Mobile, Email: user.Email, Active: user.IsActive, Superuser: user.IsSuperuser, Roles: roles, CreatedAt: user.CreatedAt, MustChangePassword: user.MustChangePassword, EmailStatus: user.EmailStatus}
+	return UserResponse{EditVersion: user.EditVersion, ID: user.ID, Username: user.Username, FirstName: user.FirstName, LastName: user.LastName, Mobile: user.Mobile, Email: user.Email, Active: user.IsActive, Superuser: user.IsSuperuser, Roles: roles, CreatedAt: user.CreatedAt, MustChangePassword: user.MustChangePassword, EmailStatus: user.EmailStatus}
 }
 
 type RoleResponse struct {
+	EditVersion int64    `json:"edit_version"`
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
@@ -42,7 +44,7 @@ type RoleResponse struct {
 func Role(role domain.Role) RoleResponse {
 	codes := append([]string{}, role.Permissions...)
 	slices.Sort(codes)
-	return RoleResponse{role.ID, role.Name, role.Description, role.IsActive, codes}
+	return RoleResponse{role.EditVersion, role.ID, role.Name, role.Description, role.IsActive, codes}
 }
 
 type PermissionResponse struct {

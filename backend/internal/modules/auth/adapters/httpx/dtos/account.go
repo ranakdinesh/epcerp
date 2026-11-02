@@ -54,3 +54,14 @@ func ParseAccountEmail(reader io.Reader) (AccountChange, error) {
 	address = strings.ToLower(address)
 	return AccountChange{Current: current, Value: strings.ToLower(address)}, nil
 }
+
+func ParseVerification(reader io.Reader) (string, error) {
+	var p struct {
+		Token *string `json:"token"`
+	}
+	o, e := Decode(reader, &p, "token")
+	if e != nil {
+		return "", e
+	}
+	return Text(o, "token", p.Token, 64, 64, false, true)
+}
