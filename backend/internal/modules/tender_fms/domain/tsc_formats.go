@@ -14,6 +14,8 @@ const DefaultTSCFormatID = "00000000-0000-4000-8000-000000000097"
 type TSCFormat struct {
 	ID            string        `json:"id"`
 	Name          string        `json:"name"`
+	Purpose       string        `json:"purpose"`
+	CreatedAt     time.Time     `json:"created_at"`
 	Description   string        `json:"description"`
 	Active        bool          `json:"is_active"`
 	Version       int64         `json:"version"`
@@ -23,6 +25,7 @@ type TSCFormat struct {
 }
 type TSCFormatInput struct {
 	Name        string        `json:"name"`
+	Purpose     string        `json:"purpose"`
 	Description string        `json:"description"`
 	Active      bool          `json:"is_active"`
 	Version     int64         `json:"expected_version"`
@@ -47,6 +50,13 @@ var tscQuestionID = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,80}$`)
 func ValidateTSCFormat(in *TSCFormatInput) error {
 	in.Name = strings.TrimSpace(in.Name)
 	in.Description = strings.TrimSpace(in.Description)
+	in.Purpose = strings.TrimSpace(in.Purpose)
+	if in.Purpose == "" {
+		in.Purpose = "Generic"
+	}
+	if utf8.RuneCountInString(in.Purpose) > 80 {
+		return Invalid("Purpose must be at most 80 characters")
+	}
 	if n := utf8.RuneCountInString(in.Name); n < 3 || n > 120 || TSCQuestionKey(in.Name) == "" {
 		return Invalid("Give this TSC format a name of 3–120 characters")
 	}

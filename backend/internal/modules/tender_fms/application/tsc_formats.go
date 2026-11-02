@@ -7,13 +7,14 @@ import (
 )
 
 type TSCFormats struct {
-	unit   ports.TSCFormatUnit
-	auth   ports.Authorizer
-	values ports.Values
+	unit    ports.TSCFormatUnit
+	auth    ports.Authorizer
+	values  ports.Values
+	preview ports.TSCFormatPreviewer
 }
 
-func NewTSCFormats(u ports.TSCFormatUnit, a ports.Authorizer, v ports.Values) *TSCFormats {
-	return &TSCFormats{u, a, v}
+func NewTSCFormats(u ports.TSCFormatUnit, a ports.Authorizer, v ports.Values, preview ports.TSCFormatPreviewer) *TSCFormats {
+	return &TSCFormats{u, a, v, preview}
 }
 func (s *TSCFormats) within(ctx context.Context, token string, write bool, f func(context.Context, ports.TSCFormatRepository, string) error) error {
 	p, e := s.auth.Resolve(ctx, token)
@@ -108,4 +109,19 @@ func (s *TSCFormats) Save(ctx context.Context, token, id string, in domain.TSCFo
 		return e
 	})
 	return
+}
+
+func (s *TSCFormats) Preview(ctx context.Context, token, id string, pdf bool) ([]byte, error) {
+	f, err := s.Get(ctx, token, id)
+	if err != nil {
+		return nil, err
+	}
+	if s.preview == nil {
+		return nil, domain.CaptureFailure(503, "preview_unavailable", "Document preview is unavailable")
+	}
+	data, err := s.preview.Render(ctx, f, pdf)
+	if err != nil {
+		return nil, domain.CaptureFailure(503, "preview_unavailable", "Could not render this document. Try again or download the Word file.")
+	}
+	return data, nil
 }

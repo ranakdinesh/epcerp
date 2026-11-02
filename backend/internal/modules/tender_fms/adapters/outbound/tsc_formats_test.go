@@ -3,6 +3,7 @@ package outbound
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/xml"
 	"github.com/ranakdinesh/epcERP/internal/modules/tender_fms/domain"
 	"io"
@@ -67,5 +68,33 @@ func TestNamedFormatDOCXUsesFrozenVariableQuestionSet(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestFormatPreviewDOCXContainsSavedQuestionsAndBlankAnswerCells(t *testing.T) {
+	f := domain.TSCFormat{ID: domain.DefaultTSCFormatID, Name: "Solar & Electrical", Version: 4, Questions: []domain.TSCQuestion{{ID: "q1", Section: "Solar", Text: "What is the module warranty?"}, {ID: "q2", Section: "Commercial", Text: "What is the delivery period?"}}}
+	data, err := (TSCFormatPreviewer{}).Render(context.Background(), f, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range reader.File {
+		if file.Name == "word/document.xml" {
+			r, _ := file.Open()
+			raw, _ := io.ReadAll(r)
+			r.Close()
+			text := string(raw)
+			if !strings.Contains(text, "Solar &amp; Electrical") || strings.Contains(text, "DRAFT") || len(tscRows.FindAllString(text, -1)) != 3 || !strings.Contains(text, "What is the module warranty?") || !strings.Contains(text, "What is the delivery period?") {
+				t.Fatal("preview does not match saved template")
+			}
+		}
+	}
+	if dir := os.Getenv("EPCERP_TSC_EXPORT_PROOF"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "format-preview.docx"), data, 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

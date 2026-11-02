@@ -2436,6 +2436,7 @@ type TenderTscFormat struct {
 	UpdatedByID pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+	Purpose     string
 }
 
 type TenderTscFormatEvent struct {

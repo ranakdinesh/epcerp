@@ -1,5 +1,5 @@
 export type FormatQuestion = { id: string; section: string; printed_number: string; question: string; manual_review?: boolean; row?: number };
-export type TSCFormat = { id: string; name: string; description: string; is_active: boolean; version: number; question_count: number; questions?: FormatQuestion[]; updated_at?: string };
+export type TSCFormat = { id: string; name: string; description: string; purpose?: string; created_at?: string; is_active: boolean; version: number; question_count: number; questions?: FormatQuestion[]; updated_at?: string };
 export const questionKey = (text: string) => text.toLowerCase().replace(/[\p{White_Space}\p{P}]/gu, "");
 export function duplicateQuestions(questions: FormatQuestion[]) {
  const first = new Map<string, number>(), duplicates = new Map<string, number>();

@@ -21,6 +21,19 @@ import (
 	"testing"
 )
 
+type formatPreviewStub struct{ calls int }
+
+func (p *formatPreviewStub) Render(_ context.Context, f domain.TSCFormat, pdf bool) ([]byte, error) {
+	p.calls++
+	if len(f.Questions) == 0 {
+		return nil, errors.New("missing saved questions")
+	}
+	if pdf {
+		return []byte("%PDF-1.7 fixture"), nil
+	}
+	return []byte("PK fixture"), nil
+}
+
 func formatUsers(c database.Connection) auth.AssignmentDirectory {
 	return authapp.NewAssignmentDirectory(authout.NewAssignmentReader(c))
 }
@@ -30,7 +43,8 @@ func TestTSCFormatsNativePermissionsDuplicatesConcurrencyAndHistory(t *testing.T
 	v := out.Values{}
 	execFixture(t, f.pool, "UPDATE auth.users SET is_superuser=true WHERE id=$1", f.actor)
 	ids := projectIdentities{"admin": {ID: f.actor, Active: true}, "other": {ID: f.outsider, Active: true}}
-	service := app.NewTSCFormats(out.NewTSCFormatUnit(f.pool, formatUsers, purchaseJournal), out.NewAuthBridge(ids), v)
+	preview := &formatPreviewStub{}
+	service := app.NewTSCFormats(out.NewTSCFormatUnit(f.pool, formatUsers, purchaseJournal), out.NewAuthBridge(ids), v, preview)
 	if _, e := service.List(ctx, "other"); !errors.Is(e, domain.Forbidden) {
 		t.Fatal("unprivileged master read", e)
 	}
@@ -54,9 +68,9 @@ func TestTSCFormatsNativePermissionsDuplicatesConcurrencyAndHistory(t *testing.T
 	if e != nil || revised.Questions[0].ID == seed.Questions[0].ID {
 		t.Fatal("changed question retained unrelated extraction rule", e)
 	}
-	input := domain.TSCFormatInput{Name: "Synthetic supply tender", Active: true, Questions: []domain.TSCQuestion{{Section: "Commercial", Text: "What is the delivery period?"}, {Section: "Commercial", Text: "What is the warranty period?"}}}
+	input := domain.TSCFormatInput{Name: "Synthetic supply tender", Purpose: "Solar", Active: true, Questions: []domain.TSCQuestion{{Section: "Commercial", Text: "What is the delivery period?"}, {Section: "Commercial", Text: "What is the warranty period?"}}}
 	created, e := service.Save(ctx, "admin", "", input)
-	if e != nil || created.Version != 1 || len(created.Questions) != 2 {
+	if e != nil || created.Version != 1 || len(created.Questions) != 2 || created.Purpose != "Solar" || created.CreatedAt.IsZero() {
 		t.Fatal("create", e)
 	}
 	input.Name = "SYNTHETIC SUPPLY TENDER"
@@ -70,7 +84,7 @@ func TestTSCFormatsNativePermissionsDuplicatesConcurrencyAndHistory(t *testing.T
 	if _, e := f.pool.Exec(ctx, `INSERT INTO tender.tsc_format_questions(format_id,id,position,section,printed_number,question)VALUES($1,'bypass',3,'Other','','WHAT IS THE DELIVERY PERIOD:')`, created.ID); e == nil {
 		t.Fatal("database duplicate bypass accepted")
 	}
-	update := domain.TSCFormatInput{Name: created.Name, Active: true, Version: 1, Questions: created.Questions}
+	update := domain.TSCFormatInput{Name: created.Name, Purpose: created.Purpose, Active: true, Version: 1, Questions: created.Questions}
 	var wg sync.WaitGroup
 	results := make(chan error, 2)
 	for range 2 {
@@ -101,7 +115,7 @@ func TestTSCFormatsNativePermissionsDuplicatesConcurrencyAndHistory(t *testing.T
 		}
 	}
 	stored, _ := service.Get(ctx, "admin", created.ID)
-	failed := app.NewTSCFormats(out.NewTSCFormatUnit(f.pool, formatUsers, func(database.Connection) events.Writer { return purchaseRejectJournal{} }), out.NewAuthBridge(ids), v)
+	failed := app.NewTSCFormats(out.NewTSCFormatUnit(f.pool, formatUsers, func(database.Connection) events.Writer { return purchaseRejectJournal{} }), out.NewAuthBridge(ids), v, nil)
 	update.Version = stored.Version
 	update.Name = "Must roll back with event"
 	if _, e := failed.Save(ctx, "admin", created.ID, update); e == nil {
@@ -116,7 +130,7 @@ func TestTSCFormatsNativePermissionsDuplicatesConcurrencyAndHistory(t *testing.T
 	for _, tc := range []struct {
 		method, path, token, body string
 		status                    int
-	}{{"GET", "", "admin", "", 200}, {"GET", "/" + created.ID, "admin", "", 200}, {"GET", "", "other", "", 403}, {"POST", "", "other", `{"name":"Forged","is_active":true,"questions":[]}`, 403}, {"PATCH", "/" + created.ID, "admin", `{"expected_version":1,"name":"stale","questions":[]}`, 409}, {"POST", "", "admin", `{"name":"Unknown field","approve":true}`, 422}} {
+	}{{"GET", "", "admin", "", 200}, {"GET", "/" + created.ID, "admin", "", 200}, {"GET", "", "other", "", 403}, {"GET", "/" + created.ID + "/preview.pdf", "other", "", 403}, {"GET", "/" + created.ID + "/template.docx", "other", "", 403}, {"GET", "/" + created.ID + "/preview.pdf", "admin", "", 200}, {"GET", "/" + created.ID + "/template.docx", "admin", "", 200}, {"POST", "", "other", `{"name":"Forged","is_active":true,"questions":[]}`, 403}, {"PATCH", "/" + created.ID, "admin", `{"expected_version":1,"name":"stale","questions":[]}`, 409}, {"POST", "", "admin", `{"name":"Unknown field","approve":true}`, 422}} {
 		req := httptest.NewRequest(tc.method, "/api/v1/settings/tsc-formats"+tc.path, strings.NewReader(tc.body))
 		req.Header.Set("Authorization", "Bearer "+tc.token)
 		req.Header.Set("Content-Type", "application/json")
@@ -126,6 +140,13 @@ func TestTSCFormatsNativePermissionsDuplicatesConcurrencyAndHistory(t *testing.T
 			t.Fatalf("format API %s %s: %d %s", tc.method, tc.path, w.Code, w.Body.String())
 		}
 	}
+	if preview.calls != 2 {
+		t.Fatal("preview rendered before authorization", preview.calls)
+	}
+	if unchanged.CreatedAt != created.CreatedAt || unchanged.Purpose != "Solar" {
+		t.Fatal("saved metadata changed unexpectedly")
+	}
+
 	execFixture(t, f.pool, "UPDATE auth.users SET is_active=false WHERE id=$1", f.actor)
 	if _, e := service.List(ctx, "admin"); !errors.Is(e, domain.Forbidden) {
 		t.Fatal("inactive actor retained master permission", e)
@@ -139,7 +160,7 @@ func verifyNamedTSCFormats(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 		execFixture(t, pool, "INSERT INTO auth.permissions(id,code,description)VALUES($1,$2,'fixture') ON CONFLICT(code)DO NOTHING", out.Values{}.ID(), code)
 		execFixture(t, pool, "INSERT INTO auth.role_permissions(role_id,permission_id)SELECT $1,id FROM auth.permissions WHERE code=$2", role, code)
 	}
-	formats := app.NewTSCFormats(out.NewTSCFormatUnit(pool, formatUsers, journal), out.NewAuthBridge(ids), out.Values{})
+	formats := app.NewTSCFormats(out.NewTSCFormatUnit(pool, formatUsers, journal), out.NewAuthBridge(ids), out.Values{}, nil)
 	input := domain.TSCFormatInput{Name: "Synthetic equipment supply TSC", Active: true, Questions: []domain.TSCQuestion{{Section: "Delivery", Text: "What is the equipment delivery period?"}}}
 	format, e := formats.Save(ctx, "owner", "", input)
 	if e != nil {

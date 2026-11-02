@@ -54,7 +54,7 @@ func (r *tscFormatRepository) List(ctx context.Context, active bool) ([]domain.T
 	rows, e := r.q.ListTSCFormats(ctx, active)
 	out := []domain.TSCFormat{}
 	for _, v := range rows {
-		out = append(out, domain.TSCFormat{ID: v.ID.String(), Name: v.Name, Description: v.Description, Active: v.IsActive, Version: v.Version, QuestionCount: v.QuestionCount, UpdatedAt: v.UpdatedAt.Time})
+		out = append(out, domain.TSCFormat{ID: v.ID.String(), Name: v.Name, Description: v.Description, Purpose: v.Purpose, CreatedAt: v.CreatedAt.Time, Active: v.IsActive, Version: v.Version, QuestionCount: v.QuestionCount, UpdatedAt: v.UpdatedAt.Time})
 	}
 	return out, e
 }
@@ -66,7 +66,7 @@ func (r *tscFormatRepository) Get(ctx context.Context, id string) (domain.TSCFor
 	if e != nil {
 		return domain.TSCFormat{}, e
 	}
-	out := domain.TSCFormat{ID: v.ID.String(), Name: v.Name, Description: v.Description, Active: v.IsActive, Version: v.Version, UpdatedAt: v.UpdatedAt.Time, Questions: []domain.TSCQuestion{}}
+	out := domain.TSCFormat{ID: v.ID.String(), Name: v.Name, Description: v.Description, Purpose: v.Purpose, CreatedAt: v.CreatedAt.Time, Active: v.IsActive, Version: v.Version, UpdatedAt: v.UpdatedAt.Time, Questions: []domain.TSCQuestion{}}
 	qs, e := r.q.ListTSCFormatQuestions(ctx, v.ID)
 	if e != nil {
 		return out, e
@@ -87,7 +87,7 @@ func formatDBError(e error) error {
 func (r *tscFormatRepository) Save(ctx context.Context, id, actor string, in domain.TSCFormatInput) (domain.TSCFormat, error) {
 	var before []byte
 	if in.Version == 0 {
-		if e := r.q.CreateTSCFormat(ctx, db.CreateTSCFormatParams{ID: uuid(id), Name: in.Name, Description: in.Description, IsActive: in.Active, CreatedByID: uuid(actor)}); e != nil {
+		if e := r.q.CreateTSCFormat(ctx, db.CreateTSCFormatParams{ID: uuid(id), Name: in.Name, Description: in.Description, Purpose: in.Purpose, IsActive: in.Active, CreatedByID: uuid(actor)}); e != nil {
 			return domain.TSCFormat{}, formatDBError(e)
 		}
 	} else {
@@ -99,7 +99,7 @@ func (r *tscFormatRepository) Save(ctx context.Context, id, actor string, in dom
 		if e != nil {
 			return old, e
 		}
-		n, e := r.q.UpdateTSCFormat(ctx, db.UpdateTSCFormatParams{ID: uuid(id), Name: in.Name, Description: in.Description, IsActive: in.Active, UpdatedByID: uuid(actor), Version: in.Version})
+		n, e := r.q.UpdateTSCFormat(ctx, db.UpdateTSCFormatParams{ID: uuid(id), Name: in.Name, Description: in.Description, Purpose: in.Purpose, IsActive: in.Active, UpdatedByID: uuid(actor), Version: in.Version})
 		if e != nil {
 			return old, formatDBError(e)
 		}

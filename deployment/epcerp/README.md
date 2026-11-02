@@ -656,3 +656,36 @@ flows on the deployed local frontend, including a three-card desktop grid,
 single-column mobile layout, keyboard opening and existing editing/validation
 flows. Schema remains 97 clean; all nine services are healthy. No operational
 records or provider calls were used. Remote server and main remain unchanged.
+
+### TSC formats table and document preview (migration 98, 2 November 2026)
+
+The library now uses a table: S.No., Name, No. of questions, Purpose, Created on,
+Status and Actions. View, Edit and Activate/Deactivate use labelled icon buttons.
+All formats are shown initially. Search includes purpose. The existing default
+name displays as EPC Works, while its saved full name remains unchanged.
+
+Purpose is a separate persisted field (Generic by default; editable with
+Electrical/Solar suggestions). Creation dates come from the database. Status
+changes preserve all questions and metadata and reject stale versions. Read-only
+users have View only. Existing historical checklist snapshots are unchanged.
+
+View renders the generated blank-answer DOCX offline with LibreOffice and shows
+its PDF pages in the existing PDF.js viewer with pagination, zoom and Word/PDF
+downloads. Both document endpoints enforce current format read permissions.
+Rendering uses private temporary files, one concurrent process and a 45-second
+timeout, with no cloud/provider requests. Deploy the updated API image containing
+LibreOffice; the document-reading worker image already includes its own renderer.
+
+Verified: 230 frontend tests, TypeScript, targeted ESLint, Go Tender FMS/module
+and migration metadata tests, isolated PostgreSQL migration/format permission and
+metadata tests, production API/frontend/worker builds, synthetic desktop/mobile
+and light/dark browser flows, visible PDF page rendering and DOCX-to-PDF visual
+inspection. Browser plugin unavailable; existing Playwright used. Feature QA
+uses synthetic records; combined-stack checks cover health and schema separately.
+
+Before the local upgrade all application writers were stopped. A private full
+backup was restored into a disposable network-isolated database and every table
+count matched; object/package archives and credential copies were verified.
+Matching services run at schema 98 clean with preserved volumes, keys and Gemini
+settings. Private backup/verification manifests record commits, image identities
+and checks. This is a local preview update; main and the remote server are unchanged.

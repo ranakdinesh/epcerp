@@ -21,7 +21,7 @@ func (q *Queries) ClearTSCFormatQuestions(ctx context.Context, formatID pgtype.U
 }
 
 const createTSCFormat = `-- name: CreateTSCFormat :exec
-INSERT INTO tender.tsc_formats(id,name,description,is_active,created_by_id,updated_by_id) VALUES($1,$2,$3,$4,$5,$5)
+INSERT INTO tender.tsc_formats(id,name,description,is_active,created_by_id,updated_by_id,purpose) VALUES($1,$2,$3,$4,$5,$5,$6)
 `
 
 type CreateTSCFormatParams struct {
@@ -30,6 +30,7 @@ type CreateTSCFormatParams struct {
 	Description string
 	IsActive    bool
 	CreatedByID pgtype.UUID
+	Purpose     string
 }
 
 func (q *Queries) CreateTSCFormat(ctx context.Context, arg CreateTSCFormatParams) error {
@@ -39,12 +40,13 @@ func (q *Queries) CreateTSCFormat(ctx context.Context, arg CreateTSCFormatParams
 		arg.Description,
 		arg.IsActive,
 		arg.CreatedByID,
+		arg.Purpose,
 	)
 	return err
 }
 
 const getTSCFormat = `-- name: GetTSCFormat :one
-SELECT id, name, name_key, description, is_active, version, created_by_id, updated_by_id, created_at, updated_at FROM tender.tsc_formats WHERE id=$1 FOR UPDATE
+SELECT id, name, name_key, description, is_active, version, created_by_id, updated_by_id, created_at, updated_at, purpose FROM tender.tsc_formats WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) GetTSCFormat(ctx context.Context, id pgtype.UUID) (TenderTscFormat, error) {
@@ -61,6 +63,7 @@ func (q *Queries) GetTSCFormat(ctx context.Context, id pgtype.UUID) (TenderTscFo
 		&i.UpdatedByID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -160,7 +163,7 @@ func (q *Queries) ListTSCFormatQuestions(ctx context.Context, formatID pgtype.UU
 }
 
 const listTSCFormats = `-- name: ListTSCFormats :many
-SELECT f.id,f.name,f.description,f.is_active,f.version,f.updated_at,(SELECT count(*) FROM tender.tsc_format_questions q WHERE q.format_id=f.id) AS question_count
+SELECT f.id,f.name,f.description,f.purpose,f.created_at,f.is_active,f.version,f.updated_at,(SELECT count(*) FROM tender.tsc_format_questions q WHERE q.format_id=f.id) AS question_count
 FROM tender.tsc_formats f WHERE (NOT $1::boolean OR f.is_active) ORDER BY f.name_key LIMIT 500
 `
 
@@ -168,6 +171,8 @@ type ListTSCFormatsRow struct {
 	ID            pgtype.UUID
 	Name          string
 	Description   string
+	Purpose       string
+	CreatedAt     pgtype.Timestamptz
 	IsActive      bool
 	Version       int64
 	UpdatedAt     pgtype.Timestamptz
@@ -187,6 +192,8 @@ func (q *Queries) ListTSCFormats(ctx context.Context, activeOnly bool) ([]ListTS
 			&i.ID,
 			&i.Name,
 			&i.Description,
+			&i.Purpose,
+			&i.CreatedAt,
 			&i.IsActive,
 			&i.Version,
 			&i.UpdatedAt,
@@ -203,7 +210,7 @@ func (q *Queries) ListTSCFormats(ctx context.Context, activeOnly bool) ([]ListTS
 }
 
 const updateTSCFormat = `-- name: UpdateTSCFormat :execrows
-UPDATE tender.tsc_formats SET name=$2,description=$3,is_active=$4,version=version+1,updated_by_id=$5,updated_at=clock_timestamp() WHERE id=$1 AND version=$6
+UPDATE tender.tsc_formats SET name=$2,description=$3,purpose=$7,is_active=$4,version=version+1,updated_by_id=$5,updated_at=clock_timestamp() WHERE id=$1 AND version=$6
 `
 
 type UpdateTSCFormatParams struct {
@@ -213,6 +220,7 @@ type UpdateTSCFormatParams struct {
 	IsActive    bool
 	UpdatedByID pgtype.UUID
 	Version     int64
+	Purpose     string
 }
 
 func (q *Queries) UpdateTSCFormat(ctx context.Context, arg UpdateTSCFormatParams) (int64, error) {
@@ -223,6 +231,7 @@ func (q *Queries) UpdateTSCFormat(ctx context.Context, arg UpdateTSCFormatParams
 		arg.IsActive,
 		arg.UpdatedByID,
 		arg.Version,
+		arg.Purpose,
 	)
 	if err != nil {
 		return 0, err

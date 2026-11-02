@@ -14,3 +14,7 @@ type TSCFormatRepository interface {
 type TSCFormatUnit interface {
 	Within(context.Context, func(context.Context, TSCFormatRepository) error) error
 }
+
+type TSCFormatPreviewer interface {
+	Render(context.Context, domain.TSCFormat, bool) ([]byte, error)
+}

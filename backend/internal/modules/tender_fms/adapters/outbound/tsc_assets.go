@@ -55,7 +55,9 @@ var tscRows = regexp.MustCompile(`(?s)<w:tr\b[^>]*>.*?</w:tr>`)
 var tscCells = regexp.MustCompile(`(?s)<w:tc\b[^>]*>.*?</w:tc>`)
 var tscCellProps = regexp.MustCompile(`(?s)^<w:tc\b[^>]*>(?:<w:tcPr>.*?</w:tcPr>)?`)
 
-func (TSCExporter) Export(j domain.TSCJob) ([]byte, error) {
+func (x TSCExporter) Export(j domain.TSCJob) ([]byte, error) { return x.export(j, false) }
+
+func (TSCExporter) export(j domain.TSCJob, templateOnly bool) ([]byte, error) {
 	template, e := tscAssets.ReadFile("tscassets/template.docx")
 	if e != nil {
 		return nil, e
@@ -94,7 +96,7 @@ func (TSCExporter) Export(j domain.TSCJob) ([]byte, error) {
 			return nil, e
 		}
 		if file.Name == "word/document.xml" && j.Input.FormatID != "" {
-			data = []byte(tscFormatDocument(j, answers))
+			data = []byte(tscFormatDocument(j, answers, templateOnly))
 		} else if file.Name == "word/document.xml" {
 			row := 0
 			filled := 0
@@ -180,12 +182,16 @@ func tscChecklistAnswer(a domain.TSCAnswer) string {
 }
 
 // New formats export their frozen question set; historical fixed-form exports retain the uploaded layout.
-func tscFormatDocument(j domain.TSCJob, answers map[string]domain.TSCAnswer) string {
+func tscFormatDocument(j domain.TSCJob, answers map[string]domain.TSCAnswer, templateOnly bool) string {
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`)
-	b.WriteString(tscParagraph(j.Input.FormatName + " — DRAFT"))
-	b.WriteString(tscParagraph(j.Input.Name))
-	b.WriteString(tscParagraph("Format revision " + fmtInt(j.Input.FormatVersion) + " · Review all answers and supporting sources before use."))
+	if templateOnly {
+		b.WriteString(tscParagraph(j.Input.FormatName))
+	} else {
+		b.WriteString(tscParagraph(j.Input.FormatName + " — DRAFT"))
+		b.WriteString(tscParagraph(j.Input.Name))
+		b.WriteString(tscParagraph("Format revision " + fmtInt(j.Input.FormatVersion) + " · Review all answers and supporting sources before use."))
+	}
 	b.WriteString(`<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="600"/><w:gridCol w:w="4000"/><w:gridCol w:w="4400"/></w:tblGrid>`)
 	cell := func(text, width string) string {
 		out := `<w:tc><w:tcPr><w:tcW w:w="` + width + `" w:type="dxa"/></w:tcPr>`

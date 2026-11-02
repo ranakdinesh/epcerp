@@ -45,7 +45,7 @@ func New(dependencies Dependencies) (*Module, error) {
 	}
 	service := application.New(outbound.NewUnitOfWork(dependencies.Database, documents, dependencies.Events).WithUsers(dependencies.Users), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{})
 	inbound.Register(dependencies.Router, service)
-	inbound.RegisterTSCFormats(dependencies.Router, application.NewTSCFormats(outbound.NewTSCFormatUnit(dependencies.Database, dependencies.Users, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}))
+	inbound.RegisterTSCFormats(dependencies.Router, application.NewTSCFormats(outbound.NewTSCFormatUnit(dependencies.Database, dependencies.Users, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}, outbound.TSCFormatPreviewer{}))
 	if dependencies.DraftPackages != nil {
 		inbound.RegisterDrafts(dependencies.Router, application.NewDrafts(outbound.NewDraftUnit(dependencies.Database, dependencies.Users, dependencies.DraftPackages, dependencies.Reader, dependencies.PreparedReader), outbound.NewAuthBridge(dependencies.Identity)).WithLimits(infrastructure.NewTenderLimits()))
 		tsc, e := NewTSC(dependencies)

@@ -27,6 +27,24 @@ func RegisterTSCFormats(r chi.Router, s *application.TSCFormats) {
 		captureHeaders(w)
 		json.NewEncoder(w).Encode(out)
 	})
+	for _, kind := range []string{"preview.pdf", "template.docx"} {
+		r.Get(base+"/{format}/"+kind, func(w http.ResponseWriter, r *http.Request) {
+			pdf := kind == "preview.pdf"
+			data, err := s.Preview(r.Context(), captureToken(r), chi.URLParam(r, "format"), pdf)
+			if captureFailure(w, err) {
+				return
+			}
+			captureHeaders(w)
+			if pdf {
+				w.Header().Set("Content-Type", "application/pdf")
+				w.Header().Set("Content-Disposition", `inline; filename="TSC-format.pdf"`)
+			} else {
+				w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+				w.Header().Set("Content-Disposition", `attachment; filename="TSC-format.docx"`)
+			}
+			w.Write(data)
+		})
+	}
 	save := func(w http.ResponseWriter, r *http.Request) {
 		var in domain.TSCFormatInput
 		if captureFailure(w, httpinput.Decode(w, r, 512<<10, &in)) {
