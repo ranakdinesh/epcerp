@@ -243,6 +243,7 @@ func Registry() []domain.Permission {
 		{Code: "settings.tsc_formats.write", Description: "Create and revise named TSC formats and questions", Group: "settings"},
 		{Code: "tenders.tsc.read", Description: "Read draft TSC answers and their source evidence within current tender scope", Group: "tenders"},
 		{Code: "tenders.tsc.write", Description: "Generate and correct unapproved source-linked TSC drafts within current tender scope", Group: "tenders"},
+		{Code: "tenders.tsc.originals.write", Description: "Explicitly send owned tender source PDFs to an approved Gemini provider for unapproved question research", Group: "tenders"},
 		{Code: "tenders.tsc.export", Description: "Export unapproved TSC documents matching current tender sources", Group: "tenders"},
 		{Code: "tenders.register.read", Description: "Read own tender records and history", Group: "tenders"},
 		{Code: "tenders.register.write", Description: "Create and maintain own tender records", Group: "tenders"},

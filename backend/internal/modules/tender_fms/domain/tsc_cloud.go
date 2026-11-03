@@ -13,6 +13,8 @@ type TSCCloudCall struct {
 }
 
 type TSCCloudIdentity struct {
+	Originals                   []TSCOriginal `json:"originals,omitempty"`
+	OriginalDocumentsConfirmed  bool          `json:"original_documents_confirmed,omitempty"`
 	DraftVersion, AnswerVersion int64
 	Question                    TSCQuestion
 	Retrieval                   TSCQuestionDiagnostic
@@ -20,11 +22,13 @@ type TSCCloudIdentity struct {
 }
 
 type TSCProviderOption struct {
-	Mode           string `json:"mode"`
-	Model          string `json:"model"`
-	Available      bool   `json:"available"`
-	Cloud          bool   `json:"cloud"`
-	AllowancePaise int64  `json:"allowance_paise"`
+	OriginalDocuments      bool   `json:"original_documents"`
+	OriginalAllowancePaise int64  `json:"original_allowance_paise,omitempty"`
+	Mode                   string `json:"mode"`
+	Model                  string `json:"model"`
+	Available              bool   `json:"available"`
+	Cloud                  bool   `json:"cloud"`
+	AllowancePaise         int64  `json:"allowance_paise"`
 }
 
 type TSCOptions struct {

@@ -39,3 +39,8 @@ type TSCReranker interface {
 	Model() string
 	Rank(context.Context, domain.TSCQuestion, []domain.TSCPassage) ([]domain.TSCRank, error)
 }
+
+type TSCOriginalProvider interface {
+	OriginalModel() string
+	ProposeOriginals(context.Context, domain.TSCQuestion, []domain.TSCOriginal, []domain.TSCPassage) (domain.TSCAnswer, error)
+}

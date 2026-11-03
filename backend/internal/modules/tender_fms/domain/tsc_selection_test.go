@@ -28,7 +28,7 @@ func TestRankedEvidencePreservesCrossPageExceptionsAndAmendments(t *testing.T) {
 		t.Fatal("exception or amendment lost", out)
 	}
 }
-func TestRankedEvidenceReportsBudgetGapRatherThanTruncatingClauses(t *testing.T) {
+func TestOptionalRankedEvidenceOmissionDoesNotBlockCompleteAnchor(t *testing.T) {
 	q := TSCQuestion{ID: "emd.q05", Text: "EMD"}
 	p := []TSCPassage{}
 	r := []TSCRank{}
@@ -37,7 +37,7 @@ func TestRankedEvidenceReportsBudgetGapRatherThanTruncatingClauses(t *testing.T)
 		r = append(r, TSCRank{ID: id, Score: 1})
 	}
 	out, ok := SelectRankedTSC(q, p, p, r)
-	if !ok || !out.Diagnostic.ContextGap || TSCEvidenceBytes(out.Passages) > 9000 {
+	if !ok || out.Diagnostic.ContextGap || !out.Diagnostic.OptionalContextOmitted || TSCEvidenceBytes(out.Passages) > 9000 {
 		t.Fatal("context silently truncated", out)
 	}
 	for _, v := range out.Passages {

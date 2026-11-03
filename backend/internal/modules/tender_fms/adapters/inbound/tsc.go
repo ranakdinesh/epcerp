@@ -21,14 +21,15 @@ func RegisterTSC(r chi.Router, s *application.TSC) {
 	})
 	r.Post(base+"/{job}/answers/{question}/research", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
-			Version int64  `json:"expected_version"`
-			Query   string `json:"query"`
-			Mode    string `json:"mode"`
+			OriginalDocumentsConfirmed bool   `json:"original_documents_confirmed"`
+			Version                    int64  `json:"expected_version"`
+			Query                      string `json:"query"`
+			Mode                       string `json:"mode"`
 		}
 		if captureFailure(w, httpinput.Decode(w, r, 8192, &in)) {
 			return
 		}
-		out, e := s.Research(r.Context(), captureToken(r), chi.URLParam(r, "draft"), chi.URLParam(r, "job"), chi.URLParam(r, "question"), in.Query, in.Mode, r.Header.Get("Idempotency-Key"), in.Version)
+		out, e := s.Research(r.Context(), captureToken(r), chi.URLParam(r, "draft"), chi.URLParam(r, "job"), chi.URLParam(r, "question"), in.Query, in.Mode, r.Header.Get("Idempotency-Key"), in.Version, domain.TSCResearchOptions{OriginalDocumentsConfirmed: in.OriginalDocumentsConfirmed})
 		if captureFailure(w, e) {
 			return
 		}

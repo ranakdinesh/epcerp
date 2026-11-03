@@ -21,8 +21,8 @@ var tscFactFields = []tscFactField{
 	factField("particulars.q04", `(?:estimated (?:cost|value)|tender value|cost of (?:the )?work)(?:\s*\(?\s*(?:including|inclusive of|with) GST\s*\)?)?`, false),
 	factField("particulars.q05", `(?:estimated (?:cost|value)|tender value|cost of (?:the )?work)(?:\s*\(?\s*(?:excluding|exclusive of|without) GST\s*\)?)?`, false),
 	factField("particulars.q07", `completion period|period of completion|time for completion|completion duration|time allowed for completion|period of contract`, false),
-	factField("particulars.q08", `(?:date (?:and time )?of |date (?:and time )?for )?pre[- ]?bid (?:meeting|conference)(?: date(?: and time)?| due date(?: and time)?)?|pre[- ]?bid date|pre[- ]?bid due date(?: (?:and|&) time)?`, false),
-	factField("particulars.q09", `(?:last date(?: and time)? (?:for|of)|date (?:and time )?of closing of) (?:bid submission|submission of (?:e[- ]?tenders?(?: for submission of bid)?|bids?)|e[- ]?tenders? for submission of bids?)|bid submission (?:end date|deadline|closing date)|tender due date(?: (?:and|&) time)?`, false),
+	factField("particulars.q08", `(?:date (?:and time )?of |date (?:and time )?for )?pre[- ]?bid (?:meeting|conference)(?: required)?(?: date(?: and time)?| due date(?: and time)?)?|pre[- ]?bid date|pre[- ]?bid due date(?: (?:and|&) time)?`, false),
+	factField("particulars.q09", `(?:last date(?: and time)? (?:for|of)|date (?:and time )?of closing of) (?:bid submission|submission of (?:e[- ]?tenders?(?: for submission of bid)?|bids?)|e[- ]?tenders? for submission of bids?)|bid submission (?:end date|deadline|closing date)|tender (?:due|closing) date(?: (?:and|&) time)?(?: time)?`, false),
 	factField("particulars.q10", `e[- ]?tendering portal|e[- ]?procurement portal|tender portal|mode of tender`, false),
 	factField("particulars.q14", `(?:bid|offer) validity|validity of (?:the )?(?:bid|offer|tender)|period of (?:bid|offer|tender) validity`, false),
 	factField("particulars.q16", `type of contract|contract type|procurement category|tender category`, false),
@@ -60,7 +60,11 @@ type tscFactRow struct {
 	review       bool
 }
 
+var tscFactUnits = regexp.MustCompile(`(?i)\s*\(\s*(?:rs\.?|inr|₹|days?|months?|years?)\s*\)`)
+
 func tscFactLabel(s string) string {
+	s = tscFactUnits.ReplaceAllString(s, "")
+	s = strings.ReplaceAll(s, "Doc.", "Document")
 	s = strings.Trim(strings.TrimSpace(s), "|*# ")
 	s = strings.Trim(tscFactSerial.ReplaceAllString(s, ""), "|*# ")
 	s = strings.ReplaceAll(s, "&", " and ")
@@ -76,7 +80,7 @@ func tscKnownFactLabel(s string) bool {
 	return false
 }
 func tscEligibleFact(p TSCPassage) bool {
-	return !IsTSCReferenceSource(p.Filename) && !p.Suppressed && !p.Alternative && (p.Confidence == nil || *p.Confidence >= 70)
+	return !(p.Kind == "table" && strings.HasSuffix(strings.ToLower(p.Filename), ".pdf") && len(p.TableCells) == 0 && (p.Method == "native" || strings.HasPrefix(p.Method, "ocr"))) && !IsTSCReferenceSource(p.Filename) && !p.Suppressed && !p.Alternative && (p.Confidence == nil || *p.Confidence >= 70)
 }
 func tscFactLines(passages []TSCPassage, indexes []int) []tscFactLine {
 	var lines []tscFactLine
@@ -259,7 +263,7 @@ func tscFactCitations(lines []tscFactLine, row tscFactRow, passages []TSCPassage
 	return out
 }
 func tscFactValueAllowed(f tscFactField, label, value string) bool {
-	if len(value) < 3 || len(value) > 1000 || strings.ContainsAny(value, "_{}") || TSCPlaceholder(value) {
+	if len(value) < 1 || len(value) > 8000 || strings.ContainsAny(value, "_{}") || TSCPlaceholder(value) {
 		return false
 	}
 	switch f.id {
@@ -270,7 +274,7 @@ func tscFactValueAllowed(f tscFactField, label, value string) bool {
 	case "particulars.q07", "particulars.q14", "security.q03":
 		return tscFactDuration.MatchString(value)
 	case "particulars.q08", "particulars.q09":
-		return tscFactDate.MatchString(value)
+		return tscFactDate.MatchString(value) || f.id == "particulars.q08" && (strings.EqualFold(value, "not applicable") || strings.EqualFold(value, "no"))
 	case "particulars.q10":
 		return !strings.EqualFold(tscFactLabel(label), "mode of tender") || strings.Contains(strings.ToLower(value), "http")
 	case "particulars.q16":
@@ -312,6 +316,52 @@ func CollectTSCCandidates(in TSCInput) map[string]TSCAnswer {
 	for i := 0; i < len(in.Passages); i++ {
 		p := in.Passages[i]
 		if !tscEligibleFact(p) {
+			continue
+		}
+		if len(p.TableCells) > 0 {
+			for _, cell := range p.TableCells {
+				if cell.Header || !tscKnownFactLabel(cell.Text) {
+					continue
+				}
+				var value *TSCTableCell
+				for j := range p.TableCells {
+					c := &p.TableCells[j]
+					if c.Header || c.Column < cell.Column+cell.ColumnSpan || c.Row != cell.Row {
+						continue
+					}
+					if value == nil || c.Column < value.Column {
+						value = c
+					}
+				}
+				if value == nil || tscKnownFactLabel(value.Text) {
+					continue
+				}
+				v := strings.Join(strings.Fields(value.Text), " ")
+				unit := strings.ToLower(strings.ReplaceAll(cell.Text+" "+value.ColumnHeader, " ", ""))
+				if !tscAmount.MatchString(v) && (strings.Contains(unit, "(rs") || strings.Contains(unit, "(inr") || strings.Contains(unit, "₹")) && regexp.MustCompile(`^[0-9][0-9,.]*$`).MatchString(v) {
+					prefix := "Rs. "
+					if strings.Contains(unit, "(inr") {
+						prefix = "INR "
+					}
+					if strings.Contains(unit, "₹") {
+						prefix = "₹"
+					}
+					v = prefix + v
+				}
+				if regexp.MustCompile(`^[0-9]+$`).MatchString(v) {
+					for _, u := range []string{"days", "months", "years"} {
+						if strings.Contains(unit, "("+u) {
+							v += " " + u
+							break
+						}
+					}
+				}
+				if strings.Contains(unit, "pre-bid") && strings.Contains(unit, "required") && strings.EqualFold(v, "no") {
+					v = "Not applicable"
+				}
+				lines := []tscFactLine{{text: p.Text, passage: i, start: 0, end: len(p.Text)}}
+				collect(lines, []tscFactRow{{label: cell.Text, value: v, first: 0, last: 0}})
+			}
 			continue
 		}
 		indexes := []int{i}

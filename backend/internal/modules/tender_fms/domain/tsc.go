@@ -15,7 +15,7 @@ func DefaultTSCProcessingBudget() TSCProcessingBudget {
 }
 
 const TSCVersion = "tsc-v1"
-const TSCProposalVersion = "tsc-local-rag-v5"
+const TSCProposalVersion = "tsc-table-evidence-v6"
 
 // Only reviewed, non-sensitive categories cross the provider boundary.
 type TSCProviderError string
@@ -54,26 +54,40 @@ type TSCQuestion struct {
 	Text         string `json:"question"`
 	Row          int    `json:"row"`
 }
+type TSCTableCell struct {
+	Row          int     `json:"row"`
+	Column       int     `json:"column"`
+	RowSpan      int     `json:"row_span"`
+	ColumnSpan   int     `json:"column_span"`
+	Text         string  `json:"text"`
+	Header       bool    `json:"header"`
+	ColumnHeader string  `json:"column_header,omitempty"`
+	X            float64 `json:"x"`
+	Y            float64 `json:"y"`
+	Width        float64 `json:"width"`
+	Height       float64 `json:"height"`
+}
 type TSCPassage struct {
-	ID           string   `json:"id"`
-	DocumentID   string   `json:"document_id"`
-	Revision     int32    `json:"revision"`
-	SHA256       string   `json:"sha256"`
-	Filename     string   `json:"filename"`
-	Locator      string   `json:"locator"`
-	Text         string   `json:"text"`
-	SearchText   string   `json:"search_text,omitempty"`
-	Heading      string   `json:"heading,omitempty"`
-	Kind         string   `json:"kind,omitempty"`
-	Method       string   `json:"method,omitempty"`
-	Confidence   *float64 `json:"confidence,omitempty"`
-	Segment      int      `json:"segment,omitempty"`
-	Start        int      `json:"start,omitempty"`
-	End          int      `json:"end,omitempty"`
-	Alternative  bool     `json:"alternative,omitempty"`
-	Suppressed   bool     `json:"suppressed,omitempty"`
-	Reason       string   `json:"reason,omitempty"`
-	DocumentType string   `json:"document_type,omitempty"`
+	TableCells   []TSCTableCell `json:"table_cells,omitempty"`
+	ID           string         `json:"id"`
+	DocumentID   string         `json:"document_id"`
+	Revision     int32          `json:"revision"`
+	SHA256       string         `json:"sha256"`
+	Filename     string         `json:"filename"`
+	Locator      string         `json:"locator"`
+	Text         string         `json:"text"`
+	SearchText   string         `json:"search_text,omitempty"`
+	Heading      string         `json:"heading,omitempty"`
+	Kind         string         `json:"kind,omitempty"`
+	Method       string         `json:"method,omitempty"`
+	Confidence   *float64       `json:"confidence,omitempty"`
+	Segment      int            `json:"segment,omitempty"`
+	Start        int            `json:"start,omitempty"`
+	End          int            `json:"end,omitempty"`
+	Alternative  bool           `json:"alternative,omitempty"`
+	Suppressed   bool           `json:"suppressed,omitempty"`
+	Reason       string         `json:"reason,omitempty"`
+	DocumentType string         `json:"document_type,omitempty"`
 }
 
 type TSCCoverage struct {
@@ -151,16 +165,17 @@ type TSCResult struct {
 }
 
 type TSCQuestionDiagnostic struct {
-	Method        string `json:"method,omitempty"`
-	Model         string `json:"model,omitempty"`
-	Fallback      string `json:"fallback,omitempty"`
-	BaselineBytes int    `json:"baseline_bytes,omitempty"`
-	SelectedBytes int    `json:"selected_bytes,omitempty"`
-	ContextGap    bool   `json:"context_gap,omitempty"`
-	QuestionID    string `json:"question_id"`
-	Candidates    int    `json:"candidates"`
-	Documents     int    `json:"documents"`
-	Outcome       string `json:"outcome"`
+	Method                 string `json:"method,omitempty"`
+	Model                  string `json:"model,omitempty"`
+	Fallback               string `json:"fallback,omitempty"`
+	BaselineBytes          int    `json:"baseline_bytes,omitempty"`
+	SelectedBytes          int    `json:"selected_bytes,omitempty"`
+	OptionalContextOmitted bool   `json:"optional_context_omitted,omitempty"`
+	ContextGap             bool   `json:"context_gap,omitempty"`
+	QuestionID             string `json:"question_id"`
+	Candidates             int    `json:"candidates"`
+	Documents              int    `json:"documents"`
+	Outcome                string `json:"outcome"`
 }
 type TSCJob struct {
 	ID           string    `json:"id"`

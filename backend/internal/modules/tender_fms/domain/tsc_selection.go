@@ -3,6 +3,7 @@ package domain
 import (
 	"math"
 	"sort"
+	"strings"
 )
 
 // Ranking contains no source text and is not a correctness probability.
@@ -52,12 +53,16 @@ func SelectRankedTSC(q TSCQuestion, all, candidates []TSCPassage, ranks []TSCRan
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Score > ordered[j].Score })
 	seen = map[string]bool{}
 	docs := map[string]bool{}
-	add := func(p TSCPassage) {
+	add := func(p TSCPassage, required bool) {
 		if seen[p.ID] {
 			return
 		}
 		if len(out.Passages) >= 12 || out.Diagnostic.SelectedBytes+len(p.Text) > 9000 {
-			out.Diagnostic.ContextGap = true
+			if required {
+				out.Diagnostic.ContextGap = true
+			} else {
+				out.Diagnostic.OptionalContextOmitted = true
+			}
 			return
 		}
 		seen[p.ID] = true
@@ -69,14 +74,14 @@ func SelectRankedTSC(q TSCQuestion, all, candidates []TSCPassage, ranks []TSCRan
 	// not establish precedence, and excess context becomes a blocking review gap.
 	for _, p := range candidates {
 		if p.DocumentType == "corrigendum" {
-			add(p)
+			add(p, true)
 		}
 	}
 	for i, r := range ordered {
 		if i >= 6 {
 			break
 		}
-		add(byID[r.ID])
+		add(byID[r.ID], i == 0)
 	}
 	anchors := append([]TSCPassage{}, out.Passages...)
 	for _, a := range anchors {
@@ -94,7 +99,11 @@ func SelectRankedTSC(q TSCQuestion, all, candidates []TSCPassage, ranks []TSCRan
 					delta = -delta
 				}
 				if n.DocumentID == p.DocumentID && n.Revision == p.Revision && n.Alternative == p.Alternative && delta <= 1 && !IsTSCReferenceSource(n.Filename) {
-					add(n)
+					required := tscRequiredContinuation(n.Text)
+					for _, c := range n.TableCells {
+						required = required || tscRequiredContinuation(c.Text)
+					}
+					add(n, required)
 				}
 			}
 			break
@@ -102,4 +111,14 @@ func SelectRankedTSC(q TSCQuestion, all, candidates []TSCPassage, ranks []TSCRan
 	}
 	out.Diagnostic.Documents = len(docs)
 	return out, true
+}
+
+func tscRequiredContinuation(text string) bool {
+	t := strings.ToLower(strings.TrimSpace(text))
+	for _, prefix := range []string{"exception", "provided that", "however", "subject to", "note:", "unless"} {
+		if strings.HasPrefix(t, prefix) {
+			return true
+		}
+	}
+	return false
 }

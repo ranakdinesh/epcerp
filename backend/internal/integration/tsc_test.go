@@ -26,6 +26,7 @@ func verifyTSCNative(t *testing.T, ctx context.Context, pool *pgxpool.Pool, draf
 		execFixture(t, pool, "INSERT INTO auth.role_permissions(role_id,permission_id)SELECT $1,id FROM auth.permissions WHERE code=$2", role, code)
 	}
 	unit := tenderout.NewTSCUnit(drafts, cipher, journal)
+	verifyTSCLegacyTableSnapshot(t, ctx, unit, draft, owner)
 	provider, e := tenderout.NewTSCOllama("", "")
 	if e != nil {
 		t.Fatal(e)
@@ -54,7 +55,7 @@ func verifyTSCNative(t *testing.T, ctx context.Context, pool *pgxpool.Pool, draf
 		t.Fatal("TSC result", e, job.State)
 	}
 	verifyNamedTSCFormats(t, ctx, pool, service, identity, journal, draft, owner, role)
-	if job.Input.Coverage.Version != "document-evidence-v1" || job.Input.Coverage.Documents < 1 || job.Input.Coverage.Blocks < 1 || len(job.Result.Diagnostics) != 70 {
+	if job.Input.Coverage.Version != "document-evidence-v2" || job.Input.Coverage.Documents < 1 || job.Input.Coverage.Blocks < 1 || len(job.Result.Diagnostics) != 70 {
 		t.Fatal("structured evidence/diagnostics missing")
 	}
 	markdown, e := service.ExportEvidence(ctx, "owner", draft.ID, job.ID)

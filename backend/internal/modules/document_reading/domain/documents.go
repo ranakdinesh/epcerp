@@ -59,18 +59,19 @@ type Cell struct {
 	Formula string `json:"formula,omitempty"`
 }
 type Segment struct {
-	CoordinateUnit string   `json:"coordinate_unit,omitempty"`
-	Kind           string   `json:"kind"`
-	Label          string   `json:"label"`
-	Text           string   `json:"text"`
-	NativeText     string   `json:"native_text,omitempty"`
-	OCRText        string   `json:"ocr_text,omitempty"`
-	OCRConfidence  *float64 `json:"ocr_confidence,omitempty"`
-	Method         string   `json:"method"`
-	Confidence     *float64 `json:"confidence,omitempty"`
-	Words          []Word   `json:"words,omitempty"`
-	Cells          []Cell   `json:"cells,omitempty"`
-	Merges         []string `json:"merged_ranges,omitempty"`
+	Tables         []PDFTable `json:"tables,omitempty"`
+	CoordinateUnit string     `json:"coordinate_unit,omitempty"`
+	Kind           string     `json:"kind"`
+	Label          string     `json:"label"`
+	Text           string     `json:"text"`
+	NativeText     string     `json:"native_text,omitempty"`
+	OCRText        string     `json:"ocr_text,omitempty"`
+	OCRConfidence  *float64   `json:"ocr_confidence,omitempty"`
+	Method         string     `json:"method"`
+	Confidence     *float64   `json:"confidence,omitempty"`
+	Words          []Word     `json:"words,omitempty"`
+	Cells          []Cell     `json:"cells,omitempty"`
+	Merges         []string   `json:"merged_ranges,omitempty"`
 }
 type PartCoverage struct {
 	Path        string `json:"path"`

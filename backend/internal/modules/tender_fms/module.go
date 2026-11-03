@@ -22,6 +22,7 @@ import (
 )
 
 type Dependencies struct {
+	PDFLayouts       reading.PDFLayoutReader
 	DraftPackages    func(database.Connection) packages.DraftConsumer
 	Packages         func(database.Connection) packages.Consumer
 	PreparedReader   func(database.Connection) reading.PreparedReader
@@ -101,7 +102,7 @@ func NewTSC(d Dependencies) (*application.TSC, error) {
 	} else if value := os.Getenv("EPCERP_TSC_RETRIEVAL"); value != "" && value != "bm25" {
 		return nil, fmt.Errorf("unsupported TSC retrieval configuration")
 	}
-	return application.NewTSC(outbound.NewTSCUnit(drafts, cipher, d.Events), outbound.NewAuthBridge(d.Identity), provider, outbound.TSCExporter{}).WithProviders(providers).WithEvidence(application.NewTSCEvidence(ranker)), nil
+	return application.NewTSC(outbound.NewTSCUnit(drafts, cipher, d.Events).WithLayouts(d.PDFLayouts), outbound.NewAuthBridge(d.Identity), provider, outbound.TSCExporter{}).WithProviders(providers).WithEvidence(application.NewTSCEvidence(ranker)), nil
 }
 
 func WorkInventory(c database.Connection) auth.WorkSource { return outbound.NewWorkInventory(c) }

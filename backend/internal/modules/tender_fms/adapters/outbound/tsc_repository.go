@@ -20,22 +20,25 @@ import (
 )
 
 type TSCUnit struct {
+	layouts reading.PDFLayoutReader
 	drafts  *DraftUnit
 	cipher  *infrastructure.DocumentCipher
 	journal func(database.Connection) events.Writer
 }
 
 func NewTSCUnit(d *DraftUnit, c *infrastructure.DocumentCipher, j func(database.Connection) events.Writer) *TSCUnit {
-	return &TSCUnit{d, c, j}
+	return &TSCUnit{drafts: d, cipher: c, journal: j}
 }
+func (u *TSCUnit) WithLayouts(l reading.PDFLayoutReader) *TSCUnit { u.layouts = l; return u }
 func (u *TSCUnit) Within(ctx context.Context, f func(context.Context, ports.TSCRepository, ports.DraftRepository) error) error {
 	return u.drafts.m.Within(ctx, func(ctx context.Context, c database.Connection) error {
 		d := &DraftRepository{c, db.New(c), u.drafts.users(c), u.drafts.packages(c), u.drafts.reader(c), u.drafts.prepared(c)}
-		return f(ctx, &tscRepository{q: db.New(c), drafts: d, cipher: u.cipher, journal: u.journal(c)}, d)
+		return f(ctx, &tscRepository{q: db.New(c), drafts: d, cipher: u.cipher, journal: u.journal(c), layouts: u.layouts}, d)
 	})
 }
 
 type tscRepository struct {
+	layouts reading.PDFLayoutReader
 	q       *db.Queries
 	drafts  *DraftRepository
 	cipher  *infrastructure.DocumentCipher
@@ -103,7 +106,38 @@ func (r *tscRepository) Snapshot(ctx context.Context, d domain.DocumentDraft) (d
 			for _, part := range result.Parts {
 				in.Parts = append(in.Parts, domain.TSCSourcePart{DocumentID: source.ID, Path: part.Path, Disposition: part.Disposition, Reason: part.Reason})
 			}
+			if r.layouts != nil && strings.HasSuffix(strings.ToLower(source.Path), ".pdf") {
+				has := false
+				for _, page := range result.Segments {
+					has = has || len(page.Tables) > 0
+				}
+				if !has {
+					original, err := r.drafts.Artifact(ctx, d, source.ID, "original")
+					if err != nil {
+						return in, err
+					}
+					tables, err := r.layouts.Extract(ctx, original)
+					if err == nil && len(tables.Pages) == len(result.Segments) {
+						for i, page := range tables.Pages {
+							result.Segments[i].Tables = page.Tables
+						}
+					} else {
+						in.Warnings = append(in.Warnings, source.Path+": table layout not verified; use original-document review for unresolved fields.")
+					}
+				}
+			}
 			evidence := reading.NormalizeEvidence(result)
+			if strings.HasSuffix(strings.ToLower(source.Path), ".pdf") {
+				unverified := false
+				verified := false
+				for _, b := range evidence.Blocks {
+					unverified = unverified || b.Kind == "table"
+					verified = verified || len(b.TableCells) > 0
+				}
+				if unverified && !verified {
+					in.Warnings = append(in.Warnings, source.Path+": table structure is unverified; original-PDF review is available for unresolved questions.")
+				}
+			}
 			in.Coverage.Version = evidence.Version
 			in.Coverage.Documents++
 			in.Coverage.Segments += evidence.Segments
@@ -113,9 +147,17 @@ func (r *tscRepository) Snapshot(ctx context.Context, d domain.DocumentDraft) (d
 			in.Coverage.LowConfidence += evidence.LowConfidence
 			documentType := tscDocumentType(source.Path, evidence.Blocks)
 			for _, block := range evidence.Blocks {
-				in.Passages = append(in.Passages, domain.TSCPassage{
+				locator := fmt.Sprintf("%s / bytes %d-%d", block.Label, block.Start, block.End)
+				if len(block.TableCells) > 0 {
+					locator = block.Label
+				}
+				cells := []domain.TSCTableCell{}
+				for _, c := range block.TableCells {
+					cells = append(cells, domain.TSCTableCell{Row: c.Row, Column: c.Column, RowSpan: c.RowSpan, ColumnSpan: c.ColumnSpan, Text: c.Text, Header: c.Header, ColumnHeader: c.ColumnHeader, X: c.X, Y: c.Y, Width: c.Width, Height: c.Height})
+				}
+				in.Passages = append(in.Passages, domain.TSCPassage{TableCells: cells,
 					ID: source.ID + ":" + block.ID, DocumentID: source.ID, Revision: source.Version, SHA256: source.SHA256,
-					Filename: source.Path, Locator: fmt.Sprintf("%s / bytes %d-%d", block.Label, block.Start, block.End),
+					Filename: source.Path, Locator: locator,
 					Text: block.Text, SearchText: block.SearchText, Heading: block.Heading, Kind: block.Kind, Method: block.Method,
 					Confidence: block.Confidence, Segment: block.Segment, Start: block.Start, End: block.End,
 					Alternative: block.Alternative, Suppressed: block.Suppressed, Reason: block.Reason, DocumentType: documentType,

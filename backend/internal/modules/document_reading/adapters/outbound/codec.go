@@ -60,15 +60,19 @@ func (Codec) Text(b []byte) ([]byte, error) {
 	}
 	var out strings.Builder
 	evidence := domain.BuildEvidence(r)
-	fmt.Fprintf(&out, "# Derived reading (%s)\n\nOriginal reading and source remain authoritative. %d segments; %d empty; %d repeated furniture blocks retained in the appendix.\n\n", evidence.Version, evidence.Segments, evidence.EmptySegments, evidence.Suppressed)
+	fmt.Fprintf(&out, "# Derived reading (%s)\n\nOriginal reading and source remain authoritative. %d segments; %d empty; %d lower-priority original blocks retained in the appendix.\n\n", evidence.Version, evidence.Segments, evidence.EmptySegments, evidence.Suppressed)
 	for _, b := range evidence.Blocks {
 		if b.Suppressed {
 			continue
 		}
-		fmt.Fprintf(&out, "## %s (%s; %s; bytes %d-%d)\n\n%s\n\n", b.Label, b.Method, b.Kind, b.Start, b.End, b.Text)
+		if len(b.TableCells) > 0 {
+			fmt.Fprintf(&out, "## %s (%s; derived table cells; original retained)\n\n%s\n\n", b.Label, b.Method, b.Text)
+		} else {
+			fmt.Fprintf(&out, "## %s (%s; %s; bytes %d-%d)\n\n%s\n\n", b.Label, b.Method, b.Kind, b.Start, b.End, b.Text)
+		}
 	}
 	if evidence.Suppressed > 0 {
-		out.WriteString("# Repeated page furniture (retained, lower search priority)\n\n")
+		out.WriteString("# Original/alternative evidence (retained, lower search priority)\n\n")
 		for _, b := range evidence.Blocks {
 			if b.Suppressed {
 				fmt.Fprintf(&out, "## %s / bytes %d-%d\n\n%s\n\n", b.Label, b.Start, b.End, b.Text)

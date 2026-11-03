@@ -94,7 +94,7 @@ func TestCloudReservationAndProviderUseIdenticalSelectedEvidence(t *testing.T) {
 	if _, e := s.cloudPropose(context.Background(), j, q, "gemini", "fixture-key", 0, selected); e != nil {
 		t.Fatal(e)
 	}
-	if !r.done || len(p.sent) != 1 || p.sent[0] != chosen || len(r.call.Input.Passages) != 1 || r.call.Input.Passages[0] != chosen || r.call.Input.Retrieval.Model != "pinned-fixture" {
+	if !r.done || len(p.sent) != 1 || p.sent[0].Text != chosen.Text || p.sent[0].ID != chosen.ID || len(r.call.Input.Passages) != 1 || r.call.Input.Passages[0].Text != chosen.Text || r.call.Input.Passages[0].ID != chosen.ID || r.call.Input.Retrieval.Model != "pinned-fixture" {
 		t.Fatal("provider evidence differs from reservation or irrelevant source sent")
 	}
 }

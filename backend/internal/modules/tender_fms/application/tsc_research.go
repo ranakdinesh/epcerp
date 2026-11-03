@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"github.com/ranakdinesh/epcERP/internal/modules/tender_fms/domain"
 	"github.com/ranakdinesh/epcERP/internal/modules/tender_fms/ports"
 )
@@ -16,7 +17,7 @@ func (s *TSC) providerFor(mode string) ports.TSCProvider {
 
 func (s *TSC) Options(ctx context.Context, token, id string) (out domain.TSCOptions, e error) {
 	out.LimitPaise = domain.TSCCloudBudgetPaise
-	e = s.within(ctx, token, id, "read", func(ctx context.Context, r ports.TSCRepository, _ domain.DocumentDraft, _ string) error {
+	e = s.within(ctx, token, id, "read", func(ctx context.Context, r ports.TSCRepository, _ domain.DocumentDraft, actor string) error {
 		var e error
 		out.ReservedPaise, e = r.CloudBudget(ctx, id)
 		if e != nil {
@@ -26,6 +27,11 @@ func (s *TSC) Options(ctx context.Context, token, id string) (out domain.TSCOpti
 		if e != nil {
 			return e
 		}
+		permissionError := r.Authorize(ctx, actor, "originals.write")
+		if permissionError != nil && !errors.Is(permissionError, domain.Forbidden) {
+			return permissionError
+		}
+		originalAllowed := permissionError == nil
 		out.Providers = []domain.TSCProviderOption{{Mode: "local", Available: true}, {Mode: "manual", Available: true}}
 		for _, mode := range []string{"gemini", "openai", "ollama"} {
 			p := s.providerFor(mode)
@@ -33,21 +39,22 @@ func (s *TSC) Options(ctx context.Context, token, id string) (out domain.TSCOpti
 			if p != nil {
 				model = p.Model()
 			}
-			out.Providers = append(out.Providers, domain.TSCProviderOption{Mode: mode, Model: model, Available: model != "", Cloud: domain.TSCCloudAllowance(mode) > 0, AllowancePaise: domain.TSCCloudAllowance(mode)})
+			_, supportsOriginals := p.(ports.TSCOriginalProvider)
+			out.Providers = append(out.Providers, domain.TSCProviderOption{Mode: mode, Model: model, Available: model != "", Cloud: domain.TSCCloudAllowance(mode) > 0, AllowancePaise: domain.TSCCloudAllowance(mode), OriginalDocuments: supportsOriginals && originalAllowed && mode == "gemini" && model != "", OriginalAllowancePaise: domain.TSCOriginalAllowancePaise})
 		}
 		return nil
 	})
 	return
 }
 
-func (s *TSC) Research(ctx context.Context, token, id, jobID, question, query, mode, key string, version int64) (out domain.TSCResearch, e error) {
+func (s *TSC) Research(ctx context.Context, token, id, jobID, question, query, mode, key string, version int64, options ...domain.TSCResearchOptions) (out domain.TSCResearch, e error) {
 	if len(query) > 300 {
 		return out, domain.Invalid("Search terms must be at most 300 bytes")
 	}
 	if _, e = domain.ID(jobID); e != nil {
 		return out, e
 	}
-	if mode != "search" && mode != "gemini" && mode != "openai" && mode != "ollama" {
+	if mode != "search" && mode != "gemini_originals" && mode != "gemini" && mode != "openai" && mode != "ollama" {
 		return out, domain.Invalid("Choose source search or a configured proposal provider")
 	}
 	action := "read"
@@ -88,6 +95,12 @@ func (s *TSC) Research(ctx context.Context, token, id, jobID, question, query, m
 	})
 	if e != nil {
 		return out, e
+	}
+	if mode == "gemini_originals" {
+		if len(options) != 1 || !options[0].OriginalDocumentsConfirmed {
+			return out, domain.Invalid("Confirm sending the original source PDFs to Gemini for this question")
+		}
+		return s.researchOriginals(ctx, snapshot, domain.TSCResearchQuestion(q, query), key, version)
 	}
 	q = domain.TSCResearchQuestion(q, query)
 	out.QuestionID = question

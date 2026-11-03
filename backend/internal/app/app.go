@@ -110,7 +110,7 @@ func (a *App) bindModules(ctx context.Context) error {
 		return packagemodule.DraftConsumer(c, auth.Assignments(c))
 	}, Packages: func(c database.Connection) packagecontracts.Consumer {
 		return packagemodule.Consumer(c, auth.Assignments(c))
-	}, PreparedReader: reader.PreparedReader, Notices: func(c database.Connection) inboxcontracts.TenderWriter {
+	}, PDFLayouts: reader.Layouts(), PreparedReader: reader.PreparedReader, Notices: func(c database.Connection) inboxcontracts.TenderWriter {
 		return inboxmodule.TenderWriter(c, events.Writer(c), tendermodule.AssignmentActions(c, events.Writer(c)))
 	}, Bundles: auth.Bundles, ManagerBundleIDs: a.Config.TenderManagerBundleIDs, Users: auth.Assignments, Router: a.Router, Database: a.Database, Identity: auth.Resolver, Reader: reader.Reader, Validator: reader.Validator(), Events: events.Writer})
 	if err != nil {

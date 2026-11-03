@@ -38,3 +38,5 @@ func (m *Module) Preparer() contracts.Preparer {
 func (m *Module) PreparedReader(c database.Connection) contracts.PreparedReader {
 	return application.New(outbound.NewRepository(c, m.events(c)), m.cipher, outbound.Values{}, outbound.Inspector{}, outbound.Codec{})
 }
+
+func (*Module) Layouts() contracts.PDFLayoutReader { return outbound.PDFLayouts{} }

@@ -64,3 +64,15 @@ update across restart. No full host reboot or real-document paid run was used
 for verification. Historical jobs remain four ready/three failed, with no manual
 reset/replay. Remaining acceptance: owner-requested real-tender run and review of
 fallback/partial-result warnings, not automatic commercial acceptance.
+
+## Table-preserving tender evidence — 3 November 2026
+
+- [x] Implement native ruled-table cells, spans, headers and atomic row evidence.
+- [x] Implement local-first facts and explicit permission/consent-gated per-question
+  Gemini original-PDF review, bounded package, allowance and verified citations.
+- [ ] Complete full native/frontend verification and deployment validation.
+- [ ] Benchmark held-out native, scanned, borderless and cross-page tender packages.
+- [ ] Review a real Gemini original-document proposal with an authorized user.
+
+See TSC_TABLE_PRESERVATION_SLICE.md. Originals fallback is PDF-only and does not
+fetch external references or resolve source precedence automatically.

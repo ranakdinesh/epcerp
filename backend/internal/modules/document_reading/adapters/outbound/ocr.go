@@ -109,6 +109,17 @@ func readPDF(ctx context.Context, path, dir string, r *domain.Result) error {
 		}
 		r.Segments = append(r.Segments, segment)
 	}
+	data, err := os.ReadFile(path)
+	if err == nil {
+		tables, err := (PDFLayouts{}).Extract(ctx, data)
+		if err == nil && len(tables.Pages) == len(r.Segments) {
+			for i, p := range tables.Pages {
+				r.Segments[i].Tables = p.Tables
+			}
+		} else {
+			r.Warnings = append(r.Warnings, "PDF table structure unavailable; original pages require review before trusting table-derived answers.")
+		}
+	}
 	return nil
 }
 func pdfWords(b []byte) []domain.Word {

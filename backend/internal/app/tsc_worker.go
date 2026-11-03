@@ -30,7 +30,7 @@ func RunTSCWorker(ctx context.Context) error {
 		return e
 	}
 	identity := &auth.Module{}
-	worker, e := tender.NewTSC(tender.Dependencies{Database: pool, Users: identity.Assignments, Reader: reader.Reader, PreparedReader: reader.PreparedReader, Events: journal.Writer, DraftPackages: func(c database.Connection) packagecontracts.DraftConsumer {
+	worker, e := tender.NewTSC(tender.Dependencies{Database: pool, Users: identity.Assignments, Reader: reader.Reader, PDFLayouts: reader.Layouts(), PreparedReader: reader.PreparedReader, Events: journal.Writer, DraftPackages: func(c database.Connection) packagecontracts.DraftConsumer {
 		return packages.DraftConsumer(c, identity.Assignments(c))
 	}})
 	if e != nil {

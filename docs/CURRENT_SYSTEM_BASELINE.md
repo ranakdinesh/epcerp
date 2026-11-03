@@ -63,3 +63,15 @@ update across restart. No full host reboot or real-document paid run was used
 for verification. Historical jobs remain four ready/three failed, with no manual
 reset/replay. Remaining acceptance: owner-requested real-tender run and review of
 fallback/partial-result warnings, not automatic commercial acceptance.
+
+## Table-preserving tender evidence — implementation in verification
+
+The working slice adds native PDF cell geometry and atomic table rows to derived
+TSC evidence, with on-demand enrichment of authorized legacy PDF readings.
+Per-question Gemini original-PDF research requires explicit confirmation and the
+new `tenders.tsc.originals.write` permission. See
+[TSC_TABLE_PRESERVATION_SLICE.md](TSC_TABLE_PRESERVATION_SLICE.md) for bounds,
+records, acceptance gates and limitations. Go/native integration and frontend checks/build passed; the production reader
+passed the supplied-PDF offline regression. Server rollout remains pending. Next
+unfinished task: deployment validation, held-out benchmarking and an authorized
+user’s live Gemini review; do not infer universal extraction accuracy.

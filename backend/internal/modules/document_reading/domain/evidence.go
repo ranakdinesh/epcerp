@@ -8,24 +8,26 @@ import (
 	"unicode/utf8"
 )
 
-const EvidenceVersion = "document-evidence-v1"
+const EvidenceVersion = "document-evidence-v2"
 
-// Offsets address the unchanged Text (or NativeText) of the source segment.
+// Text blocks keep source byte offsets. Derived table rows retain cell geometry
+// and explicit native_table provenance instead of claiming original byte offsets.
 type EvidenceBlock struct {
-	ID          string   `json:"id"`
-	Segment     int      `json:"segment"`
-	Label       string   `json:"label"`
-	Kind        string   `json:"kind"`
-	Heading     string   `json:"heading,omitempty"`
-	Start       int      `json:"start"`
-	End         int      `json:"end"`
-	Text        string   `json:"text"`
-	SearchText  string   `json:"search_text"`
-	Method      string   `json:"method"`
-	Confidence  *float64 `json:"confidence,omitempty"`
-	Alternative bool     `json:"alternative,omitempty"`
-	Suppressed  bool     `json:"suppressed,omitempty"`
-	Reason      string   `json:"reason,omitempty"`
+	TableCells  []TableCell `json:"table_cells,omitempty"`
+	ID          string      `json:"id"`
+	Segment     int         `json:"segment"`
+	Label       string      `json:"label"`
+	Kind        string      `json:"kind"`
+	Heading     string      `json:"heading,omitempty"`
+	Start       int         `json:"start"`
+	End         int         `json:"end"`
+	Text        string      `json:"text"`
+	SearchText  string      `json:"search_text"`
+	Method      string      `json:"method"`
+	Confidence  *float64    `json:"confidence,omitempty"`
+	Alternative bool        `json:"alternative,omitempty"`
+	Suppressed  bool        `json:"suppressed,omitempty"`
+	Reason      string      `json:"reason,omitempty"`
 }
 type Evidence struct {
 	Version       string          `json:"version"`
@@ -64,6 +66,7 @@ func BuildEvidence(r Result) Evidence {
 	first := map[string]bool{}
 	heading := ""
 	for si, s := range r.Segments {
+		out.Blocks = append(out.Blocks, tableEvidence(si, s)...)
 		pageMarker := func(text string) bool {
 			return pageLine.MatchString(text) && (strings.Contains(strings.ToLower(text), "page") || strings.TrimSpace(text) == fmt.Sprint(si+1))
 		}
@@ -151,6 +154,13 @@ func BuildEvidence(r Result) Evidence {
 						block.Suppressed = true
 						block.Reason = "repeated_page_furniture"
 						out.Suppressed++
+					}
+					if len(s.Tables) > 0 && (kind == "table" || tableTextOverlap(s, raw)) {
+						if !block.Suppressed {
+							out.Suppressed++
+						}
+						block.Suppressed = true
+						block.Reason = "structured_table_primary"
 					}
 					first[search] = true
 					out.Blocks = append(out.Blocks, block)
