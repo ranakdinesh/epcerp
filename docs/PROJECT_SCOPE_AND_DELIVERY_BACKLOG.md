@@ -70,7 +70,11 @@ fallback/partial-result warnings, not automatic commercial acceptance.
 - [x] Implement native ruled-table cells, spans, headers and atomic row evidence.
 - [x] Implement local-first facts and explicit permission/consent-gated per-question
   Gemini original-PDF review, bounded package, allowance and verified citations.
-- [ ] Complete full native/frontend verification and deployment validation.
+- [x] Complete full native/frontend verification and development deployment,
+  including offline image preflight, backups, schema/route checks and an enabled
+  deployment-service restart.
+- [x] Bound synchronous research context/response deadlines around provider work;
+  verify with a real short-timeout HTTP server and rerun Go checks/builds.
 - [ ] Benchmark held-out native, scanned, borderless and cross-page tender packages.
 - [ ] Review a real Gemini original-document proposal with an authorized user.
 

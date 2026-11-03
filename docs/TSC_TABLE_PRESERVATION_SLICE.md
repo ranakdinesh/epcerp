@@ -1,6 +1,6 @@
 # Tender table evidence and explicit original-PDF review
 
-Implementation scope, 3 November 2026. Status: verification in progress.
+Implementation scope, 3 November 2026. Status: implemented, verified and deployed to development.
 
 ## Business requirement
 
@@ -133,3 +133,48 @@ uses a 10 ms global write timeout and a 40 ms synthetic proposal, through the sa
 chi response wrapper used by request logging. It verifies successful delivery and
 bounded/cancellable context. Complete Go checks/race tests/build were rerun and
 passed after this correction. No live provider call was needed.
+
+## Development rollout record — 3 November 2026
+
+Implemented source commits `e6ca84d` and `7d284c9` are published on
+`codex/table-aware-tender-evidence`. The native server preflight passed four
+synthetic layout tests in each API/reader image and a real Go-reader subprocess
+check. Main rollout and the bounded research-transport correction completed with
+exit 0. Current images:
+
+- API/TSC worker: `epcerp-api:table-evidence-20261103-2-amd64`.
+- Document/package workers: `epcerp-document-worker:table-evidence-20261103-1-amd64`.
+- Public and LAN frontends: `epcerp-frontend:table-evidence-20261103-1-amd64`.
+- Guarded local reranker remains `epcerp-tsc-reranker:guardrails-20261103-1-amd64`.
+
+The verified image archive SHA256 is
+`1bd6fcb5f88a94a03e3ae3ccdfd4088b5c24d41c9e37858154bc70f3710e2300`.
+The API transport update binary SHA256 is
+`128a5187b47ec44d104a72446e242a64c019fe56fedee22b39ffe3ddf6e4726b`.
+`transport.sh PATCH_DIRECTORY API_SHA256` verifies that binary, builds the
+network-disabled local image from the tested base and repeats the backup/health/
+rollback checks. The patch directory contains the API binary and a Dockerfile:
+
+```dockerfile
+FROM epcerp-api:table-evidence-20261103-1-amd64
+COPY api /app/api
+USER 10001:10001
+```
+
+Both private config/custom-format database backups were verified with pg_restore:
+`pre-table-evidence-20261103T105905Z-258284` and
+`pre-table-transport-20261103T110332Z-265325`, beneath the active release directory
+`/home/vtplerp/epcerp-releases/dev-20261102-1-amd64`. Schema98 remained clean;
+12 ready/3 failed TSC jobs were retained without replay. Auth startup reconciled
+the new original-document permission. Public HTTPS returned 200 from outside the
+server, and both rollout scripts passed their server-side LAN/HTTPS probes.
+No live paid Gemini validation or historical TSC rewrite was performed. Generate
+a new TSC for enriched local evidence; on an unresolved question select Gemini
+original source PDFs and explicitly confirm sharing. Regular roles need the new
+permission granted by an administrator; the recovery superadmin receives it
+through normal server authorization.
+
+The enabled `epcerp-dev.service` was restarted after rollout. All ten services
+with healthchecks returned healthy; gateway remained running. API/TSC workers
+retained image revision 2 and both frontend routes retained revision 1. This
+validates service restart persistence; a full host reboot was not performed.
