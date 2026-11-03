@@ -9,6 +9,7 @@ import (
 
 // TSC owns draft answers only. It cannot approve eligibility or a bid.
 type TSC struct {
+	budget    domain.TSCProcessingBudget
 	evidence  *TSCEvidence
 	unit      ports.TSCUnit
 	auth      ports.Authorizer
@@ -19,7 +20,7 @@ type TSC struct {
 }
 
 func NewTSC(u ports.TSCUnit, a ports.Authorizer, p ports.TSCProvider, e ports.TSCExporter) *TSC {
-	return &TSC{unit: u, auth: a, provider: p, exporter: e}
+	return &TSC{unit: u, auth: a, provider: p, exporter: e, budget: domain.DefaultTSCProcessingBudget()}
 }
 func (s *TSC) WithLimits(l ports.CommandLimits) *TSC { s.limits = l; return s }
 func (s *TSC) within(ctx context.Context, token, id, action string, f func(context.Context, ports.TSCRepository, domain.DocumentDraft, string) error) error {
@@ -232,8 +233,12 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 		return false, e
 	}
 	worked = true
+	parent := ctx
+	ctx, stopWork := context.WithTimeout(ctx, s.budget.Work)
+	defer stopWork()
 	result := domain.TSCResult{Schema: domain.TSCVersion, Answers: []domain.TSCAnswer{}, Warnings: job.Input.Warnings}
 	code := ""
+	cloudBlocked := ""
 	provider := s.providerFor(job.Mode)
 	if job.Mode != "manual" && job.Mode != "local" && (provider == nil || job.Model != provider.Model()) {
 		code = "configured_model_changed"
@@ -252,6 +257,9 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 	}
 	candidates := domain.CollectTSCCandidates(job.Input)
 	for _, q := range job.Input.Questions {
+		if ctx.Err() != nil {
+			break
+		}
 		if code != "" {
 			break
 		}
@@ -272,7 +280,9 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 			return r.Renew(ctx, *job)
 		})
 		if e != nil {
-			code = "source_or_access_changed"
+			if ctx.Err() == nil {
+				code = "source_or_access_changed"
+			}
 			break
 		}
 		a := domain.EmptyTSCAnswer(q)
@@ -280,6 +290,9 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 		selection := (*TSCEvidence)(nil).Select(ctx, q, job.Input.Passages)
 		if job.Mode != "manual" && !hasCandidate {
 			selection = s.selectEvidence(ctx, q, job.Input)
+		}
+		if ctx.Err() != nil {
+			break
 		}
 		diagnostic := selection.Diagnostic
 		if diagnostic.Fallback != "" {
@@ -294,16 +307,27 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 		}
 		if job.Mode != "manual" && job.Mode != "local" && !hasCandidate && !domain.TSCRequiresHumanReview(q) && !diagnostic.ContextGap {
 			if domain.TSCCloudAllowance(job.Mode) > 0 {
-				a, e = s.cloudPropose(ctx, *job, q, job.Mode, "generation:"+job.ID+":"+q.ID, 0, selection)
+				if cloudBlocked != "" {
+					e = domain.CaptureFailure(503, cloudBlocked, "Cloud requests paused for this draft attempt; source review remains available")
+				} else {
+					a, e = s.cloudPropose(ctx, *job, q, job.Mode, "generation:"+job.ID+":"+q.ID, 0, selection)
+				}
 			} else {
 				a, e = provider.Propose(ctx, q, selection.Passages)
 			}
+			if ctx.Err() != nil {
+				break
+			}
 			if e != nil {
 				if domain.TSCCloudAllowance(job.Mode) > 0 {
+					switch domain.TSCProviderFailure(e) {
+					case string(domain.TSCProviderRateLimited), string(domain.TSCProviderAuthentication), string(domain.TSCProviderAccessDenied), string(domain.TSCProviderUnavailable), string(domain.TSCProviderTimeout):
+						cloudBlocked = domain.TSCProviderFailure(e)
+					}
 					a = domain.EmptyTSCAnswer(q)
 					a.Origin = "cloud_review_required"
 					a.Text = ""
-					result.Warnings = append(result.Warnings, q.ID+": cloud request not completed; no automatic paid retry")
+					result.Warnings = append(result.Warnings, q.ID+": "+domain.TSCProviderFailure(e)+"; cloud request not completed; no automatic paid retry")
 					result.Answers = append(result.Answers, a)
 					continue
 				}
@@ -338,7 +362,30 @@ func (s *TSC) Once(ctx context.Context) (worked bool, e error) {
 		result.Diagnostics = append(result.Diagnostics, diagnostic)
 		result.Answers = append(result.Answers, a)
 	}
-	e = s.unit.Within(ctx, func(ctx context.Context, r ports.TSCRepository, d ports.DraftRepository) error {
+	if ctx.Err() != nil && code == "" {
+		if errors.Is(parent.Err(), context.Canceled) {
+			code = "processing_interrupted"
+		} else {
+			// Return useful, explicitly incomplete work, never invented answers.
+			result.Warnings = append(result.Warnings, "Processing time limit reached; unfinished questions require source review. No automatic paid retry.")
+			answered := map[string]bool{}
+			for _, a := range result.Answers {
+				answered[a.QuestionID] = true
+			}
+			for _, q := range job.Input.Questions {
+				if !answered[q.ID] {
+					a := domain.EmptyTSCAnswer(q)
+					a.Origin = "processing_time_limit"
+					result.Answers = append(result.Answers, a)
+				}
+			}
+		}
+	}
+	// A canceled inference context must not prevent durable completion. Recheck
+	// live authorization/source versions and let repository claim fencing apply.
+	completion, stopCompletion := context.WithTimeout(context.WithoutCancel(parent), s.budget.Completion)
+	defer stopCompletion()
+	e = s.unit.Within(completion, func(ctx context.Context, r ports.TSCRepository, d ports.DraftRepository) error {
 		if code == "" {
 			if e := d.Authorize(ctx, job.ActorID, true); e != nil {
 				code = "source_or_access_changed"

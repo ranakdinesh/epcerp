@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -18,17 +19,37 @@ import (
 const TSCRerankerModel = "minilm-l6@233902d25c440f23af6f7d6e94d2946bac0bee0a/onnx-int8-window-v1"
 
 type TSCReranker struct {
-	client *http.Client
-	pool   *pgxpool.Pool
+	client           *http.Client
+	pool             *pgxpool.Pool
+	mu               sync.Mutex
+	unavailableUntil time.Time
+	timeout          time.Duration
+	now              func() time.Time
 }
 
 func NewTSCReranker(pool *pgxpool.Pool) *TSCReranker {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.Proxy = nil
-	return &TSCReranker{pool: pool, client: &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("local ranking redirect forbidden") }}}
+	return &TSCReranker{pool: pool, timeout: 5 * time.Second, now: time.Now, client: &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("local ranking redirect forbidden") }}}
 }
 func (*TSCReranker) Model() string { return TSCRerankerModel + "/" + runtime.GOARCH }
 func (p *TSCReranker) Rank(ctx context.Context, q domain.TSCQuestion, passages []domain.TSCPassage) (out []domain.TSCRank, err error) {
+	p.mu.Lock()
+	open := p.now().Before(p.unavailableUntil)
+	p.mu.Unlock()
+	if open {
+		return nil, errors.New("local ranking circuit open")
+	}
+	// Includes CPU-slot acquisition, connect, response and decoding time.
+	ctx, cancel := context.WithTimeout(ctx, p.timeout)
+	defer cancel()
+	defer func() {
+		if err != nil {
+			p.mu.Lock()
+			p.unavailableUntil = p.now().Add(time.Minute)
+			p.mu.Unlock()
+		}
+	}()
 	if p.pool == nil || infrastructure.DocumentSlotHeld(ctx) {
 		return p.rank(ctx, q, passages)
 	}

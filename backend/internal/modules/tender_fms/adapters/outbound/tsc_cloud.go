@@ -102,7 +102,18 @@ func (p *TSCCloud) Propose(ctx context.Context, q domain.TSCQuestion, all []doma
 		return fallback, domain.TSCProviderUnavailable
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
+	switch response.StatusCode {
+	case http.StatusOK:
+	case http.StatusTooManyRequests:
+		return fallback, domain.TSCProviderRateLimited
+	case http.StatusUnauthorized:
+		return fallback, domain.TSCProviderAuthentication
+	case http.StatusForbidden:
+		return fallback, domain.TSCProviderAccessDenied
+	default:
+		if response.StatusCode >= 400 && response.StatusCode < 500 {
+			return fallback, domain.TSCProviderRejected
+		}
 		return fallback, domain.TSCProviderUnavailable
 	}
 	raw, e := io.ReadAll(io.LimitReader(response.Body, (128<<10)+1))

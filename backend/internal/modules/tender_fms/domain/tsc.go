@@ -1,9 +1,18 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"time"
 )
+
+// TSCProcessingBudget is the maximum useful draft preparation window and the
+// bounded time reserved for authorization-checked durable completion.
+type TSCProcessingBudget struct{ Work, Completion time.Duration }
+
+func DefaultTSCProcessingBudget() TSCProcessingBudget {
+	return TSCProcessingBudget{12 * time.Minute, 15 * time.Second}
+}
 
 const TSCVersion = "tsc-v1"
 const TSCProposalVersion = "tsc-local-rag-v5"
@@ -14,6 +23,10 @@ type TSCProviderError string
 func (e TSCProviderError) Error() string { return string(e) }
 
 const (
+	TSCProviderRateLimited      TSCProviderError = "provider_rate_limited"
+	TSCProviderAuthentication   TSCProviderError = "provider_authentication_failed"
+	TSCProviderAccessDenied     TSCProviderError = "provider_access_denied"
+	TSCProviderRejected         TSCProviderError = "provider_request_rejected"
 	TSCProviderUnavailable      TSCProviderError = "provider_unavailable"
 	TSCProviderTimeout          TSCProviderError = "provider_timeout"
 	TSCProviderModelUnavailable TSCProviderError = "provider_model_unavailable"
@@ -21,8 +34,12 @@ const (
 )
 
 func TSCProviderFailure(err error) string {
+	var capture *CaptureError
+	if errors.As(err, &capture) {
+		err = TSCProviderError(capture.Code)
+	}
 	switch err {
-	case TSCProviderUnavailable, TSCProviderTimeout, TSCProviderModelUnavailable:
+	case TSCProviderUnavailable, TSCProviderTimeout, TSCProviderModelUnavailable, TSCProviderRateLimited, TSCProviderAuthentication, TSCProviderAccessDenied, TSCProviderRejected:
 		return err.Error()
 	default:
 		return "provider_failed"

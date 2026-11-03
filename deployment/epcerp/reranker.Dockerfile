@@ -13,6 +13,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 HF_HUB_OFFLINE=1 TOKENIZERS_PAR
 COPY --from=build /install /usr/local
 COPY --from=build /model /model
 WORKDIR /app
-COPY reranker/server.py reranker/smoke.py ./
+COPY reranker/server.py reranker/smoke.py reranker/guardrails.py ./
 USER 10001:10001
 CMD ["python","server.py"]

@@ -1,7 +1,8 @@
 """Private, single-request CPU inference. No prompts, credentials or text logs."""
 import hashlib,json,math,platform
-from http.server import BaseHTTPRequestHandler,HTTPServer
+from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
+from guardrails import InferenceBusy,InferenceGuard
 import numpy as np
 import onnxruntime as ort
 from tokenizers import Tokenizer
@@ -17,6 +18,7 @@ tokenizer=Tokenizer.from_file(str(root/"tokenizer.json"))
 query_tokenizer=Tokenizer.from_file(str(root/"tokenizer.json"))
 tokenizer.enable_truncation(max_length=512,stride=64,strategy="only_second")
 inputs={v.name for v in session.get_inputs()}
+guard=InferenceGuard(10)
 
 def score(payload):
  if not isinstance(payload,dict) or set(payload)!={"query","passages"}:raise ValueError()
@@ -63,8 +65,10 @@ class Handler(BaseHTTPRequestHandler):
    if not 0<length<=131072 or self.headers.get("Transfer-Encoding"):raise ValueError()
    raw=self.rfile.read(length)
    if len(raw)!=length:raise ValueError()
-   self.reply(200,score(json.loads(raw)))
+   payload=json.loads(raw)
+   self.reply(200,guard.run(lambda:score(payload)))
+  except InferenceBusy:self.reply(503,{"error":"local_inference_busy"})
   except (ValueError,TypeError,KeyError,UnicodeError):self.reply(422,{"error":"invalid_or_unbounded_input"})
   except Exception:self.reply(503,{"error":"local_inference_unavailable"})
 
-if __name__=="__main__":HTTPServer(("0.0.0.0",8080),Handler).serve_forever()
+if __name__=="__main__":ThreadingHTTPServer(("0.0.0.0",8080),Handler).serve_forever()

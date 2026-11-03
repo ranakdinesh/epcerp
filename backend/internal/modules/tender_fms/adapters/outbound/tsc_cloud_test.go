@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"context"
+	"fmt"
 	"github.com/ranakdinesh/epcERP/internal/modules/tender_fms/domain"
 	"io"
 	"net/http"
@@ -54,7 +55,7 @@ func TestCloudRejectsUnknownEvidenceAndNeverRetries(t *testing.T) {
 		return &http.Response{StatusCode: 429, Body: io.NopCloser(strings.NewReader(`{"secret":"must not escape"}`))}, nil
 	})
 	_, e := p.Propose(context.Background(), domain.TSCQuestion{ID: "emd.q05", Section: "emd", Text: "EMD amount"}, []domain.TSCPassage{{Text: "EMD amount 5000"}})
-	if e != domain.TSCProviderUnavailable || calls != 1 {
+	if e != domain.TSCProviderRateLimited || calls != 1 {
 		t.Fatal("unsafe provider retry", e, calls)
 	}
 	if p, e := NewTSCCloud("arbitrary", "key"); e == nil || p != nil {
@@ -62,5 +63,21 @@ func TestCloudRejectsUnknownEvidenceAndNeverRetries(t *testing.T) {
 	}
 	if p, _ := NewTSCCloud("openai", ""); p.Model() != "" {
 		t.Fatal("unconfigured provider available")
+	}
+}
+func TestCloudFailuresHaveSafeDistinctCodesWithoutRetry(t *testing.T) {
+	for status, want := range map[int]domain.TSCProviderError{401: domain.TSCProviderAuthentication, 403: domain.TSCProviderAccessDenied, 429: domain.TSCProviderRateLimited, 400: domain.TSCProviderRejected, 503: domain.TSCProviderUnavailable} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			p, _ := NewTSCCloud("gemini", "synthetic-key")
+			calls := 0
+			p.client.Transport = cloudTransport(func(*http.Request) (*http.Response, error) {
+				calls++
+				return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(`{"message":"private detail"}`))}, nil
+			})
+			_, err := p.Propose(context.Background(), domain.TSCQuestion{ID: "emd.q05", Text: "EMD"}, []domain.TSCPassage{{Text: "EMD INR 5000"}})
+			if err != want || calls != 1 || strings.Contains(err.Error(), "private") {
+				t.Fatal("unsafe classification/retry", err, calls)
+			}
+		})
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPrivateRerankerOnlySendsCandidateTextToFixedOrigin(t *testing.T) {
@@ -67,4 +68,39 @@ func TestTSCRerankerRealCPU(t *testing.T) {
 		t.Fatal("real local selection failed", selected.Diagnostic)
 	}
 	t.Logf("Synthetic CPU selection: candidates=%d baseline_bytes=%d selected_bytes=%d; not real-tender accuracy or token billing", selected.Diagnostic.Candidates, selected.Diagnostic.BaselineBytes, selected.Diagnostic.SelectedBytes)
+}
+func TestRankerDeadlineOpensCircuitAndAllowsBoundedRecovery(t *testing.T) {
+	p := NewTSCReranker(nil)
+	p.timeout = 10 * time.Millisecond
+	now := time.Now()
+	p.now = func() time.Time { return now }
+	calls := 0
+	p.client.Transport = cloudTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		<-r.Context().Done()
+		return nil, r.Context().Err()
+	})
+	q := domain.TSCQuestion{Text: "EMD amount"}
+	passages := []domain.TSCPassage{{ID: "x", Text: "EMD INR 5000"}}
+	start := time.Now()
+	if _, e := p.Rank(context.Background(), q, passages); e == nil {
+		t.Fatal("hung inference accepted")
+	}
+	for i := 0; i < 70; i++ {
+		if _, e := p.Rank(context.Background(), q, passages); e == nil {
+			t.Fatal("open circuit accepted inference")
+		}
+	}
+	if calls != 1 || time.Since(start) > time.Second {
+		t.Fatal("repeated per-question timeout", calls)
+	}
+	now = now.Add(61 * time.Second)
+	p.client.Transport = cloudTransport(func(*http.Request) (*http.Response, error) {
+		calls++
+		raw := fmt.Sprintf(`{"model":%q,"scores":[{"id":"x","score":1}]}`, p.Model())
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(raw))}, nil
+	})
+	if _, e := p.Rank(context.Background(), q, passages); e != nil || calls != 2 {
+		t.Fatal("circuit did not recover", e, calls)
+	}
 }
