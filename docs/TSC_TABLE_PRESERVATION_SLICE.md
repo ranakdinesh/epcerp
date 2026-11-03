@@ -92,3 +92,44 @@ no new monitoring service is introduced in this slice.
 
 The completed verification supports this bounded slice, not universal extraction
 accuracy. Held-out packages and a user-reviewed live Gemini proposal remain next.
+
+## Deployment and rollback commands
+
+Use the reviewed Linux/amd64 images and the exact archive checksum recorded with
+the release. The server needs Docker/Compose and Bash; no host Python install is
+required. `backend/tools/pdf-tables` contains only offline reader tooling and
+synthetic tests, independent of the Python client project.
+
+From the active release directory, after transferring `images.tar.gz` and the
+packaged source scripts/fixtures into `table-evidence/`:
+
+```sh
+tar -xzf table-evidence/ops.tar.gz -C table-evidence
+sudo docker load -i table-evidence/images.tar.gz
+sudo bash table-evidence/deployment/epcerp/table-evidence/preflight.sh \
+  "$PWD/table-evidence/backend/tools/pdf-tables"
+sudo bash table-evidence/deployment/epcerp/table-evidence/deploy.sh \
+  "$PWD/table-evidence/images.tar.gz" ARCHIVE_SHA256
+sudo systemctl restart epcerp-dev.service
+```
+
+The deploy script verifies the checksum, takes a private verified custom-format
+PostgreSQL backup and config/credential copies, requires clean schema98 and no
+active TSC job, preserves all networking/provider settings, then updates six
+services from three images. It leaves the guarded reranker image in place. A
+failed startup/health/route check restores prior image configuration automatically.
+For a later manual rollback, copy the recorded backup's `compose.yaml` over the
+active one and run `sudo systemctl restart epcerp-dev.service`; no database restore
+is required for this schema-preserving release. A database restore is a separate,
+explicit recovery operation. Never delete volumes or replay paid jobs for rollout.
+
+### Research transport deadline correction
+
+The final transport audit found the global HTTP write deadline was 10 seconds,
+shorter than the existing cloud research provider's 75-second limit. The research
+route now uses a 90-second cancellable context and a 95-second response deadline;
+global header/read/write/idle settings remain unchanged. A real HTTP server test
+uses a 10 ms global write timeout and a 40 ms synthetic proposal, through the same
+chi response wrapper used by request logging. It verifies successful delivery and
+bounded/cancellable context. Complete Go checks/race tests/build were rerun and
+passed after this correction. No live provider call was needed.

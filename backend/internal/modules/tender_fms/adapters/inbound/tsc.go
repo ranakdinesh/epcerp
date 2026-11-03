@@ -29,6 +29,12 @@ func RegisterTSC(r chi.Router, s *application.TSC) {
 		if captureFailure(w, httpinput.Decode(w, r, 8192, &in)) {
 			return
 		}
+		bounded, cancel, e := boundedTSCResearch(w, r)
+		if captureFailure(w, e) {
+			return
+		}
+		defer cancel()
+		r = bounded
 		out, e := s.Research(r.Context(), captureToken(r), chi.URLParam(r, "draft"), chi.URLParam(r, "job"), chi.URLParam(r, "question"), in.Query, in.Mode, r.Header.Get("Idempotency-Key"), in.Version, domain.TSCResearchOptions{OriginalDocumentsConfirmed: in.OriginalDocumentsConfirmed})
 		if captureFailure(w, e) {
 			return
