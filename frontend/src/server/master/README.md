@@ -47,6 +47,13 @@ server/
       service.ts                 permission checks and transactional use cases
       repository.ts              supplier rows, provenance, history and events
       http.ts                    ownership limited to profile HTTP routes
+    documents/                   supplier documents within the same Master module
+      domain.ts                  metadata, import rules and public response shape
+      service.ts                 upload/read/archive use cases and transactions
+      repository.ts              reviewed SQL, history and business events
+      approval.ts                transactional upload/replacement review hooks
+      files.ts                   compatible encryption, media inspection and S3
+      http.ts                    bounded multipart/JSON and secure binary responses
 ```
 
 Add the next area under `master`, rather than creating a new top-level module for
@@ -57,9 +64,9 @@ can call the same application services.
 ## Current ownership
 
 **Clients, client types, industries, states, cities, Items, categories, base units,
-manufacturers, configuration templates and vendor profiles/lifecycle** run natively
-in Next.js. Vendor document, reviewer-assignment and Finance approval workflows
-remain Go-owned. Clients and
+manufacturers, configuration templates, vendor profiles/lifecycle and supplier
+document handling** run natively in Next.js. Reviewer assignment, Finance decisions
+and manual approval reconciliation remain Go-owned. Clients and
 reference administration use the same transaction advisory
 lock. This prevents a client save racing a reference deactivation or city/state
 reassignment. Go consumers continue reading the same tables.
@@ -120,9 +127,9 @@ through reads and audit snapshots. Native catalogue code requires Node 22+.
 and legacy-import operations. Set it consistently on API and frontend; local
 Compose defaults to Next.js, while an absent flag elsewhere keeps Go ownership.
 Set this flag to `go` on both applications for profile rollback without changing
-the other module owners. Nested `/suppliers/{id}/documents` and
-`/suppliers/{id}/verification` routes, including reviewer assignments, continue
-through Go. Go's supplier directory remains available to those consumers.
+the other module owners. Document ownership is controlled separately below.
+`/suppliers/{id}/verification`, including reviewer assignments, continues through
+Go. Go's supplier directory remains available to those consumers.
 
 Profile reads preserve the existing alternative grant: either
 `settings.suppliers.read` or `accounts.vendor_verification.read`. Writes require
@@ -138,6 +145,51 @@ Stale Finance commands remain rejected after native profile changes. Payment ter
 use exact decimal arithmetic, including the existing inclusive 0.01 total tolerance,
 zero-total allowance and integer credit-day rule. Profile bodies remain bounded
 to 128 KiB; source identity/revision/timestamps stay hidden from public responses.
+
+## Supplier documents
+
+`EPCERP_VENDOR_DOCUMENTS_OWNER=nextjs` on both applications transfers list, upload,
+legacy import, preview/download and archive HTTP operations. Local Compose defaults
+to Next.js; absent the flag elsewhere, Go remains the owner. Explicit `go` on both
+applications is the rollback switch. Reconciliation at
+`/suppliers/{id}/documents/reconcile-approvals` stays in Go, alongside Finance
+verification and reviewer assignment. Published Go evidence readers remain available
+for Finance and purchasing. Native failures never retry through a Go writer.
+
+Reads require `settings.supplier_documents.read` or the existing Finance read grant;
+upload/archive requires document write; legacy import requires document import.
+Auth's published live-capability contract resolves these permissions without exposing
+credentials. Archive/download access follows the existing creator/import/Finance
+rules. Supplier row locks serialize replacements, archives and Go Finance decisions.
+Document history, approval history, review/correction tasks and business events are
+written in the same database transaction. Go Finance rejection creates a correction
+task that a native replacement completes as `resubmitted`.
+
+Use the existing server-only `EPCERP_SUPPLIER_DOCUMENT_KEY` and `VTPL_STORAGE_*`
+settings unchanged. Existing inline ciphertext and stored bucket/key references are
+read without relocation or re-encryption. New immutable objects contain compatible
+AES-256-GCM nonce/ciphertext/tag bytes, with a verified plaintext SHA-256. No object
+is deleted during replacement/archive or after an uncertain commit; failed database
+writes can leave encrypted orphan objects for the existing offline storage operator,
+matching Go's policy. Metadata never exposes ciphertext or storage references.
+
+Multipart bodies are bounded before parsing to 15 MiB plus 64 KiB overhead; individual
+files remain limited to 15 MiB. JSON import/archive is bounded to 512 KiB. The proxy
+checks upload authority before buffering, then native services recheck live authority
+before writes. Actual media bytes determine the preview MIME type. PNG/JPEG/GIF
+are fully decoded within the existing dimension/pixel limits; PDF acceptance retains
+Go's header/trailing-EOF policy. This is not a new full PDF validator or malware scan.
+Previews retain sandbox CSP, same-origin framing and nosniff through the browser proxy;
+downloads remain authenticated attachments. Storage requests and idle sockets have
+bounded timeouts.
+
+Document tests additionally require `VTPL_STORAGE_ENDPOINT`, local storage credentials,
+`VTPL_STORAGE_SECURE=false` and a dedicated bucket beginning `epcerp-documents-qa-`.
+The runner supplies only synthetic signing/encryption keys and serializes test files
+that share the guarded QA database. It verifies Go/Node encryption in both directions,
+supported media, live grants, object and inline reads, stale/concurrent writes, imports,
+atomic history/approval failures and task completion. Production deployment and private
+cloud uploads remain separate from this local workflow.
 
 ## Existing data and rules
 

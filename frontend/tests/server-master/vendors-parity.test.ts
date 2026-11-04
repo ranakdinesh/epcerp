@@ -1,15 +1,36 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { ownsMasterPath } from "../../src/server/master/http";
+import { ownsMasterPath, ownsNativeSupplierPath } from "../../src/server/master/http";
 import { dataFingerprint, parseVendorCreate, parseVendorImport, parseVendorUpdate, validateVendorMaster } from "../../src/server/master/vendors/domain";
 import { parseCatalogueJSON } from "../../src/server/master/catalogue/json";
-test("only supplier profiles migrate; document, assignment and Finance routes remain Go-owned", () => {
+test("supplier profiles and optional documents migrate while Finance stays Go-owned", () => {
     const id = "00112233-4455-4677-8899-aabbccddeeff";
     for (const path of ["/suppliers", `/suppliers/${id}`, "/suppliers/legacy-import"])
         assert.equal(ownsMasterPath(path), true);
-    for (const path of [`/suppliers/${id}/documents`, `/suppliers/${id}/documents/${id}/preview`, `/suppliers/${id}/documents/${id}/archive`, `/suppliers/${id}/verification`, `/suppliers/${id}/verification/assignment`, `/suppliers/${id}/verification/assignment/options`])
+    for (const path of [`/suppliers/${id}/documents`, `/suppliers/${id}/documents/${id}/preview`, `/suppliers/${id}/documents/${id}/archive`])
+        assert.equal(ownsMasterPath(path), process.env.EPCERP_VENDOR_DOCUMENTS_OWNER === "nextjs");
+    for (const path of [`/suppliers/${id}/documents/reconcile-approvals`, `/suppliers/${id}/verification`, `/suppliers/${id}/verification/assignment`, `/suppliers/${id}/verification/assignment/options`])
         assert.equal(ownsMasterPath(path), false);
+});
+test("supplier document and profile owners can roll back independently", () => {
+    const previousProfiles = process.env.EPCERP_VENDOR_PROFILES_OWNER, previousDocuments = process.env.EPCERP_VENDOR_DOCUMENTS_OWNER;
+    const id = "00112233-4455-4677-8899-aabbccddeeff";
+    try {
+        for (const profiles of ["go", "nextjs"]) for (const documents of ["go", "nextjs"]) {
+            process.env.EPCERP_VENDOR_PROFILES_OWNER = profiles;
+            process.env.EPCERP_VENDOR_DOCUMENTS_OWNER = documents;
+            assert.equal(ownsNativeSupplierPath("/suppliers"), profiles === "nextjs");
+            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}`), profiles === "nextjs");
+            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/documents`), documents === "nextjs");
+            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/documents/${id}/download`), documents === "nextjs");
+            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/documents/reconcile-approvals`), false);
+            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/verification`), false);
+        }
+    } finally {
+        if (previousProfiles === undefined) delete process.env.EPCERP_VENDOR_PROFILES_OWNER; else process.env.EPCERP_VENDOR_PROFILES_OWNER = previousProfiles;
+        if (previousDocuments === undefined) delete process.env.EPCERP_VENDOR_DOCUMENTS_OWNER; else process.env.EPCERP_VENDOR_DOCUMENTS_OWNER = previousDocuments;
+    }
 });
 test("supplier validation and exact payment arithmetic match the Go implementation", { skip: !process.env.EPCERP_CATALOGUE_COMPATIBILITY_BINARY }, () => {
     const base = { code: " qa-01_ ", name: "  Straße   Σς  ", data: { qualification: "unverified", contact_person_name: "QA Contact", payment_terms: { advance_pct: 40, delivery_pct: 60, credit_days: 30 } }, reason: "  QA reviewed  " };

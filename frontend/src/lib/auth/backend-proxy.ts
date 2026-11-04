@@ -64,7 +64,7 @@ export async function proxyAuthenticatedRequest(
     const encStorage = backendResponse.headers.get("X-Encrypted-Storage");
     if (encStorage) headers.set("X-Encrypted-Storage", encStorage);
 
-    for (const name of ["Idempotency-Replayed", "Location", "Retry-After", "X-Request-ID"]) {
+    for (const name of ["Content-Security-Policy", "X-Frame-Options", "Idempotency-Replayed", "Location", "Retry-After", "X-Request-ID"]) {
       const value = backendResponse.headers.get(name); if (value) headers.set(name, value);
     }
     headers.set("Cache-Control", "private, no-store");

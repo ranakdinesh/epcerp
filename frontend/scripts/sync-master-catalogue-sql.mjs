@@ -3,14 +3,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'../..');
 const registry={};
-for(const area of ['categories','manufacturers','templates','items','vendor_profile']){
+for(const area of ['categories','manufacturers','templates','items','vendor_profile','vendor_documents','document_approval']){
  const source=fs.readFileSync(path.join(root,`backend/internal/modules/master/adapters/sql/${area}.sql`),'utf8');
  const queries={};
  for(const match of source.matchAll(/-- name: (\w+) :(\w+)\n([\s\S]*?)(?=-- name:|$)/g)){
+  // Storage relocation and Finance decision/task APIs remain Go-owned.
+  if (["VendorDocumentsNextInline","VendorDocumentsRelocate","VendorDocumentsActiveEvidence","VendorDocumentsDocumentCreatedAt","DocumentApprovalGet","DocumentTasksOwn","DocumentApprovalState","DocumentTasksReassign"].includes(match[1])) continue;
   const keys=[];
   const named=key=>{if(!keys.includes(key))keys.push(key);return '$'+(keys.indexOf(key)+1);};
   const text=match[3].trim().replace(/sqlc\.(?:n?arg)\((\w+)\)|@(\w+)/g,(_,a,b)=>named(a??b));
-  const positional={ManufacturersHistory:['subject_id'],VendorProfileSourceSupplier:['source_id'],VendorProfileRecordChange:['id','supplier_id','version','action','reason','snapshot','created_by_id']};
+  const positional={ManufacturersHistory:['subject_id'],VendorProfileSourceSupplier:['source_id'],VendorProfileRecordChange:['id','supplier_id','version','action','reason','snapshot','created_by_id'],VendorDocumentsListDocuments:['supplier_id'],VendorDocumentsGetDocument:['supplier_id','id'],VendorDocumentsSourceDocument:['source_id'],VendorDocumentsActiveEvidence:['supplier_id'],VendorDocumentsRecordChange:['id','document_id','version','action','reason','created_by_id'],DocumentApprovalSave:['document_id','supplier_id','document_version','sha256','state','comment','actor'],DocumentApprovalJournal:['id','document_id','version','action','snapshot','actor'],DocumentTaskCreate:['id','document_id','supplier_id','user_id','kind','comment','actor'],DocumentTasksComplete:['document_id','kind','outcome','comment','actor'],DocumentApprovalState:['document_id','document_version','sha256'],DocumentTasksReassign:['supplier_id','user_id','actor'],VendorDocumentsRelocate:['id','bucket','key']};
   if(!keys.length&&text.includes('$1'))keys.push(...(positional[match[1]]??['id']));
   queries[match[1]]={text,keys,mode:match[2]};
  }

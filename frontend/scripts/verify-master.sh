@@ -8,7 +8,8 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 export EPCERP_AUTH_OWNER=nextjs EPCERP_CLIENTS_OWNER=nextjs EPCERP_REFERENCES_OWNER=nextjs EPCERP_ENVIRONMENT=test EPCERP_EMAIL_DELIVERY_ENABLED=false
 export EPCERP_CATALOGUE_OWNER=nextjs
-export EPCERP_VENDOR_PROFILES_OWNER=nextjs
+export EPCERP_VENDOR_PROFILES_OWNER=nextjs EPCERP_VENDOR_DOCUMENTS_OWNER=nextjs
+export EPCERP_SUPPLIER_DOCUMENT_KEY=3333333333333333333333333333333333333333333333333333333333333333
 export VTPL_JWT_SECRET_KEY=epcerp-synthetic-auth-compatibility-secret-only
 export EPCERP_IMAGE_ENCRYPTION_KEY=1111111111111111111111111111111111111111111111111111111111111111
 export VTPL_BOOTSTRAP_SUPERADMIN_USERNAME=superadmin VTPL_BOOTSTRAP_SUPERADMIN_EMAIL=admin@fixture.invalid
@@ -18,6 +19,8 @@ go build -o "$work/migrate" ./cmd/migrate
 go build -o "$work/auth-compatibility" ./tools/auth-compatibility
 go build -o "$work/master-compatibility" ./tools/master-compatibility
 go build -o "$work/catalogue-compatibility" ./tools/catalogue-compatibility
+go build -o "$work/document-compatibility" ./tools/document-compatibility
+export EPCERP_DOCUMENT_COMPATIBILITY_BINARY="$work/document-compatibility"
 "$work/migrate" up
 "$work/auth-compatibility" > "$work/go-auth.json"
 export EPCERP_AUTH_COMPATIBILITY_FILE="$work/go-auth.json" EPCERP_AUTH_COMPATIBILITY_BINARY="$work/auth-compatibility"
@@ -25,4 +28,4 @@ export EPCERP_MASTER_COMPATIBILITY_BINARY="$work/master-compatibility"
 export EPCERP_CATALOGUE_COMPATIBILITY_BINARY="$work/catalogue-compatibility"
 cd "$root/frontend"
 node scripts/sync-master-catalogue-sql.mjs --check
-node --conditions=react-server --import tsx --test tests/server-master/*.test.ts tests/server-auth/*.test.ts
+node --conditions=react-server --import tsx --test --test-concurrency=1 tests/server-master/*.test.ts tests/server-auth/*.test.ts

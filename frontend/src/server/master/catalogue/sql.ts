@@ -543,5 +543,125 @@ export const catalogueSQL = {
       "created_by_id"
     ],
     "mode": "exec"
+  },
+  "VendorDocumentsLockImport": {
+    "text": "SELECT pg_advisory_xact_lock(3019,1);",
+    "keys": [],
+    "mode": "exec"
+  },
+  "VendorDocumentsListDocuments": {
+    "text": "SELECT d.version,d.id,d.supplier_id,d.doc_type,d.title,d.original_filename,d.content_type,d.byte_size,d.sha256,d.is_active,d.created_at,d.updated_at,d.created_by_id,d.updated_by_id,d.source_id,d.source_created_at,d.source_updated_at,coalesce(a.state,'')::text AS approval_state,coalesce(a.comment,'')::text AS approval_comment FROM supplier_documents d LEFT JOIN supplier_document_approvals a ON a.document_id=d.id AND a.document_version=d.version AND a.sha256=d.sha256 WHERE d.supplier_id=$1 ORDER BY d.created_at,d.id;",
+    "keys": [
+      "supplier_id"
+    ],
+    "mode": "many"
+  },
+  "VendorDocumentsGetDocument": {
+    "text": "SELECT * FROM supplier_documents WHERE supplier_id=$1 AND id=$2;",
+    "keys": [
+      "supplier_id",
+      "id"
+    ],
+    "mode": "one"
+  },
+  "VendorDocumentsSourceDocument": {
+    "text": "SELECT * FROM supplier_documents WHERE source_id=$1;",
+    "keys": [
+      "source_id"
+    ],
+    "mode": "one"
+  },
+  "VendorDocumentsInsertDocument": {
+    "text": "INSERT INTO supplier_documents(id,supplier_id,doc_type,title,original_filename,content_type,byte_size,encrypted_content,sha256,is_active,created_by_id,updated_by_id,source_id,source_created_at,source_updated_at,object_bucket,object_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11,$12,$13,$14,$15,$16) RETURNING *;",
+    "keys": [
+      "id",
+      "supplier_id",
+      "doc_type",
+      "title",
+      "filename",
+      "content_type",
+      "byte_size",
+      "encrypted_content",
+      "sha256",
+      "active",
+      "actor",
+      "source_id",
+      "source_created_at",
+      "source_updated_at",
+      "object_bucket",
+      "object_key"
+    ],
+    "mode": "one"
+  },
+  "VendorDocumentsArchiveDocument": {
+    "text": "UPDATE supplier_documents SET is_active=false,version=version+1,updated_at=now(),updated_by_id=$1 WHERE supplier_id=$2 AND id=$3 AND version=$4 AND is_active=true RETURNING *;",
+    "keys": [
+      "actor",
+      "supplier",
+      "id",
+      "version"
+    ],
+    "mode": "one"
+  },
+  "VendorDocumentsRecordChange": {
+    "text": "INSERT INTO supplier_document_changes(id,document_id,version,action,reason,created_by_id) VALUES($1,$2,$3,$4,$5,$6);",
+    "keys": [
+      "id",
+      "document_id",
+      "version",
+      "action",
+      "reason",
+      "created_by_id"
+    ],
+    "mode": "exec"
+  },
+  "DocumentApprovalSave": {
+    "text": "INSERT INTO supplier_document_approvals(document_id,supplier_id,document_version,sha256,state,comment,version,created_by_id,updated_by_id)\nVALUES($1,$2,$3,$4,$5,$6,1,$7,$7)\nON CONFLICT(document_id) DO UPDATE SET document_version=EXCLUDED.document_version,sha256=EXCLUDED.sha256,state=EXCLUDED.state,comment=EXCLUDED.comment,version=supplier_document_approvals.version+1,updated_at=now(),updated_by_id=EXCLUDED.updated_by_id\nRETURNING *;",
+    "keys": [
+      "document_id",
+      "supplier_id",
+      "document_version",
+      "sha256",
+      "state",
+      "comment",
+      "actor"
+    ],
+    "mode": "one"
+  },
+  "DocumentApprovalJournal": {
+    "text": "INSERT INTO supplier_document_approval_changes(id,document_id,version,action,snapshot,created_by_id)VALUES($1,$2,$3,$4,$5,$6);",
+    "keys": [
+      "id",
+      "document_id",
+      "version",
+      "action",
+      "snapshot",
+      "actor"
+    ],
+    "mode": "exec"
+  },
+  "DocumentTaskCreate": {
+    "text": "INSERT INTO supplier_document_tasks(id,document_id,supplier_id,user_id,kind,comment,created_by_id,updated_by_id)VALUES($1,$2,$3,$4,$5,$6,$7,$7)\nON CONFLICT(document_id,kind)WHERE completed_at IS NULL DO NOTHING;",
+    "keys": [
+      "id",
+      "document_id",
+      "supplier_id",
+      "user_id",
+      "kind",
+      "comment",
+      "actor"
+    ],
+    "mode": "exec"
+  },
+  "DocumentTasksComplete": {
+    "text": "UPDATE supplier_document_tasks SET completed_at=now(),outcome=$3,comment=$4,updated_at=now(),updated_by_id=$5\nWHERE document_id=$1 AND kind=$2 AND completed_at IS NULL;",
+    "keys": [
+      "document_id",
+      "kind",
+      "outcome",
+      "comment",
+      "actor"
+    ],
+    "mode": "exec"
   }
 } as const;
