@@ -3,9 +3,9 @@
 This module owns the TSC workspace and native Tender intake. `EPCERP_TSC_OWNER=nextjs`
 selects the cloud/manual TSC writer; `EPCERP_TENDER_INTAKE_OWNER=nextjs` additionally
 selects draft/receipt/format management and source publication. See
-[intake boundaries and deployment](intake/README.md). Safety verification, named
-capture/assignment/provisioning and unrelated supplier/purchasing processes retain
-their existing owners.
+[intake boundaries and deployment](intake/README.md). `EPCERP_TENDER_REGISTER_OWNER=nextjs` also selects named capture, register metadata,
+manager assignments and legacy ownership handover; see [register boundaries](register/README.md).
+Safety verification and unrelated supplier/purchasing processes retain their existing owners.
 
 - `documents.ts`: current permissions, owned tender, verified original document bytes.
 - `tsc/service.ts` and `http.ts`: scoped commands, optimistic edits, retained history,

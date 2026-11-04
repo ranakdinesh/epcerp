@@ -45,6 +45,10 @@ func New(dependencies Dependencies) (*Module, error) {
 	if owner != "" && owner != "go" && owner != "nextjs" {
 		return nil, fmt.Errorf("invalid EPCERP_TSC_OWNER")
 	}
+	registerOwner := os.Getenv("EPCERP_TENDER_REGISTER_OWNER")
+	if registerOwner != "" && registerOwner != "go" && registerOwner != "nextjs" {
+		return nil, fmt.Errorf("invalid EPCERP_TENDER_REGISTER_OWNER")
+	}
 	intakeOwner := os.Getenv("EPCERP_TENDER_INTAKE_OWNER")
 	if intakeOwner != "" && intakeOwner != "go" && intakeOwner != "nextjs" {
 		return nil, fmt.Errorf("invalid EPCERP_TENDER_INTAKE_OWNER")
@@ -70,17 +74,19 @@ func New(dependencies Dependencies) (*Module, error) {
 		}
 		inbound.RegisterTSC(dependencies.Router, tsc.WithLimits(infrastructure.NewTSCLimits()), owner == "nextjs")
 	}
-	if dependencies.Packages != nil && dependencies.PreparedReader != nil && dependencies.Notices != nil {
+	if registerOwner != "nextjs" && dependencies.Packages != nil && dependencies.PreparedReader != nil && dependencies.Notices != nil {
 		foundation := func(c database.Connection) contracts.Records {
 			return Records(c, dependencies.Users(c), dependencies.Bundles(c), dependencies.ManagerBundleIDs, dependencies.Events(c))
 		}
 		unit := outbound.NewCaptureUnit(dependencies.Database, dependencies.Users, dependencies.Bundles, dependencies.ManagerBundleIDs, dependencies.Events, foundation, dependencies.Packages, dependencies.PreparedReader, dependencies.Notices)
 		inbound.RegisterCapture(dependencies.Router, application.NewCapture(unit, outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}).WithLimits(infrastructure.NewTenderLimits()))
 	}
-	inbound.RegisterManagerOptions(dependencies.Router, outbound.NewManagerOptions(dependencies.Database, dependencies.Identity, func(c database.Connection) contracts.Records {
-		return Records(c, dependencies.Users(c), dependencies.Bundles(c), dependencies.ManagerBundleIDs, dependencies.Events(c))
-	}))
-	inbound.RegisterOwnership(dependencies.Router, application.NewOwnership(outbound.NewOwnershipUnit(dependencies.Database, dependencies.Users, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}))
+	if registerOwner != "nextjs" {
+		inbound.RegisterManagerOptions(dependencies.Router, outbound.NewManagerOptions(dependencies.Database, dependencies.Identity, func(c database.Connection) contracts.Records {
+			return Records(c, dependencies.Users(c), dependencies.Bundles(c), dependencies.ManagerBundleIDs, dependencies.Events(c))
+		}))
+		inbound.RegisterOwnership(dependencies.Router, application.NewOwnership(outbound.NewOwnershipUnit(dependencies.Database, dependencies.Users, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}))
+	}
 	if intakeOwner != "nextjs" {
 		dependencies.Router.AddPayloadPolicy(func(request *http.Request) bool {
 			return request.Method == http.MethodPost && inbound.IsUploadPath(request.URL.Path)

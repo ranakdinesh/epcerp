@@ -53,3 +53,23 @@ export async function financeReviewers(db: DB) {
     }
     return candidates;
 }
+
+export async function assignmentIdentity(db: DB, id: string, approvedBundles: string[] = []) {
+    const user = await userCapabilities(db, id);
+    if (!user) return null;
+    const row = (await db.query(`SELECT CASE WHEN trim(first_name||' '||last_name)<>'' THEN trim(first_name||' '||last_name)||' ('||username||')' ELSE username END AS name,
+      EXISTS(SELECT 1 FROM auth.user_roles ur JOIN auth.roles r ON r.id=ur.role_id AND r.is_active WHERE ur.user_id=u.id AND r.id=ANY($2::uuid[])) AS designated
+      FROM auth.users u WHERE u.id=$1`, [id, approvedBundles])).rows[0];
+    return { ...user, name: row.name as string, designated: row.designated as boolean };
+}
+// One bounded directory query avoids loading each candidate's account/roles separately.
+export async function assignmentIdentities(db: DB, approvedBundles: string[]) {
+    const all = (await db.query(`SELECT u.id,u.is_active,u.is_superuser,NOT u.must_change_password AS ready,
+      CASE WHEN trim(u.first_name||' '||u.last_name)<>'' THEN trim(u.first_name||' '||u.last_name)||' ('||u.username||')' ELSE u.username END AS name,
+      EXISTS(SELECT 1 FROM auth.user_roles ur JOIN auth.roles r ON r.id=ur.role_id AND r.is_active WHERE ur.user_id=u.id AND r.id=ANY($1::uuid[])) AS designated,
+      COALESCE((SELECT jsonb_agg(DISTINCT p.code) FROM auth.user_roles ur JOIN auth.roles r ON r.id=ur.role_id AND r.is_active JOIN auth.role_permissions rp ON rp.role_id=r.id JOIN auth.permissions p ON p.id=rp.permission_id WHERE ur.user_id=u.id),'[]'::jsonb) AS permissions
+      FROM auth.users u WHERE u.is_active ORDER BY u.username LIMIT 10001`,[approvedBundles])).rows;
+    if (all.length > 10000) throw new Error('Assignment directory exceeds reviewed bounds');
+    return all.map(u => ({id:u.id as string,active:u.is_active as boolean,superuser:u.is_superuser as boolean,ready:u.ready as boolean,name:u.name as string,designated:u.designated as boolean,
+      allows:(permission: string) => u.is_active && (u.is_superuser || u.permissions.includes(permission)) as boolean}));
+}

@@ -11,6 +11,10 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
       const {handleTSC}=await import("@/server/tenders/tsc/http");
       return handleTSC(new Request(url,init));
     }
+    if(process.env.EPCERP_TENDER_REGISTER_OWNER === "nextjs") {
+      const {handleRegister,ownsRegister}=await import("@/server/tenders/register/http");
+      if(ownsRegister(path))return handleRegister(new Request(url,init));
+    }
     if(process.env.EPCERP_TENDER_INTAKE_OWNER === "nextjs") {
       const {handleIntake,ownsIntake}=await import("@/server/tenders/intake/http");
       if(ownsIntake(path))return handleIntake(new Request(url,init));

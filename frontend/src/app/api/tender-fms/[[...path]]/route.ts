@@ -10,7 +10,7 @@ async function route(request: Request, context: Context) {
   const draft = /^drafts(?:\/[0-9a-f-]{36}(?:\/batches|\/documents\/[0-9a-f-]{36}\/(?:text|result|original|history|retry))?)?$/.test(joined);
   const named = /^records(?:\/[0-9a-f-]{36}(?:\/manager-assignments)?)?$/.test(joined);
   const receipt = /^receipts(?:\/[0-9a-f-]{36}(?:\/seal)?)?$/.test(joined);
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && (named || receipt || upload || draft || tsc)) {
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && (named || receipt || upload || draft || tsc || joined.endsWith("/ownership"))) {
     if (!hasSameOrigin(request)) return Response.json({ detail: "Same-origin request required" }, { status: 403 });
   }
   const methods = upload ? new Set(["GET", "PUT", "HEAD"]) : named || tsc ? new Set(["GET", "POST", "PATCH"]) : receipt ? new Set(["GET", "POST"]) : draft ? new Set(["GET", "POST"]) : legacy;
