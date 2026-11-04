@@ -1,8 +1,10 @@
 package personal_tasks
 
 import (
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"os"
 
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
 	auth "github.com/ranakdinesh/epcERP/internal/modules/auth/contracts"
@@ -23,7 +25,14 @@ type Dependencies struct {
 	Workflow        func(database.Connection) purchase.WorkflowTaskReader
 }
 
-func New(dependencies Dependencies) {
+func New(dependencies Dependencies) error {
+	owner := os.Getenv("EPCERP_PERSONAL_TASKS_OWNER")
+	if owner != "" && owner != "go" && owner != "nextjs" {
+		return fmt.Errorf("invalid EPCERP_PERSONAL_TASKS_OWNER")
+	}
+	if owner == "nextjs" {
+		return nil
+	}
 	in.Register(dependencies.Router, app.New(out.NewUnitOfWork(dependencies.Database, func(connection database.Connection) out.Providers {
 		return out.Providers{
 			SupplierReviews: supplierReviewProvider(dependencies, connection),
@@ -32,6 +41,7 @@ func New(dependencies Dependencies) {
 			Purchase:        dependencies.Workflow(connection),
 		}
 	}), out.NewAuthBridge(dependencies.Identity), out.Values{}))
+	return nil
 }
 
 func supplierReviewProvider(d Dependencies, c database.Connection) master.VendorReviewTasks {

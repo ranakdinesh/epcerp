@@ -129,9 +129,11 @@ func (a *App) bindModules(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	taskmodule.New(taskmodule.Dependencies{SupplierReviews: func(c database.Connection) masterContracts.VendorReviewTasks {
+	if err = taskmodule.New(taskmodule.Dependencies{SupplierReviews: func(c database.Connection) masterContracts.VendorReviewTasks {
 		return mastermodule.ReviewTasks(c, auth.Assignments(c))
-	}, Router: a.Router, Database: a.Database, Identity: auth.Resolver, Users: purchase.TaskProviders.Users, Quotations: purchase.TaskProviders.Quotations, Workflow: purchase.TaskProviders.Workflow})
+	}, Router: a.Router, Database: a.Database, Identity: auth.Resolver, Users: purchase.TaskProviders.Users, Quotations: purchase.TaskProviders.Quotations, Workflow: purchase.TaskProviders.Workflow}); err != nil {
+		return err
+	}
 	itemmodule.New(itemmodule.Dependencies{Router: a.Router, Database: a.Database, Identity: auth.Resolver, Providers: purchase.ProjectItems, Events: events.Writer})
 	accountsmodule.New(accountsmodule.Dependencies{Router: a.Router, Database: a.Database, Identity: auth.Resolver, Providers: purchase.Accounts, Events: events.Writer})
 	calendarmodule.New(calendarmodule.Dependencies{
