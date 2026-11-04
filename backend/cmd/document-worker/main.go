@@ -49,7 +49,7 @@ func main() {
 	journal := func(c database.Connection) events.Writer {
 		return eventsApplication.NewRecorder(eventsOutbound.NewJournal(c))
 	}
-	worker := application.NewWorker(outbound.NewUnitOfWork(pool, journal), cipher, outbound.Values{}, outbound.ProcessEngine{Binary: "/app/document-reader"}, outbound.Codec{})
+	worker := application.NewWorker(outbound.NewUnitOfWork(pool, journal, os.Getenv("EPCERP_TSC_OWNER") == "nextjs"), cipher, outbound.Values{}, outbound.ProcessEngine{Binary: "/app/document-reader"}, outbound.Codec{})
 	logger.Info().Str("event", "document_worker.started").Msg("Document worker started")
 	if e = inbound.Run(ctx, serialWorker{pool: pool, worker: worker}, logger); e != nil {
 		os.Exit(1)

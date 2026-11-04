@@ -108,7 +108,7 @@ test("Clients migration on the existing owned PostgreSQL schema",{skip:!process.
       const r=await handleMaster(new Request("http://localhost/api/v1/clients",{method:"POST",body:"x".repeat(128*1024+1)}));assert.equal(r.status,413);
       await json("GET","/clients/arbitrary/path",undefined,token,404);
       const result=await json("POST","/clients",{...input(),created_by_id:randomUUID()},token,422);assert.ok(Array.isArray(result.detail));
-      assert.equal((await pool().query("SELECT version FROM schema_migrations")).rows[0].version,"98");
+      assert.equal((await pool().query("SELECT version FROM schema_migrations")).rows[0].version,"99");
     });
   } finally {await pool().end();}
 });

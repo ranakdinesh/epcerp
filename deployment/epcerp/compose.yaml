@@ -8,6 +8,7 @@ x-api: &api
   environment: &api-environment
     EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
     EPCERP_HTTP_ADDRESS: 0.0.0.0:8001
+    EPCERP_TSC_OWNER: ${EPCERP_TSC_OWNER:-nextjs}
     EPCERP_AUTH_OWNER: ${EPCERP_AUTH_OWNER:-nextjs}
     EPCERP_CLIENTS_OWNER: ${EPCERP_CLIENTS_OWNER:-nextjs}
     EPCERP_REFERENCES_OWNER: ${EPCERP_REFERENCES_OWNER:-nextjs}
@@ -121,6 +122,7 @@ services:
     init: true
     environment:
       EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      EPCERP_TSC_OWNER: ${EPCERP_TSC_OWNER:-nextjs}
       EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
       VTPL_ENVIRONMENT: development
       VTPL_LOG_LEVEL: info
@@ -171,6 +173,7 @@ services:
     init: true
     environment:
       EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      EPCERP_TSC_OWNER: ${EPCERP_TSC_OWNER:-nextjs}
       EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
       EPCERP_DOCUMENT_PACKAGE_ROOT: /var/lib/epcerp/document-packages
       EPCERP_CLAMD_SOCKET: tcp://clamav:3310
@@ -206,6 +209,7 @@ services:
     read_only: true
     environment:
       EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      EPCERP_TSC_OWNER: ${EPCERP_TSC_OWNER:-nextjs}
       EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
       EPCERP_TSC_OLLAMA_URL: ${EPCERP_TSC_OLLAMA_URL:-http://host.docker.internal:11434}
       EPCERP_TSC_RETRIEVAL: ${EPCERP_TSC_RETRIEVAL:-minilm}
@@ -266,6 +270,16 @@ services:
       EPCERP_API_URL: http://api:8001/api/v1
       EPCERP_ENVIRONMENT: development
       EPCERP_DEVELOPMENT_HTTP: "true"
+      EPCERP_TSC_OWNER: ${EPCERP_TSC_OWNER:-nextjs}
+      EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
+      EPCERP_TSC_CLOUD_APPROVED: ${EPCERP_TSC_CLOUD_APPROVED:-false}
+      EPCERP_TSC_GEMINI_API_KEY: ${EPCERP_TSC_GEMINI_API_KEY:-}
+      EPCERP_TSC_OPENAI_API_KEY: ${EPCERP_TSC_OPENAI_API_KEY:-}
+      EPCERP_TSC_GEMINI_TIER: ${EPCERP_TSC_GEMINI_TIER:-paid}
+      EPCERP_TSC_USD_INR: ${EPCERP_TSC_USD_INR:-95}
+      EPCERP_TSC_FX_DATE: ${EPCERP_TSC_FX_DATE:-2026-11-04}
+      EPCERP_TSC_TENDER_LIMIT_PAISE: ${EPCERP_TSC_TENDER_LIMIT_PAISE:-10000}
+      EPCERP_TSC_DAILY_LIMIT_PAISE: ${EPCERP_TSC_DAILY_LIMIT_PAISE:-50000}
       EPCERP_AUTH_OWNER: ${EPCERP_AUTH_OWNER:-nextjs}
       EPCERP_CLIENTS_OWNER: ${EPCERP_CLIENTS_OWNER:-nextjs}
       EPCERP_REFERENCES_OWNER: ${EPCERP_REFERENCES_OWNER:-nextjs}

@@ -155,7 +155,7 @@ test("supplier profiles and lifecycle preserve existing SQL, audit and Finance b
         });
         for (const [table, hash] of Object.entries(evidenceBefore))
             assert.equal((await pool().query(`SELECT md5(coalesce(string_agg(to_jsonb(v)::text,'|' ORDER BY to_jsonb(v)::text),'')) AS hash FROM public.${table} v`)).rows[0].hash, hash, 'Profile writes touched document/Finance evidence: ' + table);
-        assert.equal((await pool().query('SELECT version FROM schema_migrations')).rows[0].version, '98');
+        assert.equal((await pool().query('SELECT version FROM schema_migrations')).rows[0].version, '99');
     }
     finally {
         await pool().end();

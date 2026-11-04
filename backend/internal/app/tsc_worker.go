@@ -44,7 +44,9 @@ func RunTSCWorker(ctx context.Context) error {
 			return worker.Once(bounded)
 		}
 		var worked bool
-		if os.Getenv("EPCERP_TSC_MODEL") != "" {
+		if os.Getenv("EPCERP_TSC_OWNER") == "nextjs" {
+			worked, e = false, nil
+		} else if os.Getenv("EPCERP_TSC_MODEL") != "" {
 			worked, e = infrastructure.WithDocumentSlot(ctx, pool, process)
 		} else {
 			// Cloud/manual answer work does not hold the CPU reader/scanner slot

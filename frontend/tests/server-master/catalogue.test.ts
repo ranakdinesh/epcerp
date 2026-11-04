@@ -242,7 +242,7 @@ test("native catalogue preserves owned records, revisions, identities and atomic
                 const r = await handleMaster(new Request("http://localhost/api/v1" + path, { method: "POST", body, duplex: "half" } as RequestInit));
                 assert.equal(r.status, 413);
             }
-            assert.equal((await pool().query("SELECT version FROM schema_migrations")).rows[0].version, "98");
+            assert.equal((await pool().query("SELECT version FROM schema_migrations")).rows[0].version, "99");
         });
         await t.test("legacy model candidates are reused without rewriting their issued evidence", async () => {
             const legacy = randomUUID(), fingerprint = randomUUID().replaceAll("-", "").padEnd(64, "0"), sku = "QA-LEGACY-" + legacy;

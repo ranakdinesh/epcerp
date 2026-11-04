@@ -11,7 +11,7 @@ import (
 )
 
 type Querier interface {
-	ClaimReading(ctx context.Context, claimID pgtype.UUID) (DocumentReading, error)
+	ClaimReading(ctx context.Context, arg ClaimReadingParams) (DocumentReading, error)
 	FindReading(ctx context.Context, arg FindReadingParams) (DocumentReading, error)
 	FinishReading(ctx context.Context, arg FinishReadingParams) (DocumentReading, error)
 	GetReading(ctx context.Context, arg GetReadingParams) (DocumentReading, error)

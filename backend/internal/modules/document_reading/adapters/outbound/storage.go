@@ -37,12 +37,14 @@ func identity(v pgtype.UUID) string {
 }
 
 type repository struct {
-	q      *db.Queries
-	events events.Writer
+	skipTenderDrafts bool
+	q                *db.Queries
+	events           events.Writer
 }
 
-func NewRepository(c database.Connection, e events.Writer) ports.Repository {
-	return &repository{db.New(c), e}
+func NewRepository(c database.Connection, e events.Writer, skipTender ...bool) ports.Repository {
+	skip := len(skipTender) > 0 && skipTender[0]
+	return &repository{skip, db.New(c), e}
 }
 func record(v db.DocumentReading) domain.Document {
 	warnings := []string{}
@@ -89,7 +91,7 @@ func (r *repository) Retry(ctx context.Context, id string, version int32, actor 
 	return record(v), e
 }
 func (r *repository) Claim(ctx context.Context, claim string) (*domain.Document, error) {
-	v, e := r.q.ClaimReading(ctx, uuid(claim))
+	v, e := r.q.ClaimReading(ctx, db.ClaimReadingParams{ClaimID: uuid(claim), SkipTenderDrafts: r.skipTenderDrafts})
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -148,15 +150,19 @@ func (r *repository) History(ctx context.Context, id string) ([]domain.Event, er
 }
 
 type UnitOfWork struct {
-	m *database.Manager
-	e func(database.Connection) events.Writer
+	skipTenderDrafts bool
+	m                *database.Manager
+	e                func(database.Connection) events.Writer
 }
 
-func NewUnitOfWork(b database.Beginner, e func(database.Connection) events.Writer) *UnitOfWork {
-	return &UnitOfWork{database.NewManager(b), e}
+func NewUnitOfWork(b database.Beginner, e func(database.Connection) events.Writer, skipTender ...bool) *UnitOfWork {
+	skip := len(skipTender) > 0 && skipTender[0]
+	return &UnitOfWork{skip, database.NewManager(b), e}
 }
 func (u *UnitOfWork) Within(ctx context.Context, w func(context.Context, ports.Repository) error) error {
-	return u.m.Within(ctx, func(ctx context.Context, c database.Connection) error { return w(ctx, NewRepository(c, u.e(c))) })
+	return u.m.Within(ctx, func(ctx context.Context, c database.Connection) error {
+		return w(ctx, NewRepository(c, u.e(c), u.skipTenderDrafts))
+	})
 }
 
 func sourceSize(in domain.Input) int64 {

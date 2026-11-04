@@ -9,7 +9,8 @@ import (
 	"net/http"
 )
 
-func RegisterTSC(r chi.Router, s *application.TSC) {
+func RegisterTSC(r chi.Router, s *application.TSC, nativeOwner ...bool) {
+	writes := len(nativeOwner) == 0 || !nativeOwner[0]
 	base := "/api/v1/tender-fms/drafts/{draft}/tsc"
 	r.Get(base+"/options", func(w http.ResponseWriter, r *http.Request) {
 		out, e := s.Options(r.Context(), captureToken(r), chi.URLParam(r, "draft"))
@@ -19,29 +20,31 @@ func RegisterTSC(r chi.Router, s *application.TSC) {
 		captureHeaders(w)
 		json.NewEncoder(w).Encode(out)
 	})
-	r.Post(base+"/{job}/answers/{question}/research", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			OriginalDocumentsConfirmed bool   `json:"original_documents_confirmed"`
-			Version                    int64  `json:"expected_version"`
-			Query                      string `json:"query"`
-			Mode                       string `json:"mode"`
-		}
-		if captureFailure(w, httpinput.Decode(w, r, 8192, &in)) {
-			return
-		}
-		bounded, cancel, e := boundedTSCResearch(w, r)
-		if captureFailure(w, e) {
-			return
-		}
-		defer cancel()
-		r = bounded
-		out, e := s.Research(r.Context(), captureToken(r), chi.URLParam(r, "draft"), chi.URLParam(r, "job"), chi.URLParam(r, "question"), in.Query, in.Mode, r.Header.Get("Idempotency-Key"), in.Version, domain.TSCResearchOptions{OriginalDocumentsConfirmed: in.OriginalDocumentsConfirmed})
-		if captureFailure(w, e) {
-			return
-		}
-		captureHeaders(w)
-		json.NewEncoder(w).Encode(out)
-	})
+	if writes {
+		r.Post(base+"/{job}/answers/{question}/research", func(w http.ResponseWriter, r *http.Request) {
+			var in struct {
+				OriginalDocumentsConfirmed bool   `json:"original_documents_confirmed"`
+				Version                    int64  `json:"expected_version"`
+				Query                      string `json:"query"`
+				Mode                       string `json:"mode"`
+			}
+			if captureFailure(w, httpinput.Decode(w, r, 8192, &in)) {
+				return
+			}
+			bounded, cancel, e := boundedTSCResearch(w, r)
+			if captureFailure(w, e) {
+				return
+			}
+			defer cancel()
+			r = bounded
+			out, e := s.Research(r.Context(), captureToken(r), chi.URLParam(r, "draft"), chi.URLParam(r, "job"), chi.URLParam(r, "question"), in.Query, in.Mode, r.Header.Get("Idempotency-Key"), in.Version, domain.TSCResearchOptions{OriginalDocumentsConfirmed: in.OriginalDocumentsConfirmed})
+			if captureFailure(w, e) {
+				return
+			}
+			captureHeaders(w)
+			json.NewEncoder(w).Encode(out)
+		})
+	}
 	r.Get(base, func(w http.ResponseWriter, r *http.Request) {
 		out, e := s.List(r.Context(), captureToken(r), chi.URLParam(r, "draft"))
 		if captureFailure(w, e) {
@@ -50,24 +53,26 @@ func RegisterTSC(r chi.Router, s *application.TSC) {
 		captureHeaders(w)
 		json.NewEncoder(w).Encode(map[string]any{"items": out})
 	})
-	r.Post(base, func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			FormatID      string `json:"format_id"`
-			FormatVersion int64  `json:"format_version"`
-			Version       int64  `json:"expected_version"`
-			Mode          string `json:"mode"`
-		}
-		if captureFailure(w, httpinput.Decode(w, r, 8192, &in)) {
-			return
-		}
-		out, e := s.Create(r.Context(), captureToken(r), chi.URLParam(r, "draft"), r.Header.Get("Idempotency-Key"), in.Mode, in.Version, domain.TSCFormatSelection{ID: in.FormatID, Version: in.FormatVersion})
-		if captureFailure(w, e) {
-			return
-		}
-		captureHeaders(w)
-		w.WriteHeader(http.StatusAccepted)
-		json.NewEncoder(w).Encode(out)
-	})
+	if writes {
+		r.Post(base, func(w http.ResponseWriter, r *http.Request) {
+			var in struct {
+				FormatID      string `json:"format_id"`
+				FormatVersion int64  `json:"format_version"`
+				Version       int64  `json:"expected_version"`
+				Mode          string `json:"mode"`
+			}
+			if captureFailure(w, httpinput.Decode(w, r, 8192, &in)) {
+				return
+			}
+			out, e := s.Create(r.Context(), captureToken(r), chi.URLParam(r, "draft"), r.Header.Get("Idempotency-Key"), in.Mode, in.Version, domain.TSCFormatSelection{ID: in.FormatID, Version: in.FormatVersion})
+			if captureFailure(w, e) {
+				return
+			}
+			captureHeaders(w)
+			w.WriteHeader(http.StatusAccepted)
+			json.NewEncoder(w).Encode(out)
+		})
+	}
 	r.Get(base+"/{job}", func(w http.ResponseWriter, r *http.Request) {
 		out, e := s.Get(r.Context(), captureToken(r), chi.URLParam(r, "draft"), chi.URLParam(r, "job"))
 		if captureFailure(w, e) {

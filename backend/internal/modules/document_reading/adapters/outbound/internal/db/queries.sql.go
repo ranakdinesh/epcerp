@@ -12,12 +12,17 @@ import (
 )
 
 const claimReading = `-- name: ClaimReading :one
-WITH candidate AS(SELECT id FROM document_readings WHERE status='queued' OR (status='processing' AND lease_until<clock_timestamp()) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
+WITH candidate AS(SELECT id FROM document_readings WHERE (status='queued' OR (status='processing' AND lease_until<clock_timestamp())) AND (NOT $2::boolean OR module<>'tender_draft') ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
 UPDATE document_readings d SET status=CASE WHEN attempts>=3 THEN 'failed' ELSE 'processing' END, attempts=least(attempts+1,3),version=version+1,claim_id= $1,lease_until=clock_timestamp()+interval '1 minute',error_message=CASE WHEN attempts>=3 THEN 'Processing was interrupted three times; upload a revised document after review' ELSE '' END,updated_at=clock_timestamp(),updated_by_id=NULL FROM candidate c WHERE d.id=c.id RETURNING d.id, d.module, d.entity_id, d.filename, d.format, d.size_bytes, d.sha256, d.original, d.status, d.version, d.attempts, d.claim_id, d.lease_until, d.error_message, d.segment_count, d.warnings, d.is_active, d.created_at, d.updated_at, d.created_by_id, d.updated_by_id
 `
 
-func (q *Queries) ClaimReading(ctx context.Context, claimID pgtype.UUID) (DocumentReading, error) {
-	row := q.db.QueryRow(ctx, claimReading, claimID)
+type ClaimReadingParams struct {
+	ClaimID          pgtype.UUID
+	SkipTenderDrafts bool
+}
+
+func (q *Queries) ClaimReading(ctx context.Context, arg ClaimReadingParams) (DocumentReading, error) {
+	row := q.db.QueryRow(ctx, claimReading, arg.ClaimID, arg.SkipTenderDrafts)
 	var i DocumentReading
 	err := row.Scan(
 		&i.ID,

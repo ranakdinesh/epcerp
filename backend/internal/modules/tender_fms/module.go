@@ -41,6 +41,10 @@ type Dependencies struct {
 type Module struct{}
 
 func New(dependencies Dependencies) (*Module, error) {
+	owner := os.Getenv("EPCERP_TSC_OWNER")
+	if owner != "" && owner != "go" && owner != "nextjs" {
+		return nil, fmt.Errorf("invalid EPCERP_TSC_OWNER")
+	}
 	documents := func(connection database.Connection) ports.Documents {
 		return outbound.NewDocuments(dependencies.Reader(connection), dependencies.Validator)
 	}
@@ -53,7 +57,7 @@ func New(dependencies Dependencies) (*Module, error) {
 		if e != nil {
 			return nil, e
 		}
-		inbound.RegisterTSC(dependencies.Router, tsc.WithLimits(infrastructure.NewTSCLimits()))
+		inbound.RegisterTSC(dependencies.Router, tsc.WithLimits(infrastructure.NewTSCLimits()), owner == "nextjs")
 	}
 	if dependencies.Packages != nil && dependencies.PreparedReader != nil && dependencies.Notices != nil {
 		foundation := func(c database.Connection) contracts.Records {
