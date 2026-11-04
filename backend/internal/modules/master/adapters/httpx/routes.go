@@ -13,6 +13,7 @@ import (
 // The API composition root constructs them before registering routes.
 type Services struct {
 	ClientsHTTPDisabled     bool
+	ReferencesHTTPDisabled  bool
 	VendorReviewAssignments *masterApplication.VendorReviewAssignmentService
 	Vendors                 *masterApplication.VendorService
 	VendorDocuments         *masterApplication.VendorDocumentService
@@ -38,7 +39,9 @@ func Register(mux *infrastructure.Router, services Services) {
 	RegisterManufacturerRoutes(mux, services.Manufacturers)
 	RegisterCategoryRoutes(mux, services.Categories)
 	RegisterTemplateRoutes(mux, services.Templates)
-	RegisterReferenceRoutes(mux, services.References)
+	if !services.ReferencesHTTPDisabled {
+		RegisterReferenceRoutes(mux, services.References)
+	}
 	if !services.ClientsHTTPDisabled {
 		RegisterClientRoutes(mux, services.Clients)
 	}

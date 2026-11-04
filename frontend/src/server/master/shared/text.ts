@@ -18,5 +18,8 @@ export function upper(value: string) {
     return [...value].map(c => String.fromCodePoint(upperMap.get(c.codePointAt(0)!) ?? c.codePointAt(0)!)).join("");
 }
 export function normalizedName(value: string) {
-    return fold(value.split(/[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/u).filter(Boolean).join(" "));
+    return fold(spacedName(value));
+}
+export function spacedName(value: string) {
+    return value.split(/[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/u).filter(Boolean).join(" ");
 }

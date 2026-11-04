@@ -24,6 +24,11 @@ server/
       validation.ts              input and query validation
       service.ts                 use cases and permission enforcement; no SQL
       repository.ts              parameterized SQL and response mapping
+    references/
+      domain.ts                  kinds, permissions and compatible code generation
+      validation.ts              strict input and query parsing
+      service.ts                 directory lifecycle and state/city transactions
+      repository.ts              whitelisted directory persistence
 ```
 
 Add the next area under `master`, rather than creating a new top-level module for
@@ -33,11 +38,11 @@ can call the same application services.
 
 ## Current ownership
 
-Only **Clients** has migrated in this slice. States/cities, client types, industries,
-items, vendors and other master areas remain Go-owned until their respective
-migrations. Clients reads the existing reference tables within its transaction,
-using the same advisory lock as Go reference maintenance. This prevents a native
-save racing a reference deactivation or city/state reassignment.
+**Clients, client types, industries, states and cities** run natively in Next.js.
+Items, vendors and other master areas remain Go-owned until their respective
+migrations. Clients and reference administration use the same transaction advisory
+lock. This prevents a client save racing a reference deactivation or city/state
+reassignment. Go consumers continue reading the same tables.
 
 Set `EPCERP_CLIENTS_OWNER=nextjs` on both API and frontend. Local Compose defaults
 both to Next.js; absent the setting, existing deployments keep Go ownership.
@@ -46,6 +51,22 @@ six migrated Clients HTTP operations. Its published client-directory reader stay
 available to Projects and other unmigrated consumers. There is no fallback to Go
 after a native operation fails. Explicit `EPCERP_CLIENTS_OWNER=go` on both services
 is the rollback path; leave `EPCERP_AUTH_OWNER=nextjs` unchanged.
+
+`EPCERP_REFERENCES_OWNER=nextjs` independently migrates all four reference
+directories. Set it consistently on API and frontend; local Compose defaults to
+Next.js, while an absent setting elsewhere retains Go ownership. Go unregisters
+only these HTTP operations and retains its published reference readers. Set
+`EPCERP_REFERENCES_OWNER=go` on both services for reference rollback; keep Auth and
+Clients ownership unchanged. Native errors never fall back to a second writer.
+
+Reference writes require `settings.client_types.write`, `settings.industries.write`
+or `settings.locations.write`; reads require their respective `.read` permission.
+State deactivation retires active cities atomically. Reactivating a state does not
+reactivate its cities. City creation/editing and activation require an active
+parent state. Edits preserve existing IDs, creation metadata and inactive status.
+Names and generated codes retain Go's whitespace, Unicode and duplicate semantics.
+Reference JSON bodies are bounded to 4 KiB at both the browser proxy and native
+adapter. Responses preserve the existing five-field contract.
 
 ## Existing data and rules
 
@@ -80,6 +101,9 @@ The runner applies this checkout's migrations only to the QA database, compares
 native validation with the actual Go parser, tests real SQL behavior and runs the
 Auth regressions. Email is mocked. The test-only failure constraint used to verify
 rollback is installed and removed only inside that guarded QA database.
+Reference tests also compare all four kinds against Go, exercise live permissions,
+parent filters, duplicate scopes, preserved metadata, cascade rollback, inactive
+parent guards and concurrent state/city lifecycle operations.
 
 Regenerate the checked-in Unicode mapping after a deliberate Go Unicode upgrade:
 

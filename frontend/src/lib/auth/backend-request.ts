@@ -11,7 +11,8 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
       const { handleAuth, ownsAuthPath } = await import("@/server/auth/http");
       if (ownsAuthPath(path)) return handleAuth(new Request(url,init));
     }
-    if(process.env.EPCERP_CLIENTS_OWNER === "nextjs") {
+    if((process.env.EPCERP_CLIENTS_OWNER === "nextjs" && /^\/clients(?:\/|$)/.test(path)) ||
+       (process.env.EPCERP_REFERENCES_OWNER === "nextjs" && /^\/client-references(?:\/|$)/.test(path))) {
       const {handleMaster,ownsMasterPath}=await import("@/server/master/http");
       if(ownsMasterPath(path)) return handleMaster(new Request(url,init));
     }

@@ -14,6 +14,33 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "references" {
+		var inputs []struct {
+			Kind string          `json:"kind"`
+			Body json.RawMessage `json:"body"`
+		}
+		if err := json.NewDecoder(os.Stdin).Decode(&inputs); err != nil {
+			panic(err)
+		}
+		results := []map[string]any{}
+		for _, raw := range inputs {
+			in, field, err := dtos.ParseReference(bytes.NewReader(raw.Body))
+			out := map[string]any{"valid": err == nil, "field": field}
+			if err == nil {
+				in, err = domain.ReferencePrepare(raw.Kind, in)
+				out["valid"] = err == nil
+				if err == nil {
+					out["name"] = in.Name
+					out["code"] = in.Code
+					out["state_id"] = in.StateID
+					out["normalized_name"] = domain.ReferenceNormalize(in.Name)
+				}
+			}
+			results = append(results, out)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(results)
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "validate" {
 		var inputs []json.RawMessage
 		if err := json.NewDecoder(os.Stdin).Decode(&inputs); err != nil {

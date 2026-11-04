@@ -2,11 +2,12 @@ import "server-only";
 import { AppError } from "../errors";
 import { MasterValidationError } from "./shared/validation";
 import { getClient, listClients, saveClient, setClientActive } from "./clients/service";
-export const ownsMasterPath = (path: string) => /^\/clients(?:\/|$)/.test(path);
+import { listReferences, saveReference, setReferenceActive } from "./references/service";
+export const ownsMasterPath = (path: string) => /^\/(?:clients|client-references)(?:\/|$)/.test(path);
 function response(value: unknown, status = 200) {
     return Response.json(value, { status, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
 }
-async function readJSON(request: Request) {
+async function readJSON(request: Request, maximum = 128 * 1024) {
     const reader = request.body?.getReader();
     if (!reader)
         throw new MasterValidationError("");
@@ -18,7 +19,7 @@ async function readJSON(request: Request) {
             if (done)
                 break;
             size += value.length;
-            if (size > 128 * 1024) {
+            if (size > maximum) {
                 await reader.cancel();
                 throw new AppError(413, "Request body too large");
             }
@@ -39,6 +40,16 @@ export async function handleMaster(request: Request): Promise<Response> {
     try {
         const url = new URL(request.url), path = url.pathname.replace(/^\/api\/v1/, ""), method = request.method;
         const token = /^Bearer ([^\s]+)$/i.exec(request.headers.get("authorization") ?? "")?.[1] ?? "";
+        const reference = /^\/client-references\/([^/]+)(?:\/([^/]+)(?:\/(activate|deactivate))?)?$/.exec(path);
+        if (reference) {
+            let id: string | null = null;
+            try { id = reference[2] ? decodeURIComponent(reference[2]) : null; }
+            catch { throw new MasterValidationError("reference_id", "path"); }
+            if (!id && method === "GET") return response(await listReferences(token, reference[1], url.searchParams));
+            if (!id && method === "POST") return response(await saveReference(token, reference[1], null, await readJSON(request, 4096)), 201);
+            if (id && !reference[3] && method === "PATCH") return response(await saveReference(token, reference[1], id, await readJSON(request, 4096)));
+            if (id && reference[3] && method === "POST") return response(await setReferenceActive(token, reference[1], id, reference[3] === "activate"));
+        }
         if (path === "/clients" && method === "GET")
             return response(await listClients(token, url.searchParams));
         if (path === "/clients" && method === "POST")

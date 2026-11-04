@@ -1,5 +1,9 @@
 # Master Data / Clients: local verification, 4 November 2026
 
+This records the earlier Clients slice. For the subsequent native client types,
+industries, states and cities activation, see
+[reference migration verification](REFERENCES_MIGRATION_VERIFICATION.md).
+
 ## Structure and scope
 
 Clients is now an area inside the shared Next.js `server/master` module. States,

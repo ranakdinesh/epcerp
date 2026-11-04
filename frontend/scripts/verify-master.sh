@@ -6,7 +6,7 @@ cd "$root/frontend"
 node -e 'if(!/\/epcerp_(auth|master)_qa_/.test(new URL(process.env.EPCERP_DATABASE_URL || "invalid").pathname))throw new Error("Provide an isolated epcerp_auth_qa_ or epcerp_master_qa_ database")'
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-export EPCERP_AUTH_OWNER=nextjs EPCERP_CLIENTS_OWNER=nextjs EPCERP_ENVIRONMENT=test EPCERP_EMAIL_DELIVERY_ENABLED=false
+export EPCERP_AUTH_OWNER=nextjs EPCERP_CLIENTS_OWNER=nextjs EPCERP_REFERENCES_OWNER=nextjs EPCERP_ENVIRONMENT=test EPCERP_EMAIL_DELIVERY_ENABLED=false
 export VTPL_JWT_SECRET_KEY=epcerp-synthetic-auth-compatibility-secret-only
 export EPCERP_IMAGE_ENCRYPTION_KEY=1111111111111111111111111111111111111111111111111111111111111111
 export VTPL_BOOTSTRAP_SUPERADMIN_USERNAME=superadmin VTPL_BOOTSTRAP_SUPERADMIN_EMAIL=admin@fixture.invalid
