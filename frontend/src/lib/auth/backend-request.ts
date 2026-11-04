@@ -7,6 +7,10 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
   const url = new URL(input);
   if (url.origin === new URL(backendApiUrl).origin) {
     const path=url.pathname.replace(/^\/api\/v1/,"");
+    if(process.env.EPCERP_INBOX_OWNER === "nextjs" && /^\/inbox(?:\/|$)/.test(path)) {
+      const {handleInbox}=await import("@/server/inbox/http");
+      return handleInbox(new Request(url,init));
+    }
     if(process.env.EPCERP_TSC_OWNER === "nextjs" && /^\/tender-fms\/drafts\/[^/]+\/tsc(?:\/|$)/.test(path)) {
       const {handleTSC}=await import("@/server/tenders/tsc/http");
       return handleTSC(new Request(url,init));

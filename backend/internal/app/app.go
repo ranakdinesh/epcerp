@@ -122,7 +122,9 @@ func (a *App) bindModules(ctx context.Context) error {
 	accessmodule.New(a.Router, a.Database, auth.Resolver)
 	budgetmodule.New(a.Router, a.Database, auth.Resolver)
 	governancemodule.New(a.Router, a.Database, auth.Resolver)
-	inboxmodule.New(a.Router, a.Database, auth.Resolver)
+	if err = inboxmodule.New(a.Router, a.Database, auth.Resolver); err != nil {
+		return err
+	}
 	purchase, err := purchasemodule.New(a.Router, a.Database, auth.Resolver)
 	if err != nil {
 		return err
