@@ -42,6 +42,11 @@ server/
     manufacturers/               eligibility, profile, lifecycle and imports
     templates/                   publication, controlled options and preview
     items/                       item identity, numbering, lifecycle and history
+    vendors/                     supplier profiles, lifecycle and legacy import
+      domain.ts                  profile validation and exact payment arithmetic
+      service.ts                 permission checks and transactional use cases
+      repository.ts              supplier rows, provenance, history and events
+      http.ts                    ownership limited to profile HTTP routes
 ```
 
 Add the next area under `master`, rather than creating a new top-level module for
@@ -52,8 +57,9 @@ can call the same application services.
 ## Current ownership
 
 **Clients, client types, industries, states, cities, Items, categories, base units,
-manufacturers and configuration templates** run natively in Next.js.
-Vendors and their document/approval workflows remain Go-owned. Clients and
+manufacturers, configuration templates and vendor profiles/lifecycle** run natively
+in Next.js. Vendor document, reviewer-assignment and Finance approval workflows
+remain Go-owned. Clients and
 reference administration use the same transaction advisory
 lock. This prevents a client save racing a reference deactivation or city/state
 reassignment. Go consumers continue reading the same tables.
@@ -110,6 +116,29 @@ rewriting evidence. Template preview has its own existing identity policy; do no
 combine those hashes. Legacy JSON numbers and timestamp microseconds are preserved
 through reads and audit snapshots. Native catalogue code requires Node 22+.
 
+`EPCERP_VENDOR_PROFILES_OWNER=nextjs` transfers only supplier list, create, update
+and legacy-import operations. Set it consistently on API and frontend; local
+Compose defaults to Next.js, while an absent flag elsewhere keeps Go ownership.
+Set this flag to `go` on both applications for profile rollback without changing
+the other module owners. Nested `/suppliers/{id}/documents` and
+`/suppliers/{id}/verification` routes, including reviewer assignments, continue
+through Go. Go's supplier directory remains available to those consumers.
+
+Profile reads preserve the existing alternative grant: either
+`settings.suppliers.read` or `accounts.vendor_verification.read`. Writes require
+`settings.suppliers.write`; adoption requires `settings.suppliers.import`.
+Updates retain code, ID, creation fields and import provenance, require the
+current version, and append immutable supplier history plus the business event
+inside the same transaction. Lifecycle changes use the existing profile PATCH.
+Document rows and approval state are not rewritten by profile updates.
+
+Qualification remains separate from Finance verification. Go computes its current
+evidence fingerprint from the same supplier version, lifecycle and GST fields.
+Stale Finance commands remain rejected after native profile changes. Payment terms
+use exact decimal arithmetic, including the existing inclusive 0.01 total tolerance,
+zero-total allowance and integer credit-day rule. Profile bodies remain bounded
+to 128 KiB; source identity/revision/timestamps stay hidden from public responses.
+
 ## Existing data and rules
 
 No schema change or new migration system is introduced. Existing records, IDs,
@@ -152,6 +181,10 @@ imports, Unicode models and template previews. Real SQL checks cover optimistic
 versions, atomic audit failures, revision retention, concurrent deduplication,
 immutable evidence, legacy candidate reuse, JSON/timestamp precision and SKU
 exhaustion. Failure constraints are confined to the guarded QA database.
+Supplier checks compare 106 validation/import/payment fixtures with Go, exercise
+the alternative Finance read permission, concurrent versions, source provenance,
+immutable history and rollback after audit/journal failure. Profile writes are
+checked separately from the Go document, assignment and Finance browser boundary.
 
 The native query registry uses the existing reviewed catalogue SQL during the
 gradual migration. Regenerate it after deliberately changing those queries:

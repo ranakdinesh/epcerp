@@ -5,10 +5,12 @@ import { getClient, listClients, saveClient, setClientActive } from "./clients/s
 import { listReferences, saveReference, setReferenceActive } from "./references/service";
 import { routeCatalogue } from "./catalogue/http";
 import { parseCatalogueJSON } from "./catalogue/json";
+import { ownsVendorPath, routeVendors } from "./vendors/http";
 export const ownsMasterPath = (path: string) =>
+    ownsVendorPath(path) || (
     // Purchase policies belong to Purchasing throughout this Master migration.
     !/^\/clients\/[^/]+\/purchase-rules(?:\/|$)/.test(path) &&
-    /^\/(?:clients|client-references|categories|manufacturers|configuration-templates|catalogue-items)(?:\/|$)/.test(path);
+    /^\/(?:clients|client-references|categories|manufacturers|configuration-templates|catalogue-items)(?:\/|$)/.test(path));
 function response(value: unknown, status = 200) {
     return Response.json(value, { status, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
 }
@@ -45,6 +47,8 @@ export async function handleMaster(request: Request): Promise<Response> {
     try {
         const url = new URL(request.url), path = url.pathname.replace(/^\/api\/v1/, ""), method = request.method;
         const token = /^Bearer ([^\s]+)$/i.exec(request.headers.get("authorization") ?? "")?.[1] ?? "";
+        const vendor = await routeVendors(request, path, token, readJSON);
+        if (vendor) return response(vendor.value, vendor.status);
         const catalogue = await routeCatalogue(request, path, token, readJSON);
         if (catalogue) return response(catalogue.value, catalogue.status);
         const reference = /^\/client-references\/([^/]+)(?:\/([^/]+)(?:\/(activate|deactivate))?)?$/.exec(path);

@@ -1,5 +1,8 @@
 # Master Data / Catalogue: local verification, 4 November 2026
 
+This records the catalogue slice. The subsequent vendor profile/lifecycle
+activation is recorded in [vendor profile verification](VENDOR_PROFILES_MIGRATION_VERIFICATION.md).
+
 ## Change and scope
 
 Items, categories/subcategories/base units, manufacturers and configuration

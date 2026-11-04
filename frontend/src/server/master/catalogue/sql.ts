@@ -471,5 +471,77 @@ export const catalogueSQL = {
       "uom"
     ],
     "mode": "many"
+  },
+  "VendorProfileLockImport": {
+    "text": "SELECT pg_advisory_xact_lock(3018,1);",
+    "keys": [],
+    "mode": "exec"
+  },
+  "VendorProfileListSuppliers": {
+    "text": "SELECT * FROM suppliers ORDER BY name,id;",
+    "keys": [],
+    "mode": "many"
+  },
+  "VendorProfileSourceSupplier": {
+    "text": "SELECT * FROM suppliers WHERE source_id=$1;",
+    "keys": [
+      "source_id"
+    ],
+    "mode": "one"
+  },
+  "VendorProfileGetSupplier": {
+    "text": "SELECT * FROM suppliers WHERE id=$1 FOR UPDATE;",
+    "keys": [
+      "id"
+    ],
+    "mode": "one"
+  },
+  "VendorProfileSupplierExists": {
+    "text": "SELECT id FROM suppliers WHERE id=$1 FOR UPDATE;",
+    "keys": [
+      "id"
+    ],
+    "mode": "one"
+  },
+  "VendorProfileInsertSupplier": {
+    "text": "INSERT INTO suppliers(id,code,name,data,is_active,created_by_id,updated_by_id,source_id,source_version,source_created_at,source_updated_at) VALUES($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10) RETURNING *;",
+    "keys": [
+      "id",
+      "code",
+      "name",
+      "data",
+      "active",
+      "actor",
+      "source_id",
+      "source_version",
+      "source_created_at",
+      "source_updated_at"
+    ],
+    "mode": "one"
+  },
+  "VendorProfileUpdateSupplier": {
+    "text": "UPDATE suppliers SET name=$1,data=$2,is_active=$3,version=version+1,updated_by_id=$4,updated_at=now() WHERE id=$5 AND version=$6 RETURNING *;",
+    "keys": [
+      "name",
+      "data",
+      "active",
+      "actor",
+      "id",
+      "previous_version"
+    ],
+    "mode": "one"
+  },
+  "VendorProfileRecordChange": {
+    "text": "INSERT INTO supplier_changes(id,supplier_id,version,action,reason,snapshot,created_by_id) VALUES($1,$2,$3,$4,$5,$6,$7);",
+    "keys": [
+      "id",
+      "supplier_id",
+      "version",
+      "action",
+      "reason",
+      "snapshot",
+      "created_by_id"
+    ],
+    "mode": "exec"
   }
 } as const;

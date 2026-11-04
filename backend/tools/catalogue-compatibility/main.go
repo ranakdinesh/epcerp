@@ -44,9 +44,49 @@ func main() {
 		decode := func(v any) error {
 			dec := json.NewDecoder(bytes.NewReader(in.Body))
 			dec.DisallowUnknownFields()
+			dec.UseNumber()
 			return httpDTO.DecodeMasterJSON(dec, v)
 		}
 		switch in.Area {
+		case "vendor-create":
+			var v d.VendorCreate
+			err = decode(&v)
+			if err == nil {
+				v.Code = d.VendorNormalizeCode(v.Code)
+				v.Name = d.VendorNormalizeName(v.Name)
+				err = d.VendorValidateMaster(v.Code, v.Name, v.Data)
+			}
+			if err == nil {
+				err = d.VendorValidateReason(v.Reason)
+			}
+			if err == nil {
+				r["value"] = httpDTO.TransportValue(v)
+				r["fingerprint"] = repo.VendorValues{}.Fingerprint(v.Data)
+			}
+		case "vendor-update":
+			var v d.VendorUpdate
+			err = decode(&v)
+			if err == nil {
+				err = d.VendorValidateReason(v.Reason)
+			}
+			if err == nil {
+				v.Name = d.VendorNormalizeName(v.Name)
+				err = d.VendorValidateMaster(in.Kind, v.Name, v.Data)
+			}
+			if err == nil {
+				r["value"] = httpDTO.TransportValue(v)
+				r["fingerprint"] = repo.VendorValues{}.Fingerprint(v.Data)
+			}
+		case "vendor-import":
+			var v d.VendorInput
+			err = decode(&v)
+			if err == nil {
+				err = d.VendorValidate(v)
+			}
+			if err == nil {
+				r["value"] = httpDTO.TransportValue(v)
+				r["fingerprint"] = repo.VendorValues{}.Fingerprint(v.Data)
+			}
 		case "category-create":
 			var v d.CategoryCreate
 			err = decode(&v)
