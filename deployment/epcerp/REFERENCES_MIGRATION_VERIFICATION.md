@@ -1,5 +1,9 @@
 # Master Data / References: local verification, 4 November 2026
 
+This records the reference-directory slice. The subsequent Items, categories,
+manufacturers and templates migration is recorded in
+[catalogue verification](CATALOGUE_MIGRATION_VERIFICATION.md).
+
 ## Scope and organization
 
 Client types, industries, states and cities now run in the existing Next.js

@@ -14,6 +14,7 @@ import (
 type Services struct {
 	ClientsHTTPDisabled     bool
 	ReferencesHTTPDisabled  bool
+	CatalogueHTTPDisabled   bool
 	VendorReviewAssignments *masterApplication.VendorReviewAssignmentService
 	Vendors                 *masterApplication.VendorService
 	VendorDocuments         *masterApplication.VendorDocumentService
@@ -35,10 +36,12 @@ func Register(mux *infrastructure.Router, services Services) {
 	RegisterVendorDocumentRoutes(mux, services.VendorDocuments)
 	RegisterVendorVerificationRoutes(mux, services.VendorVerification)
 	RegisterVendorReviewAssignments(mux, services.VendorReviewAssignments)
-	RegisterItemRoutes(mux, services.Items)
-	RegisterManufacturerRoutes(mux, services.Manufacturers)
-	RegisterCategoryRoutes(mux, services.Categories)
-	RegisterTemplateRoutes(mux, services.Templates)
+	if !services.CatalogueHTTPDisabled {
+		RegisterItemRoutes(mux, services.Items)
+		RegisterManufacturerRoutes(mux, services.Manufacturers)
+		RegisterCategoryRoutes(mux, services.Categories)
+		RegisterTemplateRoutes(mux, services.Templates)
+	}
 	if !services.ReferencesHTTPDisabled {
 		RegisterReferenceRoutes(mux, services.References)
 	}

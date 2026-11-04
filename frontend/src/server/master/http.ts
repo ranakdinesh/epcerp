@@ -3,7 +3,12 @@ import { AppError } from "../errors";
 import { MasterValidationError } from "./shared/validation";
 import { getClient, listClients, saveClient, setClientActive } from "./clients/service";
 import { listReferences, saveReference, setReferenceActive } from "./references/service";
-export const ownsMasterPath = (path: string) => /^\/(?:clients|client-references)(?:\/|$)/.test(path);
+import { routeCatalogue } from "./catalogue/http";
+import { parseCatalogueJSON } from "./catalogue/json";
+export const ownsMasterPath = (path: string) =>
+    // Purchase policies belong to Purchasing throughout this Master migration.
+    !/^\/clients\/[^/]+\/purchase-rules(?:\/|$)/.test(path) &&
+    /^\/(?:clients|client-references|categories|manufacturers|configuration-templates|catalogue-items)(?:\/|$)/.test(path);
 function response(value: unknown, status = 200) {
     return Response.json(value, { status, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
 }
@@ -30,7 +35,7 @@ async function readJSON(request: Request, maximum = 128 * 1024) {
         reader.releaseLock();
     }
     try {
-        return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+        return parseCatalogueJSON(Buffer.concat(chunks).toString("utf8"));
     }
     catch {
         throw new MasterValidationError("");
@@ -40,6 +45,8 @@ export async function handleMaster(request: Request): Promise<Response> {
     try {
         const url = new URL(request.url), path = url.pathname.replace(/^\/api\/v1/, ""), method = request.method;
         const token = /^Bearer ([^\s]+)$/i.exec(request.headers.get("authorization") ?? "")?.[1] ?? "";
+        const catalogue = await routeCatalogue(request, path, token, readJSON);
+        if (catalogue) return response(catalogue.value, catalogue.status);
         const reference = /^\/client-references\/([^/]+)(?:\/([^/]+)(?:\/(activate|deactivate))?)?$/.exec(path);
         if (reference) {
             let id: string | null = null;

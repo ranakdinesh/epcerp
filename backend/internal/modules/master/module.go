@@ -33,9 +33,13 @@ func New(mux *infrastructure.Router, pool *pgxpool.Pool, identity authContracts.
 	if referencesOwner != "" && referencesOwner != "go" && referencesOwner != "nextjs" {
 		return errors.New("invalid EPCERP_REFERENCES_OWNER")
 	}
+	catalogueOwner := os.Getenv("EPCERP_CATALOGUE_OWNER")
+	if catalogueOwner != "" && catalogueOwner != "go" && catalogueOwner != "nextjs" {
+		return errors.New("invalid EPCERP_CATALOGUE_OWNER")
+	}
 	auth := infrastructure.NewAuthBridge(identity)
 	inspector := infrastructure.NewDocumentInspector(masterDomain.VendorDocumentMaximumBytes)
-	services := masterHTTP.Services{ClientsHTTPDisabled: owner == "nextjs", ReferencesHTTPDisabled: referencesOwner == "nextjs"}
+	services := masterHTTP.Services{ClientsHTTPDisabled: owner == "nextjs", ReferencesHTTPDisabled: referencesOwner == "nextjs", CatalogueHTTPDisabled: catalogueOwner == "nextjs"}
 	cipher, e := infrastructure.NewDocumentCipher(os.Getenv("EPCERP_SUPPLIER_DOCUMENT_KEY"))
 	if e != nil {
 		return e

@@ -12,6 +12,7 @@ server/
   auth/access.ts                 published permission-checking contract
   db.ts                          connection pool and transactions
   errors.ts                      shared application failures
+  events/journal.ts              transactional writer for Master business events
   master/
     http.ts                      adapter for migrated browser operations
     shared/
@@ -29,6 +30,18 @@ server/
       validation.ts              strict input and query parsing
       service.ts                 directory lifecycle and state/city transactions
       repository.ts              whitelisted directory persistence
+    catalogue/
+      http.ts                    adapter for the four catalogue areas
+      sql.ts                     generated reviewed SQL; no runtime Go dependency
+      database.ts                typed query execution and precise timestamps
+      validation.ts              catalogue input helpers
+      serialization.ts           compatible hashes and JSON encoding
+      json.ts                    lossless JSON and integer-token parsing
+      full-fold.json             Go full folding for item model identities
+    categories/                  category/subcategory/base-unit rules and history
+    manufacturers/               eligibility, profile, lifecycle and imports
+    templates/                   publication, controlled options and preview
+    items/                       item identity, numbering, lifecycle and history
 ```
 
 Add the next area under `master`, rather than creating a new top-level module for
@@ -38,9 +51,10 @@ can call the same application services.
 
 ## Current ownership
 
-**Clients, client types, industries, states and cities** run natively in Next.js.
-Items, vendors and other master areas remain Go-owned until their respective
-migrations. Clients and reference administration use the same transaction advisory
+**Clients, client types, industries, states, cities, Items, categories, base units,
+manufacturers and configuration templates** run natively in Next.js.
+Vendors and their document/approval workflows remain Go-owned. Clients and
+reference administration use the same transaction advisory
 lock. This prevents a client save racing a reference deactivation or city/state
 reassignment. Go consumers continue reading the same tables.
 
@@ -68,6 +82,34 @@ Names and generated codes retain Go's whitespace, Unicode and duplicate semantic
 Reference JSON bodies are bounded to 4 KiB at both the browser proxy and native
 adapter. Responses preserve the existing five-field contract.
 
+`EPCERP_CATALOGUE_OWNER=nextjs` transfers Items and its three supporting areas
+together. Local Compose sets it consistently on API and frontend. An absent flag
+outside Compose keeps Go ownership; `go` on both services is the rollback path.
+Go unregisters only the migrated HTTP routes and retains catalogue readers used
+by project materials and purchasing. Client purchase policies remain Go-owned even
+though their URLs are nested below `/clients`; native route ownership explicitly
+excludes them. No native operation falls back to Go after a failure.
+
+Each catalogue area has `domain.ts`, `service.ts` and `repository.ts`. Domain rules
+are pure; services resolve permissions and transactions; repositories own SQL and
+audit/event persistence. No new Docker service was introduced. The native event
+writer appends the same zero-delivery-target business events inside the subject's
+transaction, preserving the Go journal contract.
+
+Catalogue permissions retain their existing `settings.categories`,
+`settings.manufacturers`, `settings.configuration_templates` and `settings.items`
+read/write grants, with separate import grants. Corrections require versions and
+reasons. Template publication appends a revision and retains old field/option
+codes. Issued item identity, snapshots, SKU numbers and audit records stay
+immutable. SKU issuance remains 001–999 per category code, with shared advisory
+and row locks preventing duplicate identities and stale updates.
+
+Item identity uses Go-compatible NFKC/full-fold model normalization and the
+existing sorted ASCII JSON hash policy. Legacy model candidates are reused without
+rewriting evidence. Template preview has its own existing identity policy; do not
+combine those hashes. Legacy JSON numbers and timestamp microseconds are preserved
+through reads and audit snapshots. Native catalogue code requires Node 22+.
+
 ## Existing data and rules
 
 No schema change or new migration system is introduced. Existing records, IDs,
@@ -91,7 +133,8 @@ not invent one or move purchasing's client-policy history into Master Data.
 ## Verification
 
 Provide `EPCERP_DATABASE_URL` for a deliberately isolated QA database whose name
-starts with `epcerp_auth_qa_` or `epcerp_master_qa_`, then run from the repo root:
+starts with `epcerp_auth_qa_`, then run from the repo root. The combined runner
+includes Auth's stricter database-name safety guard:
 
 ```sh
 bash frontend/scripts/verify-master.sh
@@ -104,6 +147,28 @@ rollback is installed and removed only inside that guarded QA database.
 Reference tests also compare all four kinds against Go, exercise live permissions,
 parent filters, duplicate scopes, preserved metadata, cascade rollback, inactive
 parent guards and concurrent state/city lifecycle operations.
+Catalogue checks compare native rules/hashes with the actual Go code, including
+imports, Unicode models and template previews. Real SQL checks cover optimistic
+versions, atomic audit failures, revision retention, concurrent deduplication,
+immutable evidence, legacy candidate reuse, JSON/timestamp precision and SKU
+exhaustion. Failure constraints are confined to the guarded QA database.
+
+The native query registry uses the existing reviewed catalogue SQL during the
+gradual migration. Regenerate it after deliberately changing those queries:
+
+```sh
+node frontend/scripts/sync-master-catalogue-sql.mjs
+node frontend/scripts/sync-master-catalogue-sql.mjs --check
+```
+
+The combined runner checks that the registry is synchronized. Go remains a
+development parity oracle and the existing schema migrator; it is not invoked by
+native Next.js requests. Regenerate full model folding after a Go Unicode upgrade:
+
+```sh
+cd backend
+go run ./tools/catalogue-compatibility fold > ../frontend/src/server/master/catalogue/full-fold.json
+```
 
 Regenerate the checked-in Unicode mapping after a deliberate Go Unicode upgrade:
 
