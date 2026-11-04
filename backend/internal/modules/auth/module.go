@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,6 +44,10 @@ func (m *Module) Bundles(connection database.Connection) contracts.BundleDirecto
 }
 
 func New(ctx context.Context, dependencies Dependencies) (*Module, error) {
+	owner := os.Getenv("EPCERP_AUTH_OWNER")
+	if owner != "" && owner != "go" && owner != "nextjs" {
+		return nil, errors.New("invalid EPCERP_AUTH_OWNER")
+	}
 	cfg, err := security.LoadAuthConfig(os.LookupEnv)
 	if err != nil {
 		return nil, err
@@ -56,11 +61,13 @@ func New(ctx context.Context, dependencies Dependencies) (*Module, error) {
 		return nil, err
 	}
 	pool := dependencies.Database
-	bootstrap := application.NewBootstrap(repository.NewBootstrapUnitOfWork(pool), passwords, tokens)
-	if _, err = bootstrap.Bootstrap(ctx, cfg.BootstrapUsername, cfg.BootstrapEmail, cfg.BootstrapPassword); err != nil {
-		return nil, err
+	if owner != "nextjs" {
+		bootstrap := application.NewBootstrap(repository.NewBootstrapUnitOfWork(pool), passwords, tokens)
+		if _, err = bootstrap.Bootstrap(ctx, cfg.BootstrapUsername, cfg.BootstrapEmail, cfg.BootstrapPassword); err != nil {
+			return nil, err
+		}
+		dependencies.Logger.Info().Str("event", "auth.bootstrap.completed").Msg("Auth registry and recovery identity reconciled")
 	}
-	dependencies.Logger.Info().Str("event", "auth.bootstrap.completed").Msg("Auth registry and recovery identity reconciled")
 	mail := security.NewRecoveryMail(dependencies.Email, dependencies.Email.PublicURL)
 	emailCipher, err := infrastructure.NewEmailCipher(os.Getenv("EPCERP_IMAGE_ENCRYPTION_KEY"))
 	if err != nil {
@@ -100,7 +107,11 @@ func New(ctx context.Context, dependencies Dependencies) (*Module, error) {
 		return nil, err
 	}
 	services.Profile = application.NewProfile(repository.NewProfileUnitOfWork(pool, dependencies.Events), infrastructure.NewAuthBridge(identity), helpers.ImageProcessor{MaximumBytes: domain.ProfileMaximumPhotoBytes, MaximumDimension: 2048, Size: 256}, tokens, images)
-	httpx.Register(dependencies.Router, services)
-	go jobs.RunCredentialMail(ctx, delivery, dependencies.Logger)
+	if owner == "nextjs" {
+		httpx.RegisterCompatibility(dependencies.Router, services)
+	} else {
+		httpx.Register(dependencies.Router, services)
+		go jobs.RunCredentialMail(ctx, delivery, dependencies.Logger)
+	}
 	return &Module{Resolver: identity}, nil
 }

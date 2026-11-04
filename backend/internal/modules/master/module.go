@@ -3,6 +3,7 @@ package master
 
 import (
 	"context"
+	"errors"
 	inboxRepository "github.com/ranakdinesh/epcERP/internal/modules/communication_inbox/adapters/outbound"
 	inboxContracts "github.com/ranakdinesh/epcERP/internal/modules/communication_inbox/contracts"
 	"os"
@@ -24,9 +25,13 @@ import (
 
 // New constructs the module services and binds its HTTP adapters.
 func New(mux *infrastructure.Router, pool *pgxpool.Pool, identity authContracts.Resolver, journal func(database.Connection) eventsContracts.Writer, assignments func(database.Connection) authContracts.AssignmentDirectory) error {
+	owner := os.Getenv("EPCERP_CLIENTS_OWNER")
+	if owner != "" && owner != "go" && owner != "nextjs" {
+		return errors.New("invalid EPCERP_CLIENTS_OWNER")
+	}
 	auth := infrastructure.NewAuthBridge(identity)
 	inspector := infrastructure.NewDocumentInspector(masterDomain.VendorDocumentMaximumBytes)
-	services := masterHTTP.Services{}
+	services := masterHTTP.Services{ClientsHTTPDisabled: owner == "nextjs"}
 	cipher, e := infrastructure.NewDocumentCipher(os.Getenv("EPCERP_SUPPLIER_DOCUMENT_KEY"))
 	if e != nil {
 		return e

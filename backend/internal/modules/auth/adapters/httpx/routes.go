@@ -19,6 +19,17 @@ type Services struct {
 }
 
 func Register(router chi.Router, services Services) {
+	register(router, services, true)
+}
+
+// RegisterCompatibility retains employee/profile workflows while Next.js owns
+// credentials, sessions, users and roles. Go still enforces live permissions on
+// every unmigrated business operation through its read-only identity resolver.
+func RegisterCompatibility(router chi.Router, services Services) {
+	register(router, services, false)
+}
+
+func register(router chi.Router, services Services, core bool) {
 	if services.Offboarding != nil {
 		h := &offboardingHandler{services.Offboarding}
 		router.Get("/api/v1/auth/organisation/offboarding", h.list)
@@ -38,42 +49,44 @@ func Register(router chi.Router, services Services) {
 		router.Get("/api/v1/auth/organisation/team", org.team)
 		router.Get("/api/v1/auth/organisation/team/{user_id}/work", org.work)
 	}
-	if services.Recovery != nil {
+	if core && services.Recovery != nil {
 		recovery := &recoveryHandler{services.Recovery}
 		router.With(recoveryLimit()).Post("/api/v1/auth/forgot-password", recovery.request)
 		router.With(recoveryLimit()).Post("/api/v1/auth/reset-password", recovery.complete)
 	}
-	sessions := &sessionHandler{services.Sessions}
-	users := &userHandler{services.Users, services.Credentials}
-	roles := &roleHandler{services.Roles}
-	router.Post("/api/v1/auth/login", sessions.login)
-	router.Post("/api/v1/auth/refresh", sessions.refresh)
-	router.Post("/api/v1/auth/logout", sessions.logout)
-	router.Get("/api/v1/auth/me/sessions", sessions.sessions)
-	router.Delete("/api/v1/auth/me/sessions/{session_id}", sessions.revokeSession)
-	router.Delete("/api/v1/auth/me/sessions", sessions.revokeAll)
-	router.Get("/api/v1/auth/me", sessions.me)
-	router.Post("/api/v1/auth/activity", sessions.activity)
-	router.Get("/api/v1/users", users.users)
-	router.Post("/api/v1/users", users.createUser)
-	router.Get("/api/v1/users/online/activity", users.online)
-	router.Get("/api/v1/users/{user_id}", users.user)
-	router.Patch("/api/v1/users/{user_id}", users.updateUser)
-	router.Post("/api/v1/users/{user_id}/password", users.password)
-	router.Post("/api/v1/users/{user_id}/deactivate", users.deactivate)
-	router.Post("/api/v1/users/{user_id}/status", users.status)
-	router.Get("/api/v1/auth/administration-history", roles.history)
-	router.Get("/api/v1/roles", roles.roles)
-	router.Get("/api/v1/roles/permissions", roles.permissions)
-	router.Post("/api/v1/roles", roles.createRole)
-	router.Post("/api/v1/roles/finance-presets", roles.finance)
-	router.Patch("/api/v1/roles/{role_id}", roles.updateRole)
-	account := &accountHandler{services.Account}
-	router.Get("/api/v1/auth/me/username", account.usernameAvailable)
-	router.Patch("/api/v1/auth/me/username", account.username)
-	router.Post("/api/v1/auth/me/password", account.password)
-	router.Patch("/api/v1/auth/me/email", account.email)
-	router.With(recoveryLimit()).Post("/api/v1/auth/verify-email", account.verifyEmail)
+	if core {
+		sessions := &sessionHandler{services.Sessions}
+		users := &userHandler{services.Users, services.Credentials}
+		roles := &roleHandler{services.Roles}
+		router.Post("/api/v1/auth/login", sessions.login)
+		router.Post("/api/v1/auth/refresh", sessions.refresh)
+		router.Post("/api/v1/auth/logout", sessions.logout)
+		router.Get("/api/v1/auth/me/sessions", sessions.sessions)
+		router.Delete("/api/v1/auth/me/sessions/{session_id}", sessions.revokeSession)
+		router.Delete("/api/v1/auth/me/sessions", sessions.revokeAll)
+		router.Get("/api/v1/auth/me", sessions.me)
+		router.Post("/api/v1/auth/activity", sessions.activity)
+		router.Get("/api/v1/users", users.users)
+		router.Post("/api/v1/users", users.createUser)
+		router.Get("/api/v1/users/online/activity", users.online)
+		router.Get("/api/v1/users/{user_id}", users.user)
+		router.Patch("/api/v1/users/{user_id}", users.updateUser)
+		router.Post("/api/v1/users/{user_id}/password", users.password)
+		router.Post("/api/v1/users/{user_id}/deactivate", users.deactivate)
+		router.Post("/api/v1/users/{user_id}/status", users.status)
+		router.Get("/api/v1/auth/administration-history", roles.history)
+		router.Get("/api/v1/roles", roles.roles)
+		router.Get("/api/v1/roles/permissions", roles.permissions)
+		router.Post("/api/v1/roles", roles.createRole)
+		router.Post("/api/v1/roles/finance-presets", roles.finance)
+		router.Patch("/api/v1/roles/{role_id}", roles.updateRole)
+		account := &accountHandler{services.Account}
+		router.Get("/api/v1/auth/me/username", account.usernameAvailable)
+		router.Patch("/api/v1/auth/me/username", account.username)
+		router.Post("/api/v1/auth/me/password", account.password)
+		router.Patch("/api/v1/auth/me/email", account.email)
+		router.With(recoveryLimit()).Post("/api/v1/auth/verify-email", account.verifyEmail)
+	}
 	profile := &profileHandler{services.Profile}
 	router.Get("/api/v1/auth/user_profile/me", profile.me)
 	router.Patch("/api/v1/auth/user_profile/me", profile.update)

@@ -44,3 +44,28 @@ EPCERP_API_URL=http://127.0.0.1:8001/api/v1 npm run build
 Build uses webpack explicitly to keep source/dependency resolution inside this
 independent project. Production is not deployed by creating this clone. Existing
 copied workflow tests cover source helpers and do not establish live Go integration.
+
+## Native authentication and authorization
+
+The local Docker preview runs Auth in Next.js with the existing PostgreSQL schema,
+password hashes, signing keys and sessions. Set `EPCERP_AUTH_OWNER=nextjs` on both
+Next.js and Go. Go retains live permission enforcement for its remaining business
+features. See [the Auth module guide](src/server/auth/README.md) for configuration,
+the exact migration boundary, isolated tests and rollback.
+
+The complete Auth verification runner is `bash frontend/scripts/verify-native-auth.sh`
+from the repository root with an isolated `EPCERP_DATABASE_URL` whose database name
+starts with `epcerp_auth_qa_`. No real email is sent by its tests.
+
+## Shared Master Data
+
+Clients is the first migrated area inside `src/server/master`. States/cities,
+client types, industries, items and vendors will share this module as they migrate;
+their current Go operations continue working. Clients reuses the existing database
+and permission codes. See [the module guide](src/server/master/README.md).
+
+Local Compose sets `EPCERP_CLIENTS_OWNER=nextjs` on both applications. Set it to
+`go` on both to roll back only Clients while keeping native Auth. Use
+`bash frontend/scripts/verify-master.sh` from the repo root with a dedicated QA
+database for compatibility/SQL tests. The browser mutation verifier is restricted
+to the isolated QA port 59092.

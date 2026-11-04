@@ -1,5 +1,39 @@
 # Independent local epcERP Docker stack
 
+## Master Data: Clients ownership
+
+Clients now runs within the shared Next.js Master Data module. Local Compose
+defaults `EPCERP_CLIENTS_OWNER=nextjs` on API and frontend; Go stops registering
+the migrated Clients HTTP operations and retains the directory readers needed by
+Projects. Reference maintenance, items, vendors and other master areas remain Go
+owned. No extra service or database migration is introduced.
+
+After isolated verification, back up the existing database with writers stopped,
+run the matching migrator and restart matching integration images. Verify existing
+client/contact records and password hashes are unchanged. Rollback sets
+`EPCERP_CLIENTS_OWNER=go` on both applications, preserving `EPCERP_AUTH_OWNER=nextjs`.
+See [the Master Data guide](../../frontend/src/server/master/README.md).
+
+## Next.js Auth ownership
+
+Local Compose now defaults both API and frontend to `EPCERP_AUTH_OWNER=nextjs`.
+It gives Next.js server-only access to the existing database/signing/encryption
+configuration. No new schema migration or password reset is introduced. Login,
+sessions, account security, users and roles move to Next.js; Go keeps permission
+checks for unmigrated business workflows. Profile/organisation/offboarding work
+remains in Go. See [the module guide](../../frontend/src/server/auth/README.md).
+
+Switch both services together after local verification and a private verified
+backup. Explicit `EPCERP_AUTH_OWNER=go` on both services restores the retained Go
+Auth implementation using the same schema and credentials. Never restore an older
+database or force its migration version merely to change application ownership.
+This local configuration change is not a production deployment.
+
+Email delivery defaults off. Enable `EPCERP_EMAIL_DELIVERY_ENABLED=true` only with
+the existing approved Brevo configuration; disabled delivery rejects user
+creation/reset atomically. Queued encrypted credentials remain durable. Existing
+cloud approval and budget controls still apply separately.
+
 ## Development code synchronisation (2 November 2026)
 
 Use `codex/development` for the combined development source. This branch includes

@@ -1,3 +1,4 @@
+import { backendRequest } from "@/lib/auth/backend-request";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -11,7 +12,7 @@ export async function POST() {
 
   if (refreshToken) {
     try {
-      await fetch(`${backendApiUrl}/auth/logout`, {
+      await backendRequest(`${backendApiUrl}/auth/logout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken }),

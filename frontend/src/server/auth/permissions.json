@@ -1,0 +1,1202 @@
+[
+  {
+    "code": "tenders.register.assign",
+    "description": "Hand over tender intake ownership to an eligible active colleague with immutable history",
+    "group": "tenders"
+  },
+  {
+    "code": "admin.offboarding.view",
+    "description": "Open governed employee offboarding",
+    "group": "administration"
+  },
+  {
+    "code": "admin.offboarding.read",
+    "description": "Read employee offboarding plans and approval evidence",
+    "group": "administration"
+  },
+  {
+    "code": "admin.offboarding.write",
+    "description": "Start, refresh, cancel and finalize approved employee departures",
+    "group": "administration"
+  },
+  {
+    "code": "account.offboarding.read",
+    "description": "Read offboarding cases assigned to own live direct reports",
+    "group": "administration"
+  },
+  {
+    "code": "account.offboarding.write",
+    "description": "Select eligible successors and approve completed handovers for own direct reports",
+    "group": "administration"
+  },
+  {
+    "code": "admin.organisation.view",
+    "description": "Open employee reporting hierarchy and departments",
+    "group": "administration"
+  },
+  {
+    "code": "admin.organisation.read",
+    "description": "Read employee contacts, departments and reporting lines",
+    "group": "administration"
+  },
+  {
+    "code": "admin.organisation.write",
+    "description": "Maintain audited employee contacts, departments and reporting hierarchy",
+    "group": "administration"
+  },
+  {
+    "code": "account.team.read",
+    "description": "Read live direct and indirect reporting-chain staff summaries",
+    "group": "administration"
+  },
+  {
+    "code": "communication.inbox.read",
+    "description": "Read own durable assignment and financial decision notices and receipt history",
+    "group": "system"
+  },
+  {
+    "code": "communication.inbox.write",
+    "description": "Record own notice read and acknowledgement receipts without changing source work",
+    "group": "system"
+  },
+  {
+    "code": "admin.governance.read",
+    "description": "Read effective Director designation and immutable organisation governance history",
+    "group": "administration"
+  },
+  {
+    "code": "admin.governance.write",
+    "description": "Designate, reassign or revoke the organisation Director with audited authority",
+    "group": "administration"
+  },
+  {
+    "code": "settings.configuration_templates.write",
+    "description": "Create configurations and publish reviewed field and option revisions",
+    "group": "settings"
+  },
+  {
+    "code": "settings.configuration_templates.read",
+    "description": "Read subcategory configuration templates and preview specification rules",
+    "group": "settings"
+  },
+  {
+    "code": "settings.configuration_templates.import",
+    "description": "Adopt reviewed subcategory templates and controlled options with audit evidence",
+    "group": "settings"
+  },
+  {
+    "code": "settings.categories.write",
+    "description": "Create and correct global categories, subcategories and base units",
+    "group": "settings"
+  },
+  {
+    "code": "settings.categories.view",
+    "description": "Open global categories and subcategories",
+    "group": "settings"
+  },
+  {
+    "code": "settings.categories.read",
+    "description": "Read material categories, type codes, units and configuration snapshots",
+    "group": "settings"
+  },
+  {
+    "code": "settings.categories.import",
+    "description": "Import reviewed legacy material hierarchy definitions",
+    "group": "settings"
+  },
+  {
+    "code": "settings.suppliers.import",
+    "description": "Import reviewed legacy supplier master records",
+    "group": "settings"
+  },
+  {
+    "code": "settings.supplier_documents.write",
+    "description": "Upload and archive PDF/image supplier evidence",
+    "group": "settings"
+  },
+  {
+    "code": "settings.supplier_documents.read",
+    "description": "Read supplier evidence metadata and active files",
+    "group": "settings"
+  },
+  {
+    "code": "settings.supplier_documents.import",
+    "description": "Import reviewed legacy supplier evidence and verify archived files",
+    "group": "settings"
+  },
+  {
+    "code": "account.profile.read",
+    "description": "Read own profile and staff avatar presentation",
+    "group": "system"
+  },
+  {
+    "code": "account.profile.write",
+    "description": "Maintain own username, contact details, display name and profile photo",
+    "group": "system"
+  },
+  {
+    "code": "account.security.write",
+    "description": "Change own email or password after current-password verification",
+    "group": "system"
+  },
+  {
+    "code": "projects.purchase_bo.view",
+    "description": "Open purchase BO item lists",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_groups.view",
+    "description": "Open item grouping tab",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_group_vendors.view",
+    "description": "Open group vendor allocation tab",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_group_vendors.write",
+    "description": "Choose and add group vendors",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_item_vendor_report.view",
+    "description": "Open item vendor invitation report",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_register.view",
+    "description": "Open vendor indent register",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_documents.view",
+    "description": "Open vendor indent document tab",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_documents.generate",
+    "description": "Generate vendor indent snapshots",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_documents.print",
+    "description": "Request vendor indent printing",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_documents.dispatch",
+    "description": "Record actual vendor indent dispatch",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.group_comparisons.view",
+    "description": "Open group price comparison",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.group_comparisons.read",
+    "description": "Read ranked item and group comparisons",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.group_comparisons.write",
+    "description": "Finalise a vendor quotation revision and send it for Accounts approval",
+    "group": "purchasing"
+  },
+  {
+    "code": "accounts.vendor_verification.auto_approve",
+    "description": "Automatically approve valid supplier documents uploaded by this user",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.vendor_verification.assign",
+    "description": "Assign or revoke named Finance supplier document reviewers",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.vendor_verification.view",
+    "description": "Open Finance vendor document verification",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.vendor_verification.read",
+    "description": "Read supplier master and evidence for central Finance verification",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.vendor_verification.write",
+    "description": "Accept or reject each supplier document with review comments",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.quotation_approvals.view",
+    "description": "Open Accounts quotation approval in assigned projects",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.quotation_approvals.read",
+    "description": "Read quoted item costs against approved budget allocations and differences",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.quotation_approvals.write",
+    "description": "Accept or reject every quoted item and record the whole quotation decision",
+    "group": "accounts"
+  },
+  {
+    "code": "projects.group_awards.view",
+    "description": "Open future group award approval tab",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.group_awards.approve",
+    "description": "Reserved: approve group awards once approval workflow is implemented",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.budgets.view",
+    "description": "Open project budget workspace",
+    "group": "accounts"
+  },
+  {
+    "code": "projects.budgets.read",
+    "description": "Read project budgets and approved allocations",
+    "group": "accounts"
+  },
+  {
+    "code": "projects.budgets.write",
+    "description": "Prepare and revise project budgets",
+    "group": "accounts"
+  },
+  {
+    "code": "projects.budgets.approve",
+    "description": "Approve project budget baselines",
+    "group": "accounts"
+  },
+  {
+    "code": "projects.group_quotations.view",
+    "description": "Open grouped vendor quotations",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.group_quotations.read",
+    "description": "Read quotation receipt, item prices, evidence and revision history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.group_quotations.write",
+    "description": "Upload and record quotation receipt and negotiated item prices",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_documents.read",
+    "description": "Read vendor indent documents and logs",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_documents.write",
+    "description": "Generate, print and record indent dispatch",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_groups.read",
+    "description": "Read purchase indent item groups",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indent_groups.write",
+    "description": "Manage purchase item group membership",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.freeze.read",
+    "description": "Read project freeze audit history",
+    "group": "projects"
+  },
+  {
+    "code": "projects.freeze.write",
+    "description": "Freeze project master values",
+    "group": "projects"
+  },
+  {
+    "code": "projects.freeze.unfreeze",
+    "description": "Unfreeze project master with a reason",
+    "group": "projects"
+  },
+  {
+    "code": "settings.holidays.view",
+    "description": "Open holiday calendar",
+    "group": "settings"
+  },
+  {
+    "code": "settings.holidays.read",
+    "description": "Read dated holidays",
+    "group": "settings"
+  },
+  {
+    "code": "settings.holidays.write",
+    "description": "Manage holidays and recalculate working days",
+    "group": "settings"
+  },
+  {
+    "code": "projects.purchase_progress.view",
+    "description": "Open evidence-derived project purchase progress",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_progress.read",
+    "description": "Read project purchase progress",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_bo.read",
+    "description": "Read purchase BO lists",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_bo.write",
+    "description": "Prepare purchase BO list drafts",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_bo.complete",
+    "description": "Complete own BO list and publish material requirements",
+    "group": "purchasing"
+  },
+  {
+    "code": "admin.project_reset.write",
+    "description": "Reset local project data with verified backup",
+    "group": "administration"
+  },
+  {
+    "code": "projects.processes.bypass",
+    "description": "Bypass untouched pre-purchase tracking stages",
+    "group": "projects"
+  },
+  {
+    "code": "admin.purchase_recovery.read",
+    "description": "Review all historical purchase sources",
+    "group": "purchasing"
+  },
+  {
+    "code": "admin.purchase_recovery.write",
+    "description": "Stage and reconcile purchase history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.portfolio.write",
+    "description": "Manage access across all projects, subject to resource permissions",
+    "group": "projects"
+  },
+  {
+    "code": "projects.assignments.read",
+    "description": "Read unassigned project step warnings",
+    "group": "projects"
+  },
+  {
+    "code": "projects.purchase_sourcing.read",
+    "description": "Read sourcing enquiries, vendor responses and comparisons",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_sourcing.write",
+    "description": "Prepare sourcing enquiries and record vendor responses",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_sourcing.approve",
+    "description": "Approve purchase sourcing decisions",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_advances.read",
+    "description": "Read project purchase advance requests and retained payment history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_advances.write",
+    "description": "Prepare, submit and revise assigned purchase advance requests",
+    "group": "purchasing"
+  },
+  {
+    "code": "accounts.purchase_advances.view",
+    "description": "Open Finance review for purchase advance requests",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.purchase_advances.read",
+    "description": "Read project-scoped advance submissions and financial evidence",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.purchase_advances.write",
+    "description": "Independently approve or reject exact purchase advance submissions",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.purchase_advances.disburse",
+    "description": "Record actual payment against a current Finance-approved advance",
+    "group": "accounts"
+  },
+  {
+    "code": "projects.purchase_inspection.read",
+    "description": "Read scoped material inspection calls, QAP observations and clearance history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_inspection.write",
+    "description": "Record and revise assigned material inspections against current approved QAP",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_acceptance.read",
+    "description": "Read vendor responses against released project purchase orders",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_acceptance.write",
+    "description": "Record and correct assigned vendor PO acceptance responses",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_awards.write",
+    "description": "Carry current Finance-approved groups into awarded item packages and LOI preparation",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_orders.client_approval",
+    "description": "Record actual client stamp/sign decisions and private signed PO evidence",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_orders.read",
+    "description": "Read project purchase orders and their immutable commercial evidence",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_orders.write",
+    "description": "Prepare assigned project purchase orders against current approved sources",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_orders.release",
+    "description": "Release assigned purchase orders after supplier, Finance, technical and client PO sign-off checks",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_technical.read",
+    "description": "Read technical kits, submissions and client approval evidence",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_technical.write",
+    "description": "Maintain assigned technical documents and record client decisions",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_technical.approve",
+    "description": "Independently review submitted project technical kits",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_assignments.write",
+    "description": "Assign or hand over the purchase-process manager within authorised project scope",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_portfolio.read",
+    "description": "Read purchasing project dashboards across the authorised portfolio",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_portfolio.write",
+    "description": "Maintain purchase-process ownership across projects",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_workflow.view",
+    "description": "Open the purchase workflow workspace",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_workflow.read",
+    "description": "Read purchase steps, task assignments, evidence and progress",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_workflow.write",
+    "description": "Configure purchase workflow tasks, dates and assignments",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_workflow.execute",
+    "description": "Record execution and evidence for assigned purchase tasks",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_workflow.resolve",
+    "description": "Resolve assigned purchase workflow blockers",
+    "group": "purchasing"
+  },
+  {
+    "code": "settings.purchase_rules.view",
+    "description": "Open purchase workflow rules and task configuration",
+    "group": "purchasing"
+  },
+  {
+    "code": "settings.purchase_rules.read",
+    "description": "Read purchase task rules, durations and evidence requirements",
+    "group": "purchasing"
+  },
+  {
+    "code": "settings.purchase_rules.write",
+    "description": "Maintain purchase task rules, durations and evidence requirements",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_holds.view",
+    "description": "Open purchase hold controls",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_holds.read",
+    "description": "Read purchase holds, reasons and release history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_holds.write",
+    "description": "Place and update purchase holds with reasons",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_holds.release",
+    "description": "Release purchase holds through the authorised workflow",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indents.view",
+    "description": "Open the purchase indent workspace",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indents.read",
+    "description": "Read purchase indent quantities, allocations and revision history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indents.write",
+    "description": "Create and revise draft purchase indents",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indents.review",
+    "description": "Review purchase indents before release",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_indents.release",
+    "description": "Release reviewed purchase indents for downstream purchasing",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_dispatch.read",
+    "description": "Read scoped vendor material dispatch and logistics history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_dispatch.write",
+    "description": "Record and revise assigned vendor dispatch against current client MDCC",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_site_receipts.read",
+    "description": "Read scoped physical site receipts and receiving history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_site_receipts.write",
+    "description": "Record and revise assigned site receipts against current material dispatch",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_grns.read",
+    "description": "Read scoped issued GRNs, material inwarding and warranty history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_grns.write",
+    "description": "Record and revise assigned GRN quantity breakdown against current site receipt",
+    "group": "purchasing"
+  },
+  {
+    "code": "work.tasks.view",
+    "description": "Open own assigned task list across projects",
+    "group": "projects"
+  },
+  {
+    "code": "work.tasks.read",
+    "description": "Read own live doer assignments and blocked issue-resolver work",
+    "group": "projects"
+  },
+  {
+    "code": "accounts.purchase_acceptance.view",
+    "description": "Open scoped final Accounts acceptance",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.purchase_acceptance.read",
+    "description": "Read scoped Accounts acceptance and retained Finance history",
+    "group": "accounts"
+  },
+  {
+    "code": "accounts.purchase_acceptance.write",
+    "description": "Record final Accounts acceptance and corrections with Director notification",
+    "group": "accounts"
+  },
+  {
+    "code": "projects.purchase_engineer_confirmations.read",
+    "description": "Read scoped engineer site confirmation, M-Book references and history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_engineer_confirmations.write",
+    "description": "Record and revise assigned engineer confirmation against current issued GRN",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_client_clearance.read",
+    "description": "Read scoped client MDCC evidence and revision history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_client_clearance.write",
+    "description": "Record and revise assigned client dispatch clearance against current quality",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_quality.read",
+    "description": "Read scoped material quality certificates and verification history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_quality.write",
+    "description": "Record and revise assigned quality certificate details",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_quality.verify",
+    "description": "Verify or revoke reviewed material quality certificates",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_inspection_reports.read",
+    "description": "Read scoped inspection reports, release notes and issuance history",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_inspection_reports.write",
+    "description": "Record and revise assigned IR / IRN against current inspection clearance",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_inspection.view",
+    "description": "View purchase inspection workspace",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_delivery.view",
+    "description": "View purchase delivery workspace",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_delivery.read",
+    "description": "Read purchase delivery records",
+    "group": "purchasing"
+  },
+  {
+    "code": "projects.purchase_delivery.write",
+    "description": "Record delivery, GRN, and handover",
+    "group": "purchasing"
+  },
+  {
+    "code": "settings.task_templates.view",
+    "description": "Open reusable task templates",
+    "group": "settings"
+  },
+  {
+    "code": "settings.task_templates.read",
+    "description": "Read reusable task template revisions",
+    "group": "settings"
+  },
+  {
+    "code": "settings.task_templates.write",
+    "description": "Publish and deactivate task template revisions",
+    "group": "settings"
+  },
+  {
+    "code": "projects.delivery.view",
+    "description": "Open weighted project task plans",
+    "group": "projects"
+  },
+  {
+    "code": "projects.delivery.read",
+    "description": "Read project task plans and progress",
+    "group": "projects"
+  },
+  {
+    "code": "projects.delivery.write",
+    "description": "Configure project task plans and assignments",
+    "group": "projects"
+  },
+  {
+    "code": "projects.delivery.execute",
+    "description": "Record assigned task execution",
+    "group": "projects"
+  },
+  {
+    "code": "projects.escalations.read",
+    "description": "Read project task escalation clocks",
+    "group": "projects"
+  },
+  {
+    "code": "projects.escalations.write",
+    "description": "Open and resolve assigned project escalations",
+    "group": "projects"
+  },
+  {
+    "code": "system:admin",
+    "description": "Full platform administration",
+    "group": "system"
+  },
+  {
+    "code": "admin.users.view",
+    "description": "Open the user administration workspace",
+    "group": "administration"
+  },
+  {
+    "code": "admin.users.read",
+    "description": "Read user accounts and current activity",
+    "group": "administration"
+  },
+  {
+    "code": "admin.audit.read",
+    "description": "Read restricted account and permission change history",
+    "group": "administration"
+  },
+  {
+    "code": "admin.users.write",
+    "description": "Create and change user accounts and sessions",
+    "group": "administration"
+  },
+  {
+    "code": "admin.roles.view",
+    "description": "Open the role and permission workspace",
+    "group": "administration"
+  },
+  {
+    "code": "admin.roles.read",
+    "description": "Read roles and the permission catalogue",
+    "group": "administration"
+  },
+  {
+    "code": "admin.roles.write",
+    "description": "Create roles and change permission assignments",
+    "group": "administration"
+  },
+  {
+    "code": "settings.clients.view",
+    "description": "Open the client master workspace",
+    "group": "settings"
+  },
+  {
+    "code": "settings.clients.read",
+    "description": "Read client organisations and contacts",
+    "group": "settings"
+  },
+  {
+    "code": "settings.clients.write",
+    "description": "Create, update, and deactivate client organisations",
+    "group": "settings"
+  },
+  {
+    "code": "settings.client_types.view",
+    "description": "Open the client type master",
+    "group": "settings"
+  },
+  {
+    "code": "settings.client_types.read",
+    "description": "Read client type master records",
+    "group": "settings"
+  },
+  {
+    "code": "settings.client_types.write",
+    "description": "Maintain client type master records",
+    "group": "settings"
+  },
+  {
+    "code": "settings.industries.view",
+    "description": "Open the industry master",
+    "group": "settings"
+  },
+  {
+    "code": "settings.industries.read",
+    "description": "Read industry master records",
+    "group": "settings"
+  },
+  {
+    "code": "settings.industries.write",
+    "description": "Maintain industry master records",
+    "group": "settings"
+  },
+  {
+    "code": "settings.locations.view",
+    "description": "Open the India location master",
+    "group": "settings"
+  },
+  {
+    "code": "settings.locations.read",
+    "description": "Read India location master records",
+    "group": "settings"
+  },
+  {
+    "code": "settings.locations.write",
+    "description": "Maintain India location master records",
+    "group": "settings"
+  },
+  {
+    "code": "projects.portfolio.read",
+    "description": "Read project identity and ownership across the portfolio, subject to resource read permission",
+    "group": "projects"
+  },
+  {
+    "code": "projects.manager_assignments.write",
+    "description": "Administer project manager handovers across the portfolio, with reasons and immutable history",
+    "group": "projects"
+  },
+  {
+    "code": "projects.master.view",
+    "description": "Open the Project Master workspace",
+    "group": "projects"
+  },
+  {
+    "code": "projects.master.read",
+    "description": "Read project master records",
+    "group": "projects"
+  },
+  {
+    "code": "projects.master.write",
+    "description": "Create, update, and deactivate project master records",
+    "group": "projects"
+  },
+  {
+    "code": "projects.dashboard.view",
+    "description": "Open an assigned project workspace",
+    "group": "projects"
+  },
+  {
+    "code": "projects.dashboard.read",
+    "description": "Read assigned project workspace data",
+    "group": "projects"
+  },
+  {
+    "code": "projects.team.view",
+    "description": "Open assigned project team controls",
+    "group": "projects"
+  },
+  {
+    "code": "projects.team.read",
+    "description": "Read project team assignments",
+    "group": "projects"
+  },
+  {
+    "code": "projects.team.write",
+    "description": "Assign or update project team members",
+    "group": "projects"
+  },
+  {
+    "code": "projects.planning.view",
+    "description": "Open project planning controls",
+    "group": "projects"
+  },
+  {
+    "code": "projects.planning.read",
+    "description": "Read project work packages and schedule",
+    "group": "projects"
+  },
+  {
+    "code": "projects.planning.write",
+    "description": "Create and update project work packages",
+    "group": "projects"
+  },
+  {
+    "code": "projects.processes.view",
+    "description": "Open project delivery processes",
+    "group": "projects"
+  },
+  {
+    "code": "projects.processes.read",
+    "description": "Read project processes, prerequisites, and history",
+    "group": "projects"
+  },
+  {
+    "code": "projects.processes.write",
+    "description": "Map and update project delivery processes",
+    "group": "projects"
+  },
+  {
+    "code": "projects.schedule.view",
+    "description": "Open project schedule controls",
+    "group": "projects"
+  },
+  {
+    "code": "projects.schedule.read",
+    "description": "Read project schedule activities and dependencies",
+    "group": "projects"
+  },
+  {
+    "code": "projects.schedule.write",
+    "description": "Create and update project schedule activities",
+    "group": "projects"
+  },
+  {
+    "code": "projects.contracts.view",
+    "description": "Open project initiation and contract control",
+    "group": "projects"
+  },
+  {
+    "code": "projects.contracts.read",
+    "description": "Read project evidence and lifecycle history",
+    "group": "projects"
+  },
+  {
+    "code": "projects.contracts.write",
+    "description": "Upload project evidence and change lifecycle",
+    "group": "projects"
+  },
+  {
+    "code": "projects.o2te.view",
+    "description": "Open the O2TE contractual readiness workspace",
+    "group": "projects"
+  },
+  {
+    "code": "projects.o2te.read",
+    "description": "Read O2TE contractual obligations",
+    "group": "projects"
+  },
+  {
+    "code": "projects.o2te.write",
+    "description": "Update O2TE contractual obligations",
+    "group": "projects"
+  },
+  {
+    "code": "settings.material_catalogue.view",
+    "description": "Open material categories and configuration templates",
+    "group": "settings"
+  },
+  {
+    "code": "settings.material_catalogue.read",
+    "description": "Read material categories, attributes and configuration templates",
+    "group": "settings"
+  },
+  {
+    "code": "settings.material_catalogue.write",
+    "description": "Maintain material categories, attributes and configuration templates",
+    "group": "settings"
+  },
+  {
+    "code": "settings.manufacturers.import",
+    "description": "Import reviewed manufacturer masters with immutable source mapping and audit evidence",
+    "group": "settings"
+  },
+  {
+    "code": "settings.manufacturers.view",
+    "description": "Open the manufacturer master workspace",
+    "group": "settings"
+  },
+  {
+    "code": "settings.manufacturers.read",
+    "description": "Read manufacturers and their eligible material categories",
+    "group": "settings"
+  },
+  {
+    "code": "settings.manufacturers.write",
+    "description": "Create, update and deactivate manufacturers and category links",
+    "group": "settings"
+  },
+  {
+    "code": "settings.items.view",
+    "description": "Open the item bank workspace",
+    "group": "settings"
+  },
+  {
+    "code": "settings.items.read",
+    "description": "Read item bank SKUs, specifications and approval status",
+    "group": "settings"
+  },
+  {
+    "code": "settings.items.write",
+    "description": "Create, update and deactivate item bank records",
+    "group": "settings"
+  },
+  {
+    "code": "settings.items.approve",
+    "description": "Approve item bank records for operational use",
+    "group": "settings"
+  },
+  {
+    "code": "settings.suppliers.view",
+    "description": "Open the supplier master workspace",
+    "group": "settings"
+  },
+  {
+    "code": "settings.suppliers.read",
+    "description": "Read suppliers, contacts and supply details",
+    "group": "settings"
+  },
+  {
+    "code": "settings.suppliers.write",
+    "description": "Create, update and deactivate supplier master records",
+    "group": "settings"
+  },
+  {
+    "code": "projects.items.view",
+    "description": "Open project material requirements",
+    "group": "projects"
+  },
+  {
+    "code": "projects.items.read",
+    "description": "Read project material quantities, specifications and allocations",
+    "group": "projects"
+  },
+  {
+    "code": "projects.items.write",
+    "description": "Create and revise project material requirements",
+    "group": "projects"
+  },
+  {
+    "code": "documents.storage.view",
+    "description": "View document storage metadata",
+    "group": "documents"
+  },
+  {
+    "code": "documents.storage.read",
+    "description": "Read and download stored documents",
+    "group": "documents"
+  },
+  {
+    "code": "documents.storage.write",
+    "description": "Upload, update, and deactivate documents",
+    "group": "documents"
+  },
+  {
+    "code": "settings.contractors.view",
+    "description": "View contractor master directory",
+    "group": "settings"
+  },
+  {
+    "code": "settings.contractors.read",
+    "description": "Read contractors",
+    "group": "settings"
+  },
+  {
+    "code": "settings.contractors.write",
+    "description": "Maintain contractors and payment terms",
+    "group": "settings"
+  },
+  {
+    "code": "projects.contractor_work.view",
+    "description": "View contractor work contracts workspace",
+    "group": "projects"
+  },
+  {
+    "code": "projects.contractor_work.read",
+    "description": "Read contractor work orders, manpower and CS",
+    "group": "projects"
+  },
+  {
+    "code": "projects.contractor_work.write",
+    "description": "Maintain labor BOQ, enquiries, and mobilisation",
+    "group": "projects"
+  },
+  {
+    "code": "projects.contractor_work.approve",
+    "description": "Approve and issue contractor work orders",
+    "group": "projects"
+  },
+  {
+    "code": "tenders.processing.view",
+    "description": "Open tender document reading queue",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.processing.read",
+    "description": "Read own tender processing jobs",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.processing.write",
+    "description": "Upload and retry own tender document readings",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.register.view",
+    "description": "View Tender FMS register",
+    "group": "tenders"
+  },
+  {
+    "code": "settings.tsc_formats.view",
+    "description": "Open TSC formats in Global masters",
+    "group": "settings"
+  },
+  {
+    "code": "settings.tsc_formats.read",
+    "description": "Read named TSC formats and questions",
+    "group": "settings"
+  },
+  {
+    "code": "settings.tsc_formats.write",
+    "description": "Create and revise named TSC formats and questions",
+    "group": "settings"
+  },
+  {
+    "code": "tenders.tsc.read",
+    "description": "Read draft TSC answers and their source evidence within current tender scope",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.tsc.write",
+    "description": "Generate and correct unapproved source-linked TSC drafts within current tender scope",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.tsc.originals.write",
+    "description": "Explicitly send owned tender source PDFs to an approved Gemini provider for unapproved question research",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.tsc.export",
+    "description": "Export unapproved TSC documents matching current tender sources",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.register.read",
+    "description": "Read own tender records and history",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.register.write",
+    "description": "Create and maintain own tender records",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.portfolio.read",
+    "description": "Read all tender records and history",
+    "group": "tenders"
+  },
+  {
+    "code": "tenders.portfolio.write",
+    "description": "Maintain tender records across the portfolio",
+    "group": "tenders"
+  }
+]

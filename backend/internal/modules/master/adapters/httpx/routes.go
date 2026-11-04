@@ -12,6 +12,7 @@ import (
 // Services contains the application services used by Master HTTP handlers.
 // The API composition root constructs them before registering routes.
 type Services struct {
+	ClientsHTTPDisabled     bool
 	VendorReviewAssignments *masterApplication.VendorReviewAssignmentService
 	Vendors                 *masterApplication.VendorService
 	VendorDocuments         *masterApplication.VendorDocumentService
@@ -38,5 +39,7 @@ func Register(mux *infrastructure.Router, services Services) {
 	RegisterCategoryRoutes(mux, services.Categories)
 	RegisterTemplateRoutes(mux, services.Templates)
 	RegisterReferenceRoutes(mux, services.References)
-	RegisterClientRoutes(mux, services.Clients)
+	if !services.ClientsHTTPDisabled {
+		RegisterClientRoutes(mux, services.Clients)
+	}
 }

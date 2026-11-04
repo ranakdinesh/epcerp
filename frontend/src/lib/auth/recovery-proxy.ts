@@ -1,3 +1,4 @@
+import { backendRequest } from "@/lib/auth/backend-request";
 import "server-only";
 import { NextResponse } from "next/server";
 import { backendApiUrl } from "./backend-config";
@@ -28,7 +29,7 @@ export async function recoveryRequest(request: Request, action: "forgot-password
     return NextResponse.json({ message: "Invalid recovery request." }, { status: 400, headers });
   }
   try {
-    const response = await fetch(`${backendApiUrl}/auth/${action}`, {
+    const response = await backendRequest(`${backendApiUrl}/auth/${action}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload), cache: "no-store", signal: AbortSignal.timeout(15000),
     });

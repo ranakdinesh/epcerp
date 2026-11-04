@@ -8,7 +8,7 @@ function load(path, dependencies, fetcher) {
   const source = readFileSync(new URL(path, import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } });
   const loaded = { exports: {} };
-  new Function("require", "exports", "fetch", outputText)(name => dependencies[name], loaded.exports, fetcher);
+  new Function("require", "exports", "fetch", outputText)(name => name === "@/lib/auth/backend-request" ? { backendRequest: fetcher } : dependencies[name], loaded.exports, fetcher);
   return loaded.exports;
 }
 const names = { accessToken: "epcerp_access_token", refreshToken: "epcerp_refresh_token" };
