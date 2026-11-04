@@ -43,7 +43,7 @@ func New(d Dependencies) (*Module, error) {
 	}
 	unit := outbound.NewUnit(d.Database, d.Users)
 	service := application.New(unit, outbound.Auth{Resolver: d.Identity}, outbound.Values{}, outbound.Objects{Store: store}).WithLimits(infrastructure.NewReceiptLimits())
-	if d.Router != nil {
+	if d.Router != nil && os.Getenv("EPCERP_TENDER_INTAKE_OWNER") != "nextjs" {
 		inbound.Register(d.Router, service)
 		d.Router.AddPayloadPolicy(func(r *http.Request) bool { return r.Method == "PUT" && inbound.IsUploadPath(r.URL.Path) }, (64<<20)+1, nil)
 	}

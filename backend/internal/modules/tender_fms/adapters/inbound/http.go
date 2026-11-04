@@ -21,13 +21,18 @@ func IsUploadPath(path string) bool { return path == "/api/v1/tender-fms/upload"
 
 type handler struct{ s *application.Service }
 
-func Register(r chi.Router, s *application.Service) {
+func Register(r chi.Router, s *application.Service, historicalOnly ...bool) {
+	readOnly := len(historicalOnly) > 0 && historicalOnly[0]
 	h := handler{s}
 	r.Get("/api/v1/tender-fms", h.list)
-	r.Post("/api/v1/tender-fms/upload", h.upload)
+	if !readOnly {
+		r.Post("/api/v1/tender-fms/upload", h.upload)
+	}
 	r.Get("/api/v1/tender-fms/{id}/history", h.history)
 	r.Get("/api/v1/tender-fms/{id}/documents/{doc}/{kind}", h.artifact)
-	r.Post("/api/v1/tender-fms/{id}/documents/{doc}/retry", h.retry)
+	if !readOnly {
+		r.Post("/api/v1/tender-fms/{id}/documents/{doc}/retry", h.retry)
+	}
 }
 func write(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")

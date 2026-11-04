@@ -1,8 +1,11 @@
 # Native TSC cloud/manual workflow
 
-This module owns the TSC workspace only. Tender intake, upload safety verification,
-format administration, assignment, provisioning, supplier and purchasing processes
-retain their existing owners. `EPCERP_TSC_OWNER=nextjs` selects this writer.
+This module owns the TSC workspace and native Tender intake. `EPCERP_TSC_OWNER=nextjs`
+selects the cloud/manual TSC writer; `EPCERP_TENDER_INTAKE_OWNER=nextjs` additionally
+selects draft/receipt/format management and source publication. See
+[intake boundaries and deployment](intake/README.md). Safety verification, named
+capture/assignment/provisioning and unrelated supplier/purchasing processes retain
+their existing owners.
 
 - `documents.ts`: current permissions, owned tender, verified original document bytes.
 - `tsc/service.ts` and `http.ts`: scoped commands, optimistic edits, retained history,

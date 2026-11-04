@@ -45,14 +45,25 @@ func New(dependencies Dependencies) (*Module, error) {
 	if owner != "" && owner != "go" && owner != "nextjs" {
 		return nil, fmt.Errorf("invalid EPCERP_TSC_OWNER")
 	}
+	intakeOwner := os.Getenv("EPCERP_TENDER_INTAKE_OWNER")
+	if intakeOwner != "" && intakeOwner != "go" && intakeOwner != "nextjs" {
+		return nil, fmt.Errorf("invalid EPCERP_TENDER_INTAKE_OWNER")
+	}
+	if intakeOwner == "nextjs" && owner != "nextjs" {
+		return nil, fmt.Errorf("native Tender intake requires native TSC ownership")
+	}
 	documents := func(connection database.Connection) ports.Documents {
 		return outbound.NewDocuments(dependencies.Reader(connection), dependencies.Validator)
 	}
 	service := application.New(outbound.NewUnitOfWork(dependencies.Database, documents, dependencies.Events).WithUsers(dependencies.Users), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{})
-	inbound.Register(dependencies.Router, service)
-	inbound.RegisterTSCFormats(dependencies.Router, application.NewTSCFormats(outbound.NewTSCFormatUnit(dependencies.Database, dependencies.Users, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}, outbound.TSCFormatPreviewer{}))
+	inbound.Register(dependencies.Router, service, intakeOwner == "nextjs")
+	if intakeOwner != "nextjs" {
+		inbound.RegisterTSCFormats(dependencies.Router, application.NewTSCFormats(outbound.NewTSCFormatUnit(dependencies.Database, dependencies.Users, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}, outbound.TSCFormatPreviewer{}))
+	}
 	if dependencies.DraftPackages != nil {
-		inbound.RegisterDrafts(dependencies.Router, application.NewDrafts(outbound.NewDraftUnit(dependencies.Database, dependencies.Users, dependencies.DraftPackages, dependencies.Reader, dependencies.PreparedReader), outbound.NewAuthBridge(dependencies.Identity)).WithLimits(infrastructure.NewTenderLimits()))
+		if intakeOwner != "nextjs" {
+			inbound.RegisterDrafts(dependencies.Router, application.NewDrafts(outbound.NewDraftUnit(dependencies.Database, dependencies.Users, dependencies.DraftPackages, dependencies.Reader, dependencies.PreparedReader), outbound.NewAuthBridge(dependencies.Identity)).WithLimits(infrastructure.NewTenderLimits()))
+		}
 		tsc, e := NewTSC(dependencies)
 		if e != nil {
 			return nil, e
@@ -70,9 +81,11 @@ func New(dependencies Dependencies) (*Module, error) {
 		return Records(c, dependencies.Users(c), dependencies.Bundles(c), dependencies.ManagerBundleIDs, dependencies.Events(c))
 	}))
 	inbound.RegisterOwnership(dependencies.Router, application.NewOwnership(outbound.NewOwnershipUnit(dependencies.Database, dependencies.Users, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{}))
-	dependencies.Router.AddPayloadPolicy(func(request *http.Request) bool {
-		return request.Method == http.MethodPost && inbound.IsUploadPath(request.URL.Path)
-	}, inbound.UploadBytes+(64<<10), inbound.UploadGuard(service))
+	if intakeOwner != "nextjs" {
+		dependencies.Router.AddPayloadPolicy(func(request *http.Request) bool {
+			return request.Method == http.MethodPost && inbound.IsUploadPath(request.URL.Path)
+		}, inbound.UploadBytes+(64<<10), inbound.UploadGuard(service))
+	}
 	return &Module{}, nil
 }
 

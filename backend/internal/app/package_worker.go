@@ -42,7 +42,7 @@ func RunPackageWorker(ctx context.Context) error {
 			return nil
 		}
 		worked, e := infrastructure.WithDocumentSlot(ctx, pool, func(job context.Context) (bool, error) { return module.Worker.Once(job) })
-		if e == nil {
+		if e == nil && os.Getenv("EPCERP_TENDER_INTAKE_OWNER") != "nextjs" {
 			unit := tenderout.NewDraftUnit(pool, auth.Assignments, func(c database.Connection) packagecontracts.DraftConsumer {
 				return packages.DraftConsumer(c, auth.Assignments(c))
 			}, reader.Reader, reader.PreparedReader)

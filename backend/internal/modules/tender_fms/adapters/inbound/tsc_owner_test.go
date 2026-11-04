@@ -18,3 +18,15 @@ func TestNextTSCWriterDoesNotRegisterLegacyPaidCommands(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeIntakeRetiresLegacyOCRWrites(t *testing.T) {
+	r := chi.NewRouter()
+	Register(r, nil, true)
+	for _, path := range []string{"/api/v1/tender-fms/upload", "/api/v1/tender-fms/11111111-1111-4111-8111-111111111111/documents/22222222-2222-4222-8222-222222222222/retry"} {
+		response := httptest.NewRecorder()
+		r.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
+		if response.Code != http.StatusNotFound && response.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("retired OCR write registered: %s (%d)", path, response.Code)
+		}
+	}
+}

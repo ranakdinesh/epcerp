@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1
+FROM node:22-bookworm-slim AS node-runtime
 FROM golang:1.26.3-alpine AS build
 WORKDIR /build
 COPY go.mod go.sum ./
@@ -12,5 +13,7 @@ COPY --from=build /out/document-worker /out/document-reader /out/document-packag
 COPY tools/pdf-tables/requirements.txt /tmp/pdf-table-requirements.txt
 RUN python3 -m venv /opt/pdf-tables && /opt/pdf-tables/bin/pip install --no-cache-dir --only-binary=:all: -r /tmp/pdf-table-requirements.txt && rm /tmp/pdf-table-requirements.txt
 COPY tools/pdf-tables/extract.py /app/pdf_tables.py
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --chown=10001:10001 tools/tender-format-preview/worker.mjs /app/tender-format-preview.mjs
 USER 10001:10001
-CMD ["/app/document-worker"]
+CMD ["/usr/local/bin/node", "/app/tender-format-preview.mjs"]

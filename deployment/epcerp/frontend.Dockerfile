@@ -10,9 +10,9 @@ RUN npm run build
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
-COPY --from=build --chown=node:node /build/.next/standalone ./
-COPY --from=build --chown=node:node /build/.next/static ./.next/static
-COPY --from=build --chown=node:node /build/public ./public
-USER node
+COPY --from=build --chown=10001:10001 /build/.next/standalone ./
+COPY --from=build --chown=10001:10001 /build/.next/static ./.next/static
+COPY --from=build --chown=10001:10001 /build/public ./public
+USER 10001:10001
 EXPOSE 3000
 CMD ["node", "server.js"]
