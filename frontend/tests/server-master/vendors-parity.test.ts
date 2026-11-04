@@ -11,7 +11,7 @@ test("supplier profiles and optional documents migrate while Finance stays Go-ow
     for (const path of [`/suppliers/${id}/documents`, `/suppliers/${id}/documents/${id}/preview`, `/suppliers/${id}/documents/${id}/archive`])
         assert.equal(ownsMasterPath(path), process.env.EPCERP_VENDOR_DOCUMENTS_OWNER === "nextjs");
     for (const path of [`/suppliers/${id}/documents/reconcile-approvals`, `/suppliers/${id}/verification`, `/suppliers/${id}/verification/assignment`, `/suppliers/${id}/verification/assignment/options`])
-        assert.equal(ownsMasterPath(path), false);
+        assert.equal(ownsMasterPath(path), process.env.EPCERP_VENDOR_VERIFICATION_OWNER === "nextjs");
 });
 test("supplier document and profile owners can roll back independently", () => {
     const previousProfiles = process.env.EPCERP_VENDOR_PROFILES_OWNER, previousDocuments = process.env.EPCERP_VENDOR_DOCUMENTS_OWNER;
@@ -24,8 +24,8 @@ test("supplier document and profile owners can roll back independently", () => {
             assert.equal(ownsNativeSupplierPath(`/suppliers/${id}`), profiles === "nextjs");
             assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/documents`), documents === "nextjs");
             assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/documents/${id}/download`), documents === "nextjs");
-            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/documents/reconcile-approvals`), false);
-            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/verification`), false);
+            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/documents/reconcile-approvals`), process.env.EPCERP_VENDOR_VERIFICATION_OWNER === "nextjs");
+            assert.equal(ownsNativeSupplierPath(`/suppliers/${id}/verification`), process.env.EPCERP_VENDOR_VERIFICATION_OWNER === "nextjs");
         }
     } finally {
         if (previousProfiles === undefined) delete process.env.EPCERP_VENDOR_PROFILES_OWNER; else process.env.EPCERP_VENDOR_PROFILES_OWNER = previousProfiles;

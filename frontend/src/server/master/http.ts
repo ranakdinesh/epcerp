@@ -6,12 +6,15 @@ import { listReferences, saveReference, setReferenceActive } from "./references/
 import { routeCatalogue } from "./catalogue/http";
 import { parseCatalogueJSON } from "./catalogue/json";
 import { ownsVendorPath, routeVendors } from "./vendors/http";
+import { ownsVerificationPath, routeVerification } from "./verification/http";
 import { ownsDocumentPath, routeDocuments } from "./documents/http";
 // Supplier profiles and documents share a URL prefix but have independent rollback switches.
 export const ownsNativeSupplierPath = (path: string) =>
     (process.env.EPCERP_VENDOR_PROFILES_OWNER === "nextjs" && ownsVendorPath(path)) ||
-    (process.env.EPCERP_VENDOR_DOCUMENTS_OWNER === "nextjs" && ownsDocumentPath(path));
+    (process.env.EPCERP_VENDOR_DOCUMENTS_OWNER === "nextjs" && ownsDocumentPath(path)) ||
+    (process.env.EPCERP_VENDOR_VERIFICATION_OWNER === "nextjs" && ownsVerificationPath(path));
 export const ownsMasterPath = (path: string) =>
+    (process.env.EPCERP_VENDOR_VERIFICATION_OWNER === "nextjs" && ownsVerificationPath(path)) ||
     (process.env.EPCERP_VENDOR_DOCUMENTS_OWNER === "nextjs" && ownsDocumentPath(path)) || ownsVendorPath(path) || (
     // Purchase policies belong to Purchasing throughout this Master migration.
     !/^\/clients\/[^/]+\/purchase-rules(?:\/|$)/.test(path) &&
@@ -55,6 +58,10 @@ export async function handleMaster(request: Request): Promise<Response> {
         if (process.env.EPCERP_VENDOR_DOCUMENTS_OWNER === "nextjs") {
             const document = await routeDocuments(request, path, token, readJSON);
             if (document) return document;
+        }
+        if (process.env.EPCERP_VENDOR_VERIFICATION_OWNER === "nextjs") {
+            const verification = await routeVerification(request,path,token,readJSON);
+            if (verification) return response(verification.value,verification.status);
         }
         const vendor = await routeVendors(request, path, token, readJSON);
         if (vendor) return response(vendor.value, vendor.status);

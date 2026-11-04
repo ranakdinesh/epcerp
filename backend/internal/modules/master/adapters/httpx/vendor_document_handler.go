@@ -50,7 +50,6 @@ func RegisterVendorDocumentRoutes(r chi.Router, s *masterApplication.VendorDocum
 	h := vendorDocumentHandler{s}
 	r.Get("/api/v1/suppliers/{supplier_id}/documents", h.list)
 	r.Post("/api/v1/suppliers/{supplier_id}/documents", h.upload)
-	r.Post("/api/v1/suppliers/{supplier_id}/documents/reconcile-approvals", h.reconcileApprovals)
 	r.Get("/api/v1/suppliers/{supplier_id}/documents/{document_id}/preview", h.preview)
 	r.Post("/api/v1/suppliers/{supplier_id}/documents/{document_id}/archive", h.archive)
 	r.Post("/api/v1/suppliers/{supplier_id}/documents/legacy-import", h.importRecord)

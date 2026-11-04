@@ -98,7 +98,7 @@ export async function putObject(bucket: string, key: string, encrypted: Buffer) 
         client.destroy();
     }
 }
-export async function getObject(bucket: string, key: string) {
+export async function readStoredObject(bucket: string, key: string) {
     const client = storage();
     try {
         const response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
@@ -120,10 +120,11 @@ export async function getObject(bucket: string, key: string) {
         }
         return Buffer.concat(chunks);
     }
-    catch {
-        throw integrity();
-    }
     finally {
         client.destroy();
     }
+}
+
+export async function getObject(bucket:string,key:string) {
+    try { return await readStoredObject(bucket,key); } catch { throw integrity(); }
 }

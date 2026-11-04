@@ -25,7 +25,10 @@ export async function requireAnyPermission(db: DB, token: string, permissions: s
 // Live directory contract: credential fields never leave Auth.
 export async function userCapabilities(db: DB, id: string) {
     const user = await loadUser(db, id);
-    return user ? capabilities(user) : null;
+    // Match Go's AssignmentDirectory: Ready is separate from active role eligibility.
+    // Interactive authorization still goes through resolve/requireAnyPermission above.
+    return user ? { id: user.id, active: user.is_active, superuser: user.is_superuser, ready: !user.must_change_password,
+        allows: (permission: string) => user.is_active && (user.is_superuser || user.roles.some(role => role.is_active && role.permissions.includes(permission))) } : null;
 }
 export async function documentReviewCandidates(db: DB) {
     const candidates = [];
@@ -35,6 +38,18 @@ export async function documentReviewCandidates(db: DB) {
         const user = await userCapabilities(db, id);
         if (user && ["view", "read", "write", "auto_approve"].every(action => user.allows(`accounts.vendor_verification.${action}`)))
             candidates.push(id);
+    }
+    return candidates;
+}
+export async function financeReviewers(db: DB) {
+    const candidates = [];
+    for (const { id, username } of await rows<{
+        id: string;
+        username: string;
+    }>(db, "SELECT id,CASE WHEN trim(first_name||' '||last_name)<>'' THEN trim(first_name||' '||last_name)||' ('||username||')' ELSE username END AS username FROM auth.users WHERE is_active ORDER BY auth.users.username")) {
+        const user = await userCapabilities(db, id);
+        if (user && ["view", "read", "write"].every(action => user.allows(`accounts.vendor_verification.${action}`)))
+            candidates.push({ id, name: username });
     }
     return candidates;
 }

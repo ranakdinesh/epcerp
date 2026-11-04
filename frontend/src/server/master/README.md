@@ -54,6 +54,11 @@ server/
       approval.ts                transactional upload/replacement review hooks
       files.ts                   compatible encryption, media inspection and S3
       http.ts                    bounded multipart/JSON and secure binary responses
+    verification/                Finance verification and reviewer assignment
+      domain.ts                  fingerprint, decision rules and eligibility
+      repository.ts              locked evidence, review/assignment history
+      service.ts                 live permissions, approvals and reconciliation
+      http.ts                    status/review/assignment/operator adapters
 ```
 
 Add the next area under `master`, rather than creating a new top-level module for
@@ -65,8 +70,8 @@ can call the same application services.
 
 **Clients, client types, industries, states, cities, Items, categories, base units,
 manufacturers, configuration templates, vendor profiles/lifecycle and supplier
-document handling** run natively in Next.js. Reviewer assignment, Finance decisions
-and manual approval reconciliation remain Go-owned. Clients and
+document handling, Finance verification, reviewer assignment and approval
+reconciliation** run natively in Next.js. Clients and
 reference administration use the same transaction advisory
 lock. This prevents a client save racing a reference deactivation or city/state
 reassignment. Go consumers continue reading the same tables.
@@ -128,8 +133,8 @@ and legacy-import operations. Set it consistently on API and frontend; local
 Compose defaults to Next.js, while an absent flag elsewhere keeps Go ownership.
 Set this flag to `go` on both applications for profile rollback without changing
 the other module owners. Document ownership is controlled separately below.
-`/suppliers/{id}/verification`, including reviewer assignments, continues through
-Go. Go's supplier directory remains available to those consumers.
+Finance ownership is independently controlled below. Go's supplier directory and
+purchasing gate remain available to unmigrated consumers.
 
 Profile reads preserve the existing alternative grant: either
 `settings.suppliers.read` or `accounts.vendor_verification.read`. Writes require
@@ -151,9 +156,8 @@ to 128 KiB; source identity/revision/timestamps stay hidden from public response
 `EPCERP_VENDOR_DOCUMENTS_OWNER=nextjs` on both applications transfers list, upload,
 legacy import, preview/download and archive HTTP operations. Local Compose defaults
 to Next.js; absent the flag elsewhere, Go remains the owner. Explicit `go` on both
-applications is the rollback switch. Reconciliation at
-`/suppliers/{id}/documents/reconcile-approvals` stays in Go, alongside Finance
-verification and reviewer assignment. Published Go evidence readers remain available
+applications is the rollback switch. Reconciliation, Finance verification and reviewer assignment have their own
+ownership flag below. Published Go evidence readers remain available
 for Finance and purchasing. Native failures never retry through a Go writer.
 
 Reads require `settings.supplier_documents.read` or the existing Finance read grant;
@@ -190,6 +194,43 @@ that share the guarded QA database. It verifies Go/Node encryption in both direc
 supported media, live grants, object and inline reads, stale/concurrent writes, imports,
 atomic history/approval failures and task completion. Production deployment and private
 cloud uploads remain separate from this local workflow.
+
+## Finance verification and reviewer assignment
+
+Set `EPCERP_VENDOR_VERIFICATION_OWNER=nextjs` on API and frontend. Local Compose
+sets this by default; absence outside Compose retains Go. This transfers supplier
+verification GET/POST, assignment GET/PUT/options and approval reconciliation POST.
+All three supplier ownership switches are independent. Set only the Finance flag
+to `go` on both applications for rollback; native failures never use another writer.
+
+The Finance domain preserves Go's sorted struct-JSON SHA-256 fingerprint, including
+supplier version, lifecycle, GST registration and each active document's ID/type/hash,
+version and actual previewability. Approval state is projected independently from
+that fingerprint so unrelated uploads retain earlier document decisions. A review
+must supply the current review version and fingerprint. Partial decisions are saved
+as progress, and every required/active readable document must be accepted before
+an order is allowed. Inactive/suspended suppliers cannot be invited or ordered.
+
+Read requires Finance read or supplier read (the latter hides review details).
+Decision writes require Finance read/write; assignment and reviewer options require
+Finance read/assign. Assignment eligibility uses Auth's published directory contract,
+with first-password readiness kept separate as in Go. Interactive operations still
+require completed credentials and live grants. Reconciliation requires document
+write/import and Finance auto-approve, preserves existing approvals and reads legacy
+content rather than trusting its declared MIME.
+
+Supplier row locks serialize native decisions, document changes and Go purchasing.
+Review/assignment history, per-document approvals, task updates and events commit
+atomically. Assignment delivers only an addressed local inbox notice through the
+published `server/inbox/supplier-review.ts` writer; it does not send email. Existing
+Go Inbox/My tasks readers and Go's transaction-bound purchase gate consume the same
+records. Their general routes and published contracts remain in Go.
+
+Finance tests compare 43 rule/status fixtures with Go and exercise the real Go
+purchase-order gate in a QA transaction after native writes. They cover decision and
+assignment grants, pending credentials, partial/missing/rejected evidence, task
+reassignment/correction, stale/concurrent commands, history/inbox rollback,
+reconciliation and all eight supplier ownership combinations.
 
 ## Existing data and rules
 

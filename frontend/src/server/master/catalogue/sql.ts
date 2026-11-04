@@ -603,6 +603,13 @@ export const catalogueSQL = {
     ],
     "mode": "one"
   },
+  "VendorDocumentsActiveEvidence": {
+    "text": "SELECT * FROM supplier_documents WHERE supplier_id=$1 AND is_active ORDER BY id;",
+    "keys": [
+      "supplier_id"
+    ],
+    "mode": "many"
+  },
   "VendorDocumentsRecordChange": {
     "text": "INSERT INTO supplier_document_changes(id,document_id,version,action,reason,created_by_id) VALUES($1,$2,$3,$4,$5,$6);",
     "keys": [
@@ -614,6 +621,13 @@ export const catalogueSQL = {
       "created_by_id"
     ],
     "mode": "exec"
+  },
+  "DocumentApprovalGet": {
+    "text": "SELECT * FROM supplier_document_approvals WHERE document_id=$1 FOR UPDATE;",
+    "keys": [
+      "id"
+    ],
+    "mode": "one"
   },
   "DocumentApprovalSave": {
     "text": "INSERT INTO supplier_document_approvals(document_id,supplier_id,document_version,sha256,state,comment,version,created_by_id,updated_by_id)\nVALUES($1,$2,$3,$4,$5,$6,1,$7,$7)\nON CONFLICT(document_id) DO UPDATE SET document_version=EXCLUDED.document_version,sha256=EXCLUDED.sha256,state=EXCLUDED.state,comment=EXCLUDED.comment,version=supplier_document_approvals.version+1,updated_at=now(),updated_by_id=EXCLUDED.updated_by_id\nRETURNING *;",
@@ -663,5 +677,98 @@ export const catalogueSQL = {
       "actor"
     ],
     "mode": "exec"
+  },
+  "DocumentApprovalState": {
+    "text": "SELECT state,comment FROM supplier_document_approvals WHERE document_id=$1 AND document_version=$2 AND sha256=$3 AND is_active;",
+    "keys": [
+      "document_id",
+      "document_version",
+      "sha256"
+    ],
+    "mode": "one"
+  },
+  "DocumentTasksReassign": {
+    "text": "UPDATE supplier_document_tasks SET user_id=$2,updated_by_id=$3,updated_at=now() WHERE supplier_id=$1 AND kind='review' AND completed_at IS NULL;",
+    "keys": [
+      "supplier_id",
+      "user_id",
+      "actor"
+    ],
+    "mode": "exec"
+  },
+  "VendorVerificationGetReview": {
+    "text": "SELECT * FROM supplier_verifications WHERE supplier_id=$1;",
+    "keys": [
+      "supplier_id"
+    ],
+    "mode": "one"
+  },
+  "VendorVerificationSaveReview": {
+    "text": "INSERT INTO supplier_verifications(supplier_id,version,fingerprint,decisions,reason,created_by_id,updated_by_id) VALUES($1,$2,$3,$4,$5,$6,$6) ON CONFLICT(supplier_id) DO UPDATE SET version=EXCLUDED.version,fingerprint=EXCLUDED.fingerprint,decisions=EXCLUDED.decisions,reason=EXCLUDED.reason,updated_by_id=EXCLUDED.updated_by_id,updated_at=now() RETURNING *;",
+    "keys": [
+      "supplier_id",
+      "version",
+      "fingerprint",
+      "decisions",
+      "reason",
+      "actor"
+    ],
+    "mode": "one"
+  },
+  "VendorVerificationRecordChange": {
+    "text": "INSERT INTO supplier_verification_history(id,supplier_id,version,snapshot,created_by_id) VALUES($1,$2,$3,$4,$5);",
+    "keys": [
+      "id",
+      "supplier_id",
+      "version",
+      "snapshot",
+      "actor"
+    ],
+    "mode": "exec"
+  },
+  "VendorReviewLockSupplier": {
+    "text": "SELECT id FROM suppliers WHERE id=$1 FOR UPDATE;",
+    "keys": [
+      "supplier_id"
+    ],
+    "mode": "one"
+  },
+  "VendorReviewAssignmentGet": {
+    "text": "SELECT a.*,u.username FROM supplier_review_assignments a JOIN auth.users u ON u.id=a.user_id WHERE supplier_id=$1;",
+    "keys": [
+      "supplier_id"
+    ],
+    "mode": "one"
+  },
+  "VendorReviewAssignmentSave": {
+    "text": "INSERT INTO supplier_review_assignments(id,supplier_id,user_id,version,is_active,created_by_id,updated_by_id) VALUES($1,$2,$3,$4,$5,$6,$6)\nON CONFLICT(supplier_id) DO UPDATE SET user_id=EXCLUDED.user_id,version=EXCLUDED.version,is_active=EXCLUDED.is_active,updated_by_id=EXCLUDED.updated_by_id,updated_at=now();",
+    "keys": [
+      "id",
+      "supplier_id",
+      "user_id",
+      "version",
+      "active",
+      "actor"
+    ],
+    "mode": "exec"
+  },
+  "VendorReviewAssignmentJournal": {
+    "text": "INSERT INTO supplier_review_assignment_changes(id,supplier_id,version,reason,snapshot,created_by_id) VALUES($1,$2,$3,$4,$5,$6);",
+    "keys": [
+      "id",
+      "supplier_id",
+      "version",
+      "reason",
+      "snapshot",
+      "actor"
+    ],
+    "mode": "exec"
+  },
+  "VendorReviewOwnAssignments": {
+    "text": "SELECT s.id,s.code,s.name FROM supplier_review_assignments a JOIN suppliers s ON s.id=a.supplier_id WHERE a.user_id=$1 AND a.is_active AND s.is_active ORDER BY s.code;",
+    "keys": [
+      "id"
+    ],
+    "mode": "many"
   }
 } as const;

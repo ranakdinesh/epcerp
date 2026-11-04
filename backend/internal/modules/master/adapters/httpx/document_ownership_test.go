@@ -29,3 +29,16 @@ func TestNativeDocumentOwnershipRetainsFinanceReconciliation(t *testing.T) {
 		t.Fatal("Finance reconciliation route missing")
 	}
 }
+
+func TestNativeFinanceOwnershipRetiresDecisionsAssignmentsAndReconciliation(t *testing.T) {
+	r := &infrastructure.Router{Router: chi.NewRouter()}
+	Register(r, Services{ClientsHTTPDisabled: true, ReferencesHTTPDisabled: true, CatalogueHTTPDisabled: true, VendorProfilesHTTPDisabled: true, VendorDocumentsHTTPDisabled: true, VendorVerificationHTTPDisabled: true})
+	if err := chi.Walk(r.Router, func(method, path string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		if strings.Contains(path, "/verification") || strings.Contains(path, "reconcile-approvals") {
+			t.Errorf("retired Finance route remains: %s %s", method, path)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

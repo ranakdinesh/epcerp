@@ -12,21 +12,22 @@ import (
 // Services contains the application services used by Master HTTP handlers.
 // The API composition root constructs them before registering routes.
 type Services struct {
-	VendorDocumentsHTTPDisabled bool
-	ClientsHTTPDisabled         bool
-	ReferencesHTTPDisabled      bool
-	CatalogueHTTPDisabled       bool
-	VendorProfilesHTTPDisabled  bool
-	VendorReviewAssignments     *masterApplication.VendorReviewAssignmentService
-	Vendors                     *masterApplication.VendorService
-	VendorDocuments             *masterApplication.VendorDocumentService
-	VendorVerification          *masterApplication.VendorVerificationService
-	Items                       *masterApplication.ItemService
-	Manufacturers               *masterApplication.ManufacturerService
-	Categories                  *masterApplication.CategoryService
-	Templates                   *masterApplication.TemplateService
-	References                  *masterApplication.ReferenceService
-	Clients                     *masterApplication.ClientService
+	VendorVerificationHTTPDisabled bool
+	VendorDocumentsHTTPDisabled    bool
+	ClientsHTTPDisabled            bool
+	ReferencesHTTPDisabled         bool
+	CatalogueHTTPDisabled          bool
+	VendorProfilesHTTPDisabled     bool
+	VendorReviewAssignments        *masterApplication.VendorReviewAssignmentService
+	Vendors                        *masterApplication.VendorService
+	VendorDocuments                *masterApplication.VendorDocumentService
+	VendorVerification             *masterApplication.VendorVerificationService
+	Items                          *masterApplication.ItemService
+	Manufacturers                  *masterApplication.ManufacturerService
+	Categories                     *masterApplication.CategoryService
+	Templates                      *masterApplication.TemplateService
+	References                     *masterApplication.ReferenceService
+	Clients                        *masterApplication.ClientService
 }
 
 // Register binds routes and HTTP payload policy to already constructed services.
@@ -39,11 +40,12 @@ func Register(mux *infrastructure.Router, services Services) {
 	}
 	if !services.VendorDocumentsHTTPDisabled {
 		RegisterVendorDocumentRoutes(mux, services.VendorDocuments)
-	} else {
-		mux.Post("/api/v1/suppliers/{supplier_id}/documents/reconcile-approvals", vendorDocumentHandler{services.VendorDocuments}.reconcileApprovals)
 	}
-	RegisterVendorVerificationRoutes(mux, services.VendorVerification)
-	RegisterVendorReviewAssignments(mux, services.VendorReviewAssignments)
+	if !services.VendorVerificationHTTPDisabled {
+		mux.Post("/api/v1/suppliers/{supplier_id}/documents/reconcile-approvals", vendorDocumentHandler{services.VendorDocuments}.reconcileApprovals)
+		RegisterVendorVerificationRoutes(mux, services.VendorVerification)
+		RegisterVendorReviewAssignments(mux, services.VendorReviewAssignments)
+	}
 	if !services.CatalogueHTTPDisabled {
 		RegisterItemRoutes(mux, services.Items)
 		RegisterManufacturerRoutes(mux, services.Manufacturers)

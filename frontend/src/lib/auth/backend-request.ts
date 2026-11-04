@@ -14,6 +14,7 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
     if((process.env.EPCERP_CLIENTS_OWNER === "nextjs" && /^\/clients(?:\/|$)/.test(path)) ||
        (process.env.EPCERP_REFERENCES_OWNER === "nextjs" && /^\/client-references(?:\/|$)/.test(path)) ||
        (process.env.EPCERP_CATALOGUE_OWNER === "nextjs" && /^\/(?:categories|manufacturers|configuration-templates|catalogue-items)(?:\/|$)/.test(path)) ||
+       (process.env.EPCERP_VENDOR_VERIFICATION_OWNER === "nextjs" && /^\/suppliers(?:\/|$)/.test(path)) ||
        (process.env.EPCERP_VENDOR_DOCUMENTS_OWNER === "nextjs" && /^\/suppliers(?:\/|$)/.test(path)) ||
        (process.env.EPCERP_VENDOR_PROFILES_OWNER === "nextjs" && /^\/suppliers(?:\/|$)/.test(path))) {
       const {handleMaster,ownsMasterPath,ownsNativeSupplierPath}=await import("@/server/master/http");

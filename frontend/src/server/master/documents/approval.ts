@@ -18,8 +18,11 @@ export async function submitted(db: DB, d: Document, actor: string) {
     const uploader = await userCapabilities(db, actor);
     if (!uploader?.active || !uploader.allows("settings.supplier_documents.write"))
         throw new AppError(403, "Insufficient permission");
+    await submitFor(db, d, uploader, actor, 'uploaded');
+}
+async function submitFor(db: DB, d: Document, uploader: NonNullable<Awaited<ReturnType<typeof userCapabilities>>>, actor: string, action: string) {
     const automatic = uploader.allows("accounts.vendor_verification.auto_approve");
-    await save(db, d, actor, automatic ? "accept" : "pending", automatic ? "Automatically approved by upload permission" : "Awaiting document review", "uploaded");
+    await save(db, d, actor, automatic ? "accept" : "pending", automatic ? "Automatically approved by upload permission" : "Awaiting document review", action);
     if (automatic)
         return;
     let reviewer = (await db.query<{
@@ -40,4 +43,24 @@ export async function retired(db: DB, d: Document, actor: string, outcome: "arch
     for (const kind of ["review", "correction"])
         await query(db, "DocumentTasksComplete", { document_id: d.id, kind, outcome: kind === "correction" && outcome === "replaced" ? "resubmitted" : outcome, comment: "Document " + outcome, actor });
     await save(db, d, actor, "pending", "Document " + outcome, outcome);
+}
+export async function decided(db: DB, d: Document, actor: string, state: string, comment: string) {
+    const previous = (await query(db, 'DocumentApprovalGet', { id: d.id })).rows[0];
+    if (previous && previous.state === state && previous.document_version === d.version && previous.sha256 === d.sha256)
+        return;
+    await save(db, d, actor, state, comment, 'reviewed');
+    await query(db, 'DocumentTasksComplete', { document_id: d.id, kind: 'review', outcome: state === 'reject' ? 'rejected' : 'approved', comment, actor });
+    if (state === 'reject' && d.created_by_id)
+        await query(db, 'DocumentTaskCreate', { id: randomUUID(), document_id: d.id, supplier_id: d.supplier_id, user_id: d.created_by_id, kind: 'correction', comment, actor });
+    else
+        await query(db, 'DocumentTasksComplete', { document_id: d.id, kind: 'correction', outcome: 'approved', comment, actor });
+}
+export async function reconciled(db: DB, d: Document, actor: string) {
+    if ((await query(db, 'DocumentApprovalGet', { id: d.id })).rows[0])
+        return;
+    const uploader = d.created_by_id ? await userCapabilities(db, d.created_by_id) : null;
+    if (!uploader?.active || !uploader.allows('settings.supplier_documents.write'))
+        throw new AppError(403, 'Insufficient permission');
+    // Reuse submit policy with the original uploader and the operator as audit actor.
+    await submitFor(db, d, uploader, actor, 'reconciled');
 }
