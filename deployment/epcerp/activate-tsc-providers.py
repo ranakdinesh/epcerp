@@ -27,7 +27,7 @@ if not any(values.values()):
 def output(args):
     return subprocess.check_output(args, text=True).strip()
 
-compose = ['docker', 'compose', '--env-file', 'deployment/epcerp/.env', '--env-file', 'deployment/epcerp/.env.gemini', '--env-file', str(credentials), '-f', 'deployment/epcerp/compose.yaml']
+compose = ['sh', str(root / 'deployment/epcerp/compose.sh')]
 config = json.loads(output(compose + ['config', '--format', 'json']))
 container = json.loads(output(['docker', 'inspect', 'epcerp-local-frontend-1']))[0]
 environment = dict(item.split('=', 1) for item in container['Config']['Env'])
