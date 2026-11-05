@@ -7,7 +7,7 @@ No production deployment, real messages or paid provider calls are authorized he
 
 Implementation order (all phases are required before claiming full completion):
 
-- [ ] Shared transaction/access/decimal contracts, workspace ownership, dashboard
+- [x] Shared transaction/access/decimal contracts, workspace ownership, dashboard
       and progress over all purchasing stages.
 - [x] BO preparation, register completion/reopen, requirement publication and PDF;
       formal indents, grouping, vendor documents, invitations/notifications and holds.
@@ -18,9 +18,9 @@ Implementation order (all phases are required before claiming full completion):
 - [x] Accounts acceptance, advances/disbursement, inspections/reports, quality and
       client clearance, dispatch, site receipt, GRN, engineer confirmation and linked
       final Accounts evidence/progress.
-- [ ] Every registered purchasing route and dependent purchasing queue/document
+- [x] Every registered purchasing route and dependent purchasing queue/document
       path accounted for; Go HTTP ownership retired only after native parity checks.
-- [ ] Matching combined Docker API/migrator/frontend/workers built from one frozen
+- [x] Matching combined Docker API/migrator/frontend/workers built from one frozen
       integration checkout; owned migrations applied; private verified backup and
       preservation audit; isolated end-to-end tests and combined local smoke checks.
 
@@ -68,3 +68,37 @@ The final local cutover record will identify the frozen combined checkout, all
 included remote tips, concurrent Tender overlay hashes, matching image identities,
 verified backup, schema version and preservation checks. Local preview verification
 is separate from a reviewed merge to `main` or production deployment.
+
+## Local cutover verified — 5 November 2026
+
+Native purchasing is active at `http://localhost:9092` from integration snapshot
+`ff7d0fa465151bd618619c05c08924be3177989c`. All seven refreshed remote refs were
+ancestors before testing. The frozen checkout includes a recorded 57-file concurrent
+Tender/provider overlay; later working-tree changes are outside this tested snapshot.
+See `PURCHASING_LOCAL_VERIFICATION_20261105.json` for commits, refs, overlay hashes,
+image identities, schema, preservation audit and separate feature/combined checks.
+
+Feature verification passed: 42 isolated compatibility tests with no skips, 31 Docker
+HTTP checks with Go unreachable and cloud/email disabled, 238 frontend regressions,
+TypeScript, scoped ESLint, affected Go suites/ownership tests, native PDF visual review
+and the frozen production build. A separate standalone HTTP run also passed 31 checks.
+Docker Desktop recovery interrupted one earlier rerun; that interrupted run is not
+counted as a pass. The final compatibility run used a fresh host PostgreSQL database,
+while the packaged Docker HTTP checks used the isolated Docker QA database.
+
+The private backup was validated through both archive listing and full restore-stream
+parsing and hashed before the matching migrator ran. Schema 101 remained clean and
+unchanged. After startup, 192 table snapshots matched except the expected superadmin
+role startup edit-version increment; role contents, password hashes and business data
+were preserved. Both stored originals and all 22 S3 objects matched byte snapshots.
+Existing encryption keys and provider approvals/controls were retained. Model-call
+count remained 21 throughout cutover; this migration made no provider calls.
+All nine operational services passed health checks; native session/origin guards,
+retired Go purchasing HTTP routes and private renderer protection passed combined
+smoke checks. Existing Go internal readers remain for unmigrated consumers.
+
+Docker Desktop recovered without resetting volumes. The frozen Next build was
+packaged with Linux dependencies from its exact lockfile after the Docker webpack
+build stalled; host native modules were excluded. API/migrator/workers share matching
+linux/amd64 payloads. The private backup and prior image tags remain available for
+rollback. No production deployment, reviewed main merge or branch push occurred.
