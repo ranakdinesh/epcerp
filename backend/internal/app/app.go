@@ -122,7 +122,9 @@ func (a *App) bindModules(ctx context.Context) error {
 	if err := accessmodule.New(a.Router, a.Database, auth.Resolver); err != nil {
 		return err
 	}
-	budgetmodule.New(a.Router, a.Database, auth.Resolver)
+	if err = budgetmodule.New(a.Router, a.Database, auth.Resolver); err != nil {
+		return err
+	}
 	governancemodule.New(a.Router, a.Database, auth.Resolver)
 	if err = inboxmodule.New(a.Router, a.Database, auth.Resolver); err != nil {
 		return err

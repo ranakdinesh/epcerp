@@ -20,6 +20,7 @@ import (
 	gateout "github.com/ranakdinesh/epcERP/internal/modules/project_access/adapters/outbound"
 	gatedomain "github.com/ranakdinesh/epcERP/internal/modules/project_access/domain"
 	budgets "github.com/ranakdinesh/epcERP/internal/modules/project_budgets"
+	budgetdomain "github.com/ranakdinesh/epcERP/internal/modules/project_budgets/domain"
 	items "github.com/ranakdinesh/epcERP/internal/modules/project_items"
 	domain "github.com/ranakdinesh/epcERP/internal/modules/purchase_fms/domain"
 	"mime"
@@ -92,6 +93,18 @@ func main() {
 			panic(err)
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"status": status, "can_write": result.CanWrite})
+		return
+	}
+	if v.Operation == "budget_fingerprint" {
+		var d budgetdomain.Data
+		if e = json.Unmarshal(v.Body, &d); e != nil {
+			panic(e)
+		}
+		data, err := json.Marshal(d)
+		if err != nil {
+			panic(err)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"fingerprint": fmt.Sprintf("%x", sha256.Sum256(data))})
 		return
 	}
 	if v.Operation == "approval_fingerprint" {

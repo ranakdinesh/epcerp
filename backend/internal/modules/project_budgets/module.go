@@ -1,9 +1,11 @@
 package project_budgets
 
 import (
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	workprojects "github.com/ranakdinesh/epcERP/internal/modules/projects/contracts"
+	"os"
 
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
 	authout "github.com/ranakdinesh/epcERP/internal/modules/auth/adapters/repository"
@@ -27,7 +29,14 @@ import (
 	purchaseRepository "github.com/ranakdinesh/epcERP/internal/modules/purchase_fms/adapters/repository"
 )
 
-func New(r chi.Router, pool *pgxpool.Pool, identity auth.Resolver) {
+func New(r chi.Router, pool *pgxpool.Pool, identity auth.Resolver) error {
+	owner := os.Getenv("EPCERP_PROJECT_BUDGETS_OWNER")
+	if owner != "" && owner != "go" && owner != "nextjs" {
+		return fmt.Errorf("invalid EPCERP_PROJECT_BUDGETS_OWNER")
+	}
+	if owner == "nextjs" {
+		return nil
+	}
 	providers := func(c database.Connection) out.Providers {
 		return out.Providers{Scope: accessout.NewGate(c, accessmodule.Providers(c)), Projects: projectout.NewContextReader(c), Clients: masterApplication.NewClientDirectory(masterRepository.NewClientIdentityReader(c)), BO: purchaseRepository.NewBOReader(c)}
 	}
@@ -38,6 +47,7 @@ func New(r chi.Router, pool *pgxpool.Pool, identity auth.Resolver) {
 		return out.NewFinanceBridge(financeout.NewBudgetApprover(c, users, accessout.NewGate(c, accessmodule.Providers(c)), journal(c), notices, financeout.Values{}))
 	}
 	in.Register(r, app.New(out.NewFinanceUnitOfWork(pool, providers, journal, finance), out.NewAuthBridge(identity), out.Values{}))
+	return nil
 }
 
 func WorkInventory(c database.Connection, parents workprojects.ContextReader) auth.WorkSource {
