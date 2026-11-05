@@ -18,7 +18,7 @@ export type PDFOptions = {
     date?: string;
     footer?: string;
 };
-export async function createPDF(options: PDFOptions, write: (p: Report) => void) { const [regular, bold] = await Promise.all([readFile(asset('documents/assets/Go-Regular.ttf')), readFile(asset('documents/assets/Go-Bold.ttf'))]), doc = new PDFDocument({ size: 'A4', layout: options.landscape ? 'landscape' : 'portrait', margin: 40, autoFirstPage: false, info: { Title: options.title, Author: 'Vishal Technopower Private Limited' } }), chunks: Buffer[] = [], result = new Promise<Buffer>((resolve, reject) => { doc.on('data', b => chunks.push(b)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject); }); doc.registerFont('body', regular).registerFont('bold', bold); const p = new Report(doc, options); try {
+export async function createPDF(options: PDFOptions, write: (p: Report) => void) { const [regular, bold] = await Promise.all([readFile(asset('documents/assets/Go-Regular.ttf')), readFile(asset('documents/assets/Go-Bold.ttf'))]), doc = new PDFDocument({ font: asset('documents/assets/Go-Regular.ttf'), size: 'A4', layout: options.landscape ? 'landscape' : 'portrait', margin: 40, autoFirstPage: false, info: { Title: options.title, Author: 'Vishal Technopower Private Limited' } }), chunks: Buffer[] = [], result = new Promise<Buffer>((resolve, reject) => { doc.on('data', b => chunks.push(b)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject); }); doc.registerFont('body', regular).registerFont('bold', bold); const p = new Report(doc, options); try {
     p.page();
     write(p);
     doc.end();
