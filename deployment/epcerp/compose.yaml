@@ -8,6 +8,7 @@ x-api: &api
   environment: &api-environment
     EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
     EPCERP_HTTP_ADDRESS: 0.0.0.0:8001
+    EPCERP_PROJECT_TEAM_OWNER: ${EPCERP_PROJECT_TEAM_OWNER:-nextjs}
     EPCERP_PROJECTS_OWNER: ${EPCERP_PROJECTS_OWNER:-nextjs}
     EPCERP_PERSONAL_TASKS_OWNER: ${EPCERP_PERSONAL_TASKS_OWNER:-nextjs}
     EPCERP_INBOX_OWNER: ${EPCERP_INBOX_OWNER:-nextjs}
