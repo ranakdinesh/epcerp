@@ -12,3 +12,4 @@ export async function purchaseTaskItem(db:DB,id:string){
     }
     return {...item,approved_for_purchase:approved};
 }
+export async function purchaseTaskCatalogue(db:DB){return new ItemRepository(db).list();}

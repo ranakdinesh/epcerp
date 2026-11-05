@@ -1,15 +1,43 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { transaction,type DB } from '../../db';
+import { transaction, type DB } from '../../db';
 import type { Actor } from '../core/access';
 import { invalid } from '../core/validation';
 import { id } from '../sourcing/values';
 import { now } from '../core/time';
 import { input } from './validation';
-import { accessGuard,forbidden,missing,stale,currentReady,currentGuard,guard,apply } from './policy';
+import { accessGuard, forbidden, missing, stale, currentReady, currentGuard, guard, apply } from './policy';
 import * as context from './context';
 import * as repo from './repository';
-export async function workspaceBound(db:DB,a:Actor,p:string,id:string){const caps=await context.access(db,a,p,id);if(!caps.read)throw forbidden();const record=await repo.get(db,p,id);if(record&&!record.is_active)throw missing();const source=await context.source(db,p,id),files=record?await repo.files(db,record.id):[],out={case:record,source,files,actions:[] as string[],history:record&&caps.scoped?await repo.history(db,record.id):[],ready:record?currentReady(record,source,files):false,task_only:!caps.scoped};try{if(record)currentGuard(record,source);else guard(source);}catch{return out;}for(const action of ['configure','document','submit','team_review','client_approval','revise']){try{accessGuard(a,caps,action);}catch{continue;}if(!record){if(action==='configure')out.actions.push(action);continue;}const state=record.state;if(action==='document'&&['draft','revision_required'].includes(state)||action==='submit'&&state==='draft'||action==='team_review'&&state==='submitted'&&record.submission&&record.submission.submitted_by_id!==a.id||action==='client_approval'&&['under_review','approved','approved_with_comments'].includes(state)||action==='revise'&&state!=='draft')out.actions.push(action);}return out;}
-export async function workspace(token:string,p:string,record:string){return transaction(async db=>{const a=await context.actor(db,token);id(a.id);id(p);id(record);return workspaceBound(db,a,p,record);});}
-export async function execute(token:string,p:string,record:string,raw:Record<string,unknown>){return transaction(async db=>{const a=await context.actor(db,token);id(a.id);id(p);id(record);const q=input(raw),caps=await context.access(db,a,p,record);accessGuard(a,caps,q.action);const before=await repo.get(db,p,record);if(q.version!==(before?.version??0))throw stale();const source=await context.source(db,p,record);if(source.project_id!==p||source.package_id!==record)invalid('source','Technical source does not belong to this project/package');const files=before?await repo.files(db,before.id):[],ids=before?[]:Array.from({length:6},()=>randomUUID()),next=apply(before,a,caps,q,source,files,now(),randomUUID(),ids),saved=await repo.save(db,next);await repo.event(db,before,saved,q.action,q.reason,a.id);return workspaceBound(db,a,p,record);});}
-export async function clearance(db:DB,p:string,id:string){const c=await repo.get(db,p,id);if(!c||!currentReady(c,await context.source(db,p,id),await repo.files(db,c.id)))invalid('technical_approval','Current client-approved full kit, signed QAP and closed conditions are required before PO release');return{transmittal_reference:c.submission!.reference,case_id:c.id,project_id:p,package_id:id,version:c.version,revision:c.revision,source:structuredClone(c.source_snapshot),approval:structuredClone(c.approval!),documents:structuredClone(c.documents)};}
+export async function workspaceBound(db: DB, a: Actor, p: string, id: string) { const caps = await context.access(db, a, p, id); if (!caps.read)
+    throw forbidden(); const record = await repo.get(db, p, id); if (record && !record.is_active)
+    throw missing(); const source = await context.source(db, p, id), files = record ? await repo.files(db, record.id) : [], out = { case: record, source, files, actions: [] as string[], history: record && caps.scoped ? await repo.history(db, record.id) : [], ready: record ? currentReady(record, source, files) : false, task_only: !caps.scoped }; try {
+    if (record)
+        currentGuard(record, source);
+    else
+        guard(source);
+}
+catch {
+    return out;
+} for (const action of ['configure', 'document', 'submit', 'team_review', 'client_approval', 'revise']) {
+    try {
+        accessGuard(a, caps, action);
+    }
+    catch {
+        continue;
+    }
+    if (!record) {
+        if (action === 'configure')
+            out.actions.push(action);
+        continue;
+    }
+    const state = record.state;
+    if (action === 'document' && ['draft', 'revision_required'].includes(state) || action === 'submit' && state === 'draft' || action === 'team_review' && state === 'submitted' && record.submission && record.submission.submitted_by_id !== a.id || action === 'client_approval' && ['under_review', 'approved', 'approved_with_comments'].includes(state) || action === 'revise' && state !== 'draft')
+        out.actions.push(action);
+} return out; }
+export async function workspace(token: string, p: string, record: string) { return transaction(async (db) => { const a = await context.actor(db, token); id(a.id); id(p); id(record); return workspaceBound(db, a, p, record); }); }
+export async function execute(token: string, p: string, record: string, raw: Record<string, unknown>) { return transaction(async (db) => { const a = await context.actor(db, token); id(a.id); id(p); id(record); const q = input(raw), caps = await context.access(db, a, p, record); accessGuard(a, caps, q.action); const before = await repo.get(db, p, record); if (q.version !== (before?.version ?? 0))
+    throw stale(); const source = await context.source(db, p, record); if (source.project_id !== p || source.package_id !== record)
+    invalid('source', 'Technical source does not belong to this project/package'); const files = before ? await repo.files(db, before.id) : [], ids = before ? [] : Array.from({ length: 6 }, () => randomUUID()), next = apply(before, a, caps, q, source, files, now(), randomUUID(), ids), saved = await repo.save(db, next); await repo.event(db, before, saved, q.action, q.reason, a.id); return workspaceBound(db, a, p, record); }); }
+export async function clearance(db: DB, p: string, id: string) { const c = await repo.get(db, p, id); if (!c || !currentReady(c, await context.source(db, p, id), await repo.files(db, c.id)))
+    invalid('technical_approval', 'Current client-approved full kit, signed QAP and closed conditions are required before PO release'); return { transmittal_reference: c.submission!.reference, case_id: c.id, project_id: p, package_id: id, version: c.version, revision: c.revision, source: structuredClone(c.source_snapshot), approval: structuredClone(c.approval!), documents: structuredClone(c.documents) }; }

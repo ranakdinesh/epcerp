@@ -16,6 +16,7 @@ import (
 	"github.com/ranakdinesh/epcERP/internal/modules/finance_accounts_acceptance/application"
 	"github.com/ranakdinesh/epcERP/internal/modules/finance_accounts_acceptance/ports"
 	govout "github.com/ranakdinesh/epcERP/internal/modules/organisation_governance/adapters/outbound"
+	"os"
 )
 
 type Dependencies struct {
@@ -29,6 +30,9 @@ type Dependencies struct {
 type Module struct{}
 
 func New(dependencies Dependencies) *Module {
+	if os.Getenv("EPCERP_PURCHASING_OWNER") == "nextjs" {
+		return &Module{}
+	}
 	factory := func(connection database.Connection) ports.Context {
 		return outbound.NewContext(dependencies.Providers(connection))
 	}

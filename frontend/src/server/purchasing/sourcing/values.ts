@@ -1,14 +1,48 @@
-import { invalid,trim } from '../core/validation';
-import { format,rounded } from '../core/decimal';
-import type { Offer,Case,Comparison,Price } from './types';
-export function id(value:string){if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value))invalid('id','Use a valid identifier');return value;}
-export function text(field:string,value:string,n:number,required=true){value=trim(value);if(required&&!value||[...value].length>n||/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(value))invalid(field,'Provide a valid '+field);return value;}
-export function scaled(field:string,value:string,scale:number,max:number,positive=false){const pattern=scale===4?/^(0|[1-9][0-9]*)(\.[0-9]{1,4})?$/:/^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/;if(!pattern.test(value))invalid(field,'Use a nonnegative plain decimal with the permitted precision');const[w,f='']=value.split('.'),n=BigInt(w+f.padEnd(scale,'0'));if(n.toString().length>max||positive&&n===BigInt(0))invalid(field,'Amount or quantity exceeds the permitted range');return n;}
-export const amount=(field:string,value:string)=>format(scaled(field,value,2,16),2);
-export const rate=(value:string)=>format(scaled('unit_price',value,4,18),4);
-export function mode(value:string){value=value||'unit_price';if(!['unit_price','line_total'].includes(value))invalid('pricing_mode','Choose unit rate or direct line total');return value;}
-export function total(o:Pick<Offer,'pricing_mode'|'line_total'|'unit_price'|'discount'|'tax'|'freight'|'other'>,quantity:string){const q=scaled('quantity',quantity,4,19,true),m=mode(o.pricing_mode??'');let base:bigint;if(m==='line_total'){if(o.unit_price)invalid('unit_price','Use only the direct line total');base=scaled('line_total',o.line_total??'',2,16);}else{if(o.line_total)invalid('line_total','Use only the unit rate');base=rounded(q*scaled('unit_price',o.unit_price,4,18),BigInt(1000000));}const discount=scaled('discount',o.discount,2,16),tax=scaled('tax',o.tax,2,16),freight=scaled('freight',o.freight,2,16),other=scaled('other',o.other,2,16);if(discount>base)invalid('discount','Discount exceeds the line value');const n=base-discount+tax+freight+other;if(n.toString().length>16)invalid('total','Quotation total exceeds the permitted range');return format(n,2);}
-export function comparisons(c:Case,today:string):Comparison[]{const out=c.offers.filter(o=>o.state==='quoted').map(o=>({offer_id:o.id,total:total(o,c.source_snapshot.quantity),rank:null as number|null,expired:o.valid_until<today})),ranks=[...new Set(out.filter(v=>c.offers.find(o=>o.id===v.offer_id)!.compliant).map(v=>v.total))].sort((a,b)=>{const x=scaled('total',a,2,16),y=scaled('total',b,2,16);return x<y?-1:x>y?1:0;});for(const row of out)if(c.offers.find(o=>o.id===row.offer_id)!.compliant)row.rank=ranks.indexOf(row.total)+1;return out;}
-export function allocation(quantity:string,approvedQuantity:string,approvedAmount:string,usedQuantity:string,usedAmount:string,value:string){const q=scaled('quantity',quantity,4,19,true),approved=scaled('approved_quantity',approvedQuantity,4,19,true),used=scaled('used_quantity',usedQuantity,4,19),cap=scaled('approved_amount',approvedAmount,2,16),spent=scaled('used_amount',usedAmount,2,16),amount=scaled('amount',value,2,16),remaining=approved-used,available=cap-spent;if(remaining<BigInt(0)||available<BigInt(0))invalid('allocation','Current reservations exceed the approved source; review the owning ledger');if(q>remaining)invalid('quantity','Other purchase packages already reserved this approved quantity');if(amount>available)invalid('financial_approval','Other purchase packages already reserved this approved amount');return{quantity:format(q,4),amount:format(amount,2),remaining_quantity:format(remaining-q,4),remaining_amount:format(available-amount,2)};}
-export function scopePrice(raw:Price,quantity:string,approvedQuantity:string):Price{const price={...raw},q=scaled('quantity',quantity,4,19,true);let full:bigint;try{full=scaled('approved_quantity',approvedQuantity,4,19,true);}catch{invalid('quantity','Released quantity exceeds approved quotation quantity');}if(q>full)invalid('quantity','Released quantity exceeds approved quotation quantity');if(q===full)return price;const m=mode(price.pricing_mode),proportion=(field:string,value:string)=>rounded(scaled(field,value,2,16)*q,full),base=m==='line_total'?proportion('base',price.base):rounded(q*scaled('unit_price',price.unit_price,4,18),BigInt(1000000));const percent=(field:string,s:string)=>{let p:bigint;try{p=scaled(field,s,2,5);}catch{invalid(field,'Current approved percentage evidence is required');}if(p>BigInt(10000))invalid(field,'Current approved percentage evidence is required');return p;};const discount=percent('discount_percent',price.discount_percent),tax=percent('tax_percent',price.tax_percent),reduction=rounded(base*discount,BigInt(10000)),taxAmount=rounded((base-reduction)*tax,BigInt(10000));return{...price,base:format(base,2),discount:format(reduction,2),tax:format(taxAmount,2),allocated_charges:format(proportion('charges',price.allocated_charges),2)};}
-export const priceOffer=(p:Price)=>({pricing_mode:p.pricing_mode,...(p.pricing_mode==='line_total'?{line_total:p.base,unit_price:''}:{unit_price:p.unit_price}),discount:p.discount,tax:p.tax,freight:p.allocated_charges,other:'0'});
+import { invalid, trim } from '../core/validation';
+import { format, rounded } from '../core/decimal';
+import type { Offer, Case, Comparison, Price } from './types';
+export function id(value: string) { if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value))
+    invalid('id', 'Use a valid identifier'); return value; }
+export function text(field: string, value: string, n: number, required = true) { value = trim(value); if (required && !value || [...value].length > n || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(value))
+    invalid(field, 'Provide a valid ' + field); return value; }
+export function scaled(field: string, value: string, scale: number, max: number, positive = false) { const pattern = scale === 4 ? /^(0|[1-9][0-9]*)(\.[0-9]{1,4})?$/ : /^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/; if (!pattern.test(value))
+    invalid(field, 'Use a nonnegative plain decimal with the permitted precision'); const [w, f = ''] = value.split('.'), n = BigInt(w + f.padEnd(scale, '0')); if (n.toString().length > max || positive && n === BigInt(0))
+    invalid(field, 'Amount or quantity exceeds the permitted range'); return n; }
+export const amount = (field: string, value: string) => format(scaled(field, value, 2, 16), 2);
+export const rate = (value: string) => format(scaled('unit_price', value, 4, 18), 4);
+export function mode(value: string) { value = value || 'unit_price'; if (!['unit_price', 'line_total'].includes(value))
+    invalid('pricing_mode', 'Choose unit rate or direct line total'); return value; }
+export function total(o: Pick<Offer, 'pricing_mode' | 'line_total' | 'unit_price' | 'discount' | 'tax' | 'freight' | 'other'>, quantity: string) { const q = scaled('quantity', quantity, 4, 19, true), m = mode(o.pricing_mode ?? ''); let base: bigint; if (m === 'line_total') {
+    if (o.unit_price)
+        invalid('unit_price', 'Use only the direct line total');
+    base = scaled('line_total', o.line_total ?? '', 2, 16);
+}
+else {
+    if (o.line_total)
+        invalid('line_total', 'Use only the unit rate');
+    base = rounded(q * scaled('unit_price', o.unit_price, 4, 18), BigInt(1000000));
+} const discount = scaled('discount', o.discount, 2, 16), tax = scaled('tax', o.tax, 2, 16), freight = scaled('freight', o.freight, 2, 16), other = scaled('other', o.other, 2, 16); if (discount > base)
+    invalid('discount', 'Discount exceeds the line value'); const n = base - discount + tax + freight + other; if (n.toString().length > 16)
+    invalid('total', 'Quotation total exceeds the permitted range'); return format(n, 2); }
+export function comparisons(c: Case, today: string): Comparison[] { const out = c.offers.filter(o => o.state === 'quoted').map(o => ({ offer_id: o.id, total: total(o, c.source_snapshot.quantity), rank: null as number | null, expired: o.valid_until < today })), ranks = [...new Set(out.filter(v => c.offers.find(o => o.id === v.offer_id)!.compliant).map(v => v.total))].sort((a, b) => { const x = scaled('total', a, 2, 16), y = scaled('total', b, 2, 16); return x < y ? -1 : x > y ? 1 : 0; }); for (const row of out)
+    if (c.offers.find(o => o.id === row.offer_id)!.compliant)
+        row.rank = ranks.indexOf(row.total) + 1; return out; }
+export function allocation(quantity: string, approvedQuantity: string, approvedAmount: string, usedQuantity: string, usedAmount: string, value: string) { const q = scaled('quantity', quantity, 4, 19, true), approved = scaled('approved_quantity', approvedQuantity, 4, 19, true), used = scaled('used_quantity', usedQuantity, 4, 19), cap = scaled('approved_amount', approvedAmount, 2, 16), spent = scaled('used_amount', usedAmount, 2, 16), amount = scaled('amount', value, 2, 16), remaining = approved - used, available = cap - spent; if (remaining < BigInt(0) || available < BigInt(0))
+    invalid('allocation', 'Current reservations exceed the approved source; review the owning ledger'); if (q > remaining)
+    invalid('quantity', 'Other purchase packages already reserved this approved quantity'); if (amount > available)
+    invalid('financial_approval', 'Other purchase packages already reserved this approved amount'); return { quantity: format(q, 4), amount: format(amount, 2), remaining_quantity: format(remaining - q, 4), remaining_amount: format(available - amount, 2) }; }
+export function scopePrice(raw: Price, quantity: string, approvedQuantity: string): Price { const price = { ...raw }, q = scaled('quantity', quantity, 4, 19, true); let full: bigint; try {
+    full = scaled('approved_quantity', approvedQuantity, 4, 19, true);
+}
+catch {
+    invalid('quantity', 'Released quantity exceeds approved quotation quantity');
+} if (q > full)
+    invalid('quantity', 'Released quantity exceeds approved quotation quantity'); if (q === full)
+    return price; const m = mode(price.pricing_mode), proportion = (field: string, value: string) => rounded(scaled(field, value, 2, 16) * q, full), base = m === 'line_total' ? proportion('base', price.base) : rounded(q * scaled('unit_price', price.unit_price, 4, 18), BigInt(1000000)); const percent = (field: string, s: string) => { let p: bigint; try {
+    p = scaled(field, s, 2, 5);
+}
+catch {
+    invalid(field, 'Current approved percentage evidence is required');
+} if (p > BigInt(10000))
+    invalid(field, 'Current approved percentage evidence is required'); return p; }; const discount = percent('discount_percent', price.discount_percent), tax = percent('tax_percent', price.tax_percent), reduction = rounded(base * discount, BigInt(10000)), taxAmount = rounded((base - reduction) * tax, BigInt(10000)); return { ...price, base: format(base, 2), discount: format(reduction, 2), tax: format(taxAmount, 2), allocated_charges: format(proportion('charges', price.allocated_charges), 2) }; }
+export const priceOffer = (p: Price) => ({ pricing_mode: p.pricing_mode, ...(p.pricing_mode === 'line_total' ? { line_total: p.base, unit_price: '' } : { unit_price: p.unit_price }), discount: p.discount, tax: p.tax, freight: p.allocated_charges, other: '0' });

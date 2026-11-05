@@ -10,6 +10,7 @@ import (
 	"github.com/ranakdinesh/epcERP/internal/modules/project_items/adapters/inbound"
 	"github.com/ranakdinesh/epcERP/internal/modules/project_items/adapters/outbound"
 	"github.com/ranakdinesh/epcERP/internal/modules/project_items/application"
+	"os"
 )
 
 type Dependencies struct {
@@ -23,6 +24,9 @@ type Dependencies struct {
 type Module struct{}
 
 func New(dependencies Dependencies) *Module {
+	if os.Getenv("EPCERP_PURCHASING_OWNER") == "nextjs" {
+		return &Module{}
+	}
 	service := application.New(outbound.NewUnitOfWork(dependencies.Database, dependencies.Providers, dependencies.Events), outbound.NewAuthBridge(dependencies.Identity), outbound.Values{})
 	inbound.Register(dependencies.Router, service)
 	return &Module{}

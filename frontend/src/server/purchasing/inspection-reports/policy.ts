@@ -1,20 +1,59 @@
-import { PurchaseError,invalid,isoDate,trim } from '../core/validation';
+import { PurchaseError, invalid, isoDate, trim } from '../core/validation';
 import { id } from '../sourcing/values';
-import { text,sameSource } from '../orders/policy';
+import { text, sameSource } from '../orders/policy';
 import { Rational } from '../core/rational';
 import { indiaDate } from '../../personal-tasks/validation';
 import type { Actor } from '../core/access';
 import type { Capabilities } from '../inspections/types';
-import type { Record,Report,Source,Command } from './types';
-export const forbidden=()=>new PurchaseError(403,'Current report permission and Step 13 scope are required');
-export const missing=()=>new PurchaseError(404,'Report or current cleared inspection not found');
-export const stale=()=>new PurchaseError(409,'Report or inspection evidence changed; retain your draft, reload and review');
-export function quantity(field:string,raw:string,positive:boolean){const s=trim(raw)||(!positive?'0':'');if(!/^(0|[1-9][0-9]{0,11})(\.[0-9]{1,6})?$/.test(s))invalid(field,'Use an exact nonnegative quantity with at most six decimal places');const[w,f='']=s.split('.'),r=new Rational(BigInt(w+f),BigInt(10)**BigInt(f.length));if(positive&&r.numerator<=BigInt(0))invalid(field,'Cleared quantity must be positive');return{value:r,text:s};}
-export function guard(s:Source){if(!s.available||s.blockers.length)invalid('source','Resolve project, package and current cleared-inspection blockers first');for(const v of [s.project_id,s.package_id,s.inspection_id,s.order_id])id(v);if(s.inspection_version<1||s.inspection_revision<1||s.order_version<2||!isoDate(s.actual_date)||!s.number||!s.supplier_name||!s.description||!s.uom||!s.qap_reference)invalid('source','Use the actual current inspection clearance and released order');quantity('source',s.quantity,true);}
-export function accessGuard(a:Actor,c:Capabilities,write:boolean){if(!a.active||!a.id)throw new PurchaseError(401,'Authentication required');if(!c.read||write&&(!c.write||!c.work))throw forbidden();}
-export function validate(raw:Command){const q={...raw,reason:text('reason',raw.reason,2000)};if(q.version<0)invalid('version','Use the current nonnegative report version');if(q.action==='record'){if(!q.report)invalid('report','Supply the report details');}else if(q.action==='revise'){if(q.report)invalid('report','Revision carries only its version and reason');}else invalid('action','Choose record or revise');return q;}
-export function report(q:Omit<Report,'uom'>,s:Source,today:string):Report{const out={...q,uom:s.uom};if(!['pending','issued'].includes(q.status))invalid('status','Choose pending or issued');for(const[field,n,required]of [['ir_number',200,q.status==='issued'],['irn_number',200,q.status==='issued'],['issuing_authority',300,false],['file_name',500,false]]as const)out[field]=text(field,out[field],n,required);if(out.issue_date&&(!isoDate(out.issue_date)||out.issue_date<s.actual_date||out.issue_date>today)||out.status==='issued'&&!out.issue_date)invalid('issue_date','Use the actual issue date on or after inspection and not in the future');const cleared=quantity('cleared_quantity',out.cleared_quantity,out.status==='issued'),ordered=quantity('source',s.quantity,true);out.cleared_quantity=cleared.text;if(cleared.value.compare(ordered.value)>0)invalid('cleared_quantity',"Cleared quantity cannot exceed this order's material quantity");return out;}
-export function can(r:Record|null,a:Actor,c:Capabilities,action:string,s:Source){accessGuard(a,c,true);guard(s);if(!['record','revise'].includes(action))invalid('action','Choose record or revise');if(!r){if(action!=='record')invalid('report','Record the report before starting a revision');return;}if(!r.is_active||r.project_id!==s.project_id||r.package_id!==s.package_id)throw missing();if(action==='record'&&(!sameSource(r.source_snapshot,s)||r.report.status==='issued'))throw stale();if(action==='revise'&&r.report.status!=='issued'&&sameSource(r.source_snapshot,s))invalid('revision','Edit the current pending report instead');}
-const blank=(uom:string):Report=>({status:'pending',ir_number:'',irn_number:'',issue_date:'',issuing_authority:'',cleared_quantity:'0',uom,file_name:''});
-export function apply(base:Record|null,a:Actor,c:Capabilities,raw:Command,s:Source,at:string,newID:string):Record{const q=validate(raw);can(base,a,c,q.action,s);if(q.version!==(base?.version??0))throw stale();const out:Record=base?structuredClone(base):{id:newID,project_id:s.project_id,package_id:s.package_id,version:0,revision:1,source_snapshot:structuredClone(s),report:blank(s.uom),is_active:true,created_at:at,updated_at:at,created_by_id:a.id,updated_by_id:a.id};id(out.id);id(a.id);if(q.action==='revise'){out.revision++;out.source_snapshot=structuredClone(s);out.report=blank(s.uom);}else out.report=report(q.report!,s,indiaDate(new Date(at)));out.version=q.version+1;out.updated_at=at;out.updated_by_id=a.id;return out;}
-export function issued(r:Record|null,s:Source){guard(s);if(!r?.is_active)throw missing();if(r.project_id!==s.project_id||r.package_id!==s.package_id||!sameSource(r.source_snapshot,s))throw stale();if(r.version<1||r.revision<1||r.report.status!=='issued'||r.report.uom!==s.uom)invalid('report','Current issued IR / IRN is required');report(r.report,s,indiaDate(new Date(r.updated_at)));return structuredClone(r);}
+import type { Record, Report, Source, Command } from './types';
+export const forbidden = () => new PurchaseError(403, 'Current report permission and Step 13 scope are required');
+export const missing = () => new PurchaseError(404, 'Report or current cleared inspection not found');
+export const stale = () => new PurchaseError(409, 'Report or inspection evidence changed; retain your draft, reload and review');
+export function quantity(field: string, raw: string, positive: boolean) { const s = trim(raw) || (!positive ? '0' : ''); if (!/^(0|[1-9][0-9]{0,11})(\.[0-9]{1,6})?$/.test(s))
+    invalid(field, 'Use an exact nonnegative quantity with at most six decimal places'); const [w, f = ''] = s.split('.'), r = new Rational(BigInt(w + f), BigInt(10) ** BigInt(f.length)); if (positive && r.numerator <= BigInt(0))
+    invalid(field, 'Cleared quantity must be positive'); return { value: r, text: s }; }
+export function guard(s: Source) { if (!s.available || s.blockers.length)
+    invalid('source', 'Resolve project, package and current cleared-inspection blockers first'); for (const v of [s.project_id, s.package_id, s.inspection_id, s.order_id])
+    id(v); if (s.inspection_version < 1 || s.inspection_revision < 1 || s.order_version < 2 || !isoDate(s.actual_date) || !s.number || !s.supplier_name || !s.description || !s.uom || !s.qap_reference)
+    invalid('source', 'Use the actual current inspection clearance and released order'); quantity('source', s.quantity, true); }
+export function accessGuard(a: Actor, c: Capabilities, write: boolean) { if (!a.active || !a.id)
+    throw new PurchaseError(401, 'Authentication required'); if (!c.read || write && (!c.write || !c.work))
+    throw forbidden(); }
+export function validate(raw: Command) { const q = { ...raw, reason: text('reason', raw.reason, 2000) }; if (q.version < 0)
+    invalid('version', 'Use the current nonnegative report version'); if (q.action === 'record') {
+    if (!q.report)
+        invalid('report', 'Supply the report details');
+}
+else if (q.action === 'revise') {
+    if (q.report)
+        invalid('report', 'Revision carries only its version and reason');
+}
+else
+    invalid('action', 'Choose record or revise'); return q; }
+export function report(q: Omit<Report, 'uom'>, s: Source, today: string): Report { const out = { ...q, uom: s.uom }; if (!['pending', 'issued'].includes(q.status))
+    invalid('status', 'Choose pending or issued'); for (const [field, n, required] of [['ir_number', 200, q.status === 'issued'], ['irn_number', 200, q.status === 'issued'], ['issuing_authority', 300, false], ['file_name', 500, false]] as const)
+    out[field] = text(field, out[field], n, required); if (out.issue_date && (!isoDate(out.issue_date) || out.issue_date < s.actual_date || out.issue_date > today) || out.status === 'issued' && !out.issue_date)
+    invalid('issue_date', 'Use the actual issue date on or after inspection and not in the future'); const cleared = quantity('cleared_quantity', out.cleared_quantity, out.status === 'issued'), ordered = quantity('source', s.quantity, true); out.cleared_quantity = cleared.text; if (cleared.value.compare(ordered.value) > 0)
+    invalid('cleared_quantity', "Cleared quantity cannot exceed this order's material quantity"); return out; }
+export function can(r: Record | null, a: Actor, c: Capabilities, action: string, s: Source) { accessGuard(a, c, true); guard(s); if (!['record', 'revise'].includes(action))
+    invalid('action', 'Choose record or revise'); if (!r) {
+    if (action !== 'record')
+        invalid('report', 'Record the report before starting a revision');
+    return;
+} if (!r.is_active || r.project_id !== s.project_id || r.package_id !== s.package_id)
+    throw missing(); if (action === 'record' && (!sameSource(r.source_snapshot, s) || r.report.status === 'issued'))
+    throw stale(); if (action === 'revise' && r.report.status !== 'issued' && sameSource(r.source_snapshot, s))
+    invalid('revision', 'Edit the current pending report instead'); }
+const blank = (uom: string): Report => ({ status: 'pending', ir_number: '', irn_number: '', issue_date: '', issuing_authority: '', cleared_quantity: '0', uom, file_name: '' });
+export function apply(base: Record | null, a: Actor, c: Capabilities, raw: Command, s: Source, at: string, newID: string): Record { const q = validate(raw); can(base, a, c, q.action, s); if (q.version !== (base?.version ?? 0))
+    throw stale(); const out: Record = base ? structuredClone(base) : { id: newID, project_id: s.project_id, package_id: s.package_id, version: 0, revision: 1, source_snapshot: structuredClone(s), report: blank(s.uom), is_active: true, created_at: at, updated_at: at, created_by_id: a.id, updated_by_id: a.id }; id(out.id); id(a.id); if (q.action === 'revise') {
+    out.revision++;
+    out.source_snapshot = structuredClone(s);
+    out.report = blank(s.uom);
+}
+else
+    out.report = report(q.report!, s, indiaDate(new Date(at))); out.version = q.version + 1; out.updated_at = at; out.updated_by_id = a.id; return out; }
+export function issued(r: Record | null, s: Source) { guard(s); if (!r?.is_active)
+    throw missing(); if (r.project_id !== s.project_id || r.package_id !== s.package_id || !sameSource(r.source_snapshot, s))
+    throw stale(); if (r.version < 1 || r.revision < 1 || r.report.status !== 'issued' || r.report.uom !== s.uom)
+    invalid('report', 'Current issued IR / IRN is required'); report(r.report, s, indiaDate(new Date(r.updated_at))); return structuredClone(r); }

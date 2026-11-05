@@ -1,3 +1,5 @@
+import { hasSameOrigin } from "@/lib/auth/request-origin";
+import { ownsPurchasing } from "@/server/purchasing/paths";
 import { backendRequest } from "@/lib/auth/backend-request";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
@@ -25,6 +27,7 @@ export async function proxyAuthenticatedRequest(
   const { path = [] } = await context.params;
   const backendUrl = new URL(`${backendApiUrl}/${resource}${path.length ? `/${path.join("/")}` : ""}`);
   backendUrl.search = new URL(request.url).search;
+  if (process.env.EPCERP_PURCHASING_OWNER === "nextjs" && !["GET","HEAD"].includes(request.method) && ownsPurchasing(backendUrl.pathname.replace(/^\/api\/v1/,"")) && !hasSameOrigin(request)) return NextResponse.json({detail:"Same-origin request required"},{status:403});
   // Sensitive uploads authorize their exact context before this proxy buffers bytes.
   if (authorizeBeforeBody) {
     try {

@@ -1,0 +1,1 @@
+export const ownsPurchasing = (path: string) => /^\/(?:purchase-fms|quotation-approvals|purchase-advances|indent-dispatch-notifications)(?:\/|$)/.test(path) || /^\/clients\/[^/]+\/purchase-rules(?:\/|$)/.test(path) || /^\/projects\/[^/]+\/(?:purchase-(?:bo|indents|holds|workflow|awards|progress)|items|quotation-(?:bo|status)|vendor-lois)(?:\/|$)/.test(path);

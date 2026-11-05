@@ -2,6 +2,7 @@
 package composition
 
 import (
+	"fmt"
 	documentInfra "github.com/ranakdinesh/epcERP/internal/infrastructure"
 	"net/http"
 	"os"
@@ -34,6 +35,14 @@ type Result struct {
 
 // New constructs the complete purchase unit; HTTP receives services only.
 func New(mux chi.Router, pool *pgxpool.Pool, identity authContracts.Resolver) (Result, error) {
+	owner := os.Getenv("EPCERP_PURCHASING_OWNER")
+	if owner != "" && owner != "go" && owner != "nextjs" {
+		return Result{}, fmt.Errorf("invalid EPCERP_PURCHASING_OWNER")
+	}
+	registration := mux
+	if owner == "nextjs" {
+		registration = chi.NewRouter()
+	}
 	purchaseServices := &purchaseHTTP.Services{}
 	purchaseServices.ClientRules = purchaseApp.NewClientRules(purchaseRepository.NewClientRulesUnitOfWork(pool, func(c database.Connection) purchaseRepository.ClientRulesProviders {
 		return purchaseRepository.ClientRulesProviders{Clients: masterApplication.NewClientDirectory(masterRepository.NewClientIdentityReader(c)), Projects: projectsOutbound.NewContextReader(c), Categories: masterRepository.NewCategoryDirectory(c), Items: masterRepository.NewCategoryDirectory(c), Makes: masterRepository.NewManufacturerItemReader(c)}
@@ -57,12 +66,16 @@ func New(mux chi.Router, pool *pgxpool.Pool, identity authContracts.Resolver) (R
 	).WithApprovals(func(c database.Connection) purchaseRepository.QuotationApprovalsProviders {
 		return quotationApprovalProviders(c, cipher)
 	})
-	guard, taskProviders, projectItems, accounts, err := registerPurchaseExecution(mux, purchaseServices, pool, identity, workspaceUOW)
+	guard, taskProviders, projectItems, accounts, err := registerPurchaseExecution(registration, purchaseServices, pool, identity, workspaceUOW)
 	if err != nil {
 		return Result{}, err
 	}
 	purchaseServices.Workspace = purchaseApp.NewWorkspace(workspaceUOW, purchaseRepository.NewAuthBridge(identity), purchaseRepository.Values{})
-	purchaseHTTP.Register(mux, *purchaseServices)
+	if owner != "nextjs" {
+		purchaseHTTP.Register(mux, *purchaseServices)
+	} else {
+		guard = func(next http.Handler) http.Handler { return next }
+	}
 
 	return Result{UploadGuard: guard, TaskProviders: taskProviders, ProjectItems: projectItems, Accounts: accounts}, nil
 }

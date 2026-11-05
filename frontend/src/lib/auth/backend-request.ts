@@ -7,6 +7,10 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
   const url = new URL(input);
   if (url.origin === new URL(backendApiUrl).origin) {
     const path=url.pathname.replace(/^\/api\/v1/,"");
+    if(process.env.EPCERP_PURCHASING_OWNER === "nextjs") {
+      const {handlePurchasing,ownsPurchasing}=await import("@/server/purchasing/http");
+      if(ownsPurchasing(path))return handlePurchasing(new Request(url,init));
+    }
     if(process.env.EPCERP_PROJECT_TEAM_OWNER === "nextjs") {
       const {handleTeam,ownsTeam}=await import("@/server/projects/team/http");
       if(ownsTeam(path))return handleTeam(new Request(url,init));

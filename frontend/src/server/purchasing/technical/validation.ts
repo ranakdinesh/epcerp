@@ -1,5 +1,23 @@
-import { object,string,version,invalid } from '../core/validation';
+import { object, string, version, invalid } from '../core/validation';
 import { text } from '../workflow/policy';
-import type { Command,DocumentInput,SubmissionInput,ApprovalInput } from './types';
-const bool=(value:unknown,field:string)=>{if(value==null)return null;if(typeof value!=='boolean')invalid(field,'Record explicit true or false');return value;};
-export function input(raw:Record<string,unknown>):Command{const r=object(raw,['version','action','reason','document','submission','approve','remarks','approval','qap_approved','conditions_closed']),c:Command={version:version(r.version??0),action:string(r.action,'action',''),reason:text('reason',string(r.reason,'reason',''),2000),document:null,submission:null,approve:bool(r.approve,'approve'),remarks:string(r.remarks,'remarks',''),approval:null,qap_approved:bool(r.qap_approved,'qap_approved'),conditions_closed:bool(r.conditions_closed,'conditions_closed')};if(!['configure','document','submit','team_review','client_approval','revise'].includes(c.action))invalid('action','Choose a technical action');if(r.document!=null){const d=object(r.document,['id','kind','title','category','standard','required','status','revision','received_date','file_id','notes','na_reason','is_active']),out:Record<string,unknown>={required:bool(d.required,'required'),is_active:bool(d.is_active,'is_active')};for(const key of ['id','kind','title','category','standard','status','revision','received_date','file_id','notes','na_reason'])out[key]=string(d[key],key,'');c.document=out as DocumentInput;}if(r.submission!=null){const s=object(r.submission,['reference','date','target_date','authority','file_id']),out:Record<string,string>={};for(const key of ['reference','date','target_date','authority','file_id'])out[key]=string(s[key],key,'');c.submission=out as SubmissionInput;}if(r.approval!=null){const a=object(r.approval,['status','reference','date','approver_name','approver_designation','file_id','closure_file_id','remarks']),out:Record<string,string>={};for(const key of ['status','reference','date','approver_name','approver_designation','file_id','closure_file_id','remarks'])out[key]=string(a[key],key,'');c.approval=out as ApprovalInput;}return c;}
+import type { Command, DocumentInput, SubmissionInput, ApprovalInput } from './types';
+const bool = (value: unknown, field: string) => { if (value == null)
+    return null; if (typeof value !== 'boolean')
+    invalid(field, 'Record explicit true or false'); return value; };
+export function input(raw: Record<string, unknown>): Command { const r = object(raw, ['version', 'action', 'reason', 'document', 'submission', 'approve', 'remarks', 'approval', 'qap_approved', 'conditions_closed']), c: Command = { version: version(r.version ?? 0), action: string(r.action, 'action', ''), reason: text('reason', string(r.reason, 'reason', ''), 2000), document: null, submission: null, approve: bool(r.approve, 'approve'), remarks: string(r.remarks, 'remarks', ''), approval: null, qap_approved: bool(r.qap_approved, 'qap_approved'), conditions_closed: bool(r.conditions_closed, 'conditions_closed') }; if (!['configure', 'document', 'submit', 'team_review', 'client_approval', 'revise'].includes(c.action))
+    invalid('action', 'Choose a technical action'); if (r.document != null) {
+    const d = object(r.document, ['id', 'kind', 'title', 'category', 'standard', 'required', 'status', 'revision', 'received_date', 'file_id', 'notes', 'na_reason', 'is_active']), out: Record<string, unknown> = { required: bool(d.required, 'required'), is_active: bool(d.is_active, 'is_active') };
+    for (const key of ['id', 'kind', 'title', 'category', 'standard', 'status', 'revision', 'received_date', 'file_id', 'notes', 'na_reason'])
+        out[key] = string(d[key], key, '');
+    c.document = out as DocumentInput;
+} if (r.submission != null) {
+    const s = object(r.submission, ['reference', 'date', 'target_date', 'authority', 'file_id']), out: Record<string, string> = {};
+    for (const key of ['reference', 'date', 'target_date', 'authority', 'file_id'])
+        out[key] = string(s[key], key, '');
+    c.submission = out as SubmissionInput;
+} if (r.approval != null) {
+    const a = object(r.approval, ['status', 'reference', 'date', 'approver_name', 'approver_designation', 'file_id', 'closure_file_id', 'remarks']), out: Record<string, string> = {};
+    for (const key of ['status', 'reference', 'date', 'approver_name', 'approver_designation', 'file_id', 'closure_file_id', 'remarks'])
+        out[key] = string(a[key], key, '');
+    c.approval = out as ApprovalInput;
+} return c; }

@@ -11,10 +11,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
+	eventsout "github.com/ranakdinesh/epcERP/internal/modules/event_delivery/adapters/outbound"
+	eventsapp "github.com/ranakdinesh/epcERP/internal/modules/event_delivery/application"
+	events "github.com/ranakdinesh/epcERP/internal/modules/event_delivery/contracts"
+	accounts "github.com/ranakdinesh/epcERP/internal/modules/finance_accounts_acceptance"
+	tasks "github.com/ranakdinesh/epcERP/internal/modules/personal_tasks"
 	access "github.com/ranakdinesh/epcERP/internal/modules/project_access"
 	gateout "github.com/ranakdinesh/epcERP/internal/modules/project_access/adapters/outbound"
 	gatedomain "github.com/ranakdinesh/epcERP/internal/modules/project_access/domain"
 	budgets "github.com/ranakdinesh/epcERP/internal/modules/project_budgets"
+	items "github.com/ranakdinesh/epcERP/internal/modules/project_items"
 	domain "github.com/ranakdinesh/epcERP/internal/modules/purchase_fms/domain"
 	"mime"
 	"mime/multipart"
@@ -29,6 +35,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 type resolver struct {
@@ -99,11 +106,35 @@ func main() {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"fingerprint": fmt.Sprintf("%x", sha256.Sum256(data))})
 		return
 	}
+	if v.Operation == "progress_build" {
+		var input struct {
+			Source domain.ProgressSource
+			At     time.Time
+		}
+		if e = json.Unmarshal(v.Body, &input); e != nil {
+			panic(e)
+		}
+		result, err := domain.ProgressBuild(input.Source, input.At)
+		if err != nil {
+			_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"error": err.Error()})
+		} else {
+			_ = json.NewEncoder(os.Stdout).Encode(result)
+		}
+		return
+	}
+
 	r := chi.NewRouter()
 	budgets.New(r, p, resolver{p, v.Actor})
-	if _, e = composition.New(r, p, resolver{p, v.Actor}); e != nil {
+	purchase, e := composition.New(r, p, resolver{p, v.Actor})
+	if e != nil {
 		panic(e)
 	}
+	items.New(items.Dependencies{Router: r, Database: p, Identity: resolver{p, v.Actor}, Providers: purchase.ProjectItems, Events: func(c database.Connection) events.Writer { return eventsapp.NewRecorder(eventsout.NewJournal(c)) }})
+	accounts.New(accounts.Dependencies{Router: r, Database: p, Identity: resolver{p, v.Actor}, Providers: purchase.Accounts, Events: func(c database.Connection) events.Writer { return eventsapp.NewRecorder(eventsout.NewJournal(c)) }})
+	if err := tasks.New(tasks.Dependencies{Router: r, Database: p, Identity: resolver{p, v.Actor}, Users: purchase.TaskProviders.Users, Quotations: purchase.TaskProviders.Quotations, Workflow: purchase.TaskProviders.Workflow}); err != nil {
+		panic(err)
+	}
+
 	req := httptest.NewRequest(v.Method, "/api/v1"+v.Path, strings.NewReader(string(v.Body)))
 	req.Header.Set("Authorization", "Bearer synthetic")
 	req.Header.Set("Content-Type", "application/json")

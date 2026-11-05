@@ -1,21 +1,70 @@
-import { invalid,object,string,trim,uuid,version,isoDate } from '../core/validation';
+import { invalid, object, string, trim, uuid, version, isoDate } from '../core/validation';
 import { amount } from '../core/rational';
-import type { QuoteInput,LineInput } from './types';
-const text=(value:unknown,field:string,min:number,max:number)=>{const s=trim(string(value,field,''));if([...s].length<min||[...s].length>max)invalid(field,'Record '+field+' within the permitted length');return s;};
-export function input(raw:Record<string,unknown>){
-    const b=object(raw,['version','reason','quote']),q=object(b.quote,['document_id','amount_mode','total_amount','reference','attachment_id','evidence_reference','document_not_provided','no_document_reason','received_date','valid_until','currency','freight','other_charges','delivery_days','delivery_terms','payment_terms','lines']);
-    if(q.document_not_provided!==undefined&&typeof q.document_not_provided!=='boolean')invalid('document_not_provided','Use true or false');
-    const quote:QuoteInput={document_id:uuid(q.document_id),amount_mode:string(q.amount_mode,'amount_mode','')||'itemized',total_amount:q.total_amount==null?null:string(q.total_amount,'total_amount'),reference:text(q.reference,'reference',1,128),attachment_id:q.attachment_id==null?null:uuid(q.attachment_id),evidence_reference:text(q.evidence_reference,'evidence_reference',0,500),document_not_provided:q.document_not_provided===true,no_document_reason:text(q.no_document_reason,'no_document_reason',0,2000),received_date:string(q.received_date,'received_date',''),valid_until:string(q.valid_until,'valid_until',''),currency:string(q.currency,'currency',''),freight:string(q.freight,'freight',''),other_charges:string(q.other_charges,'other_charges',''),delivery_days:version(q.delivery_days??0,'delivery_days'),delivery_terms:text(q.delivery_terms,'delivery_terms',1,2000),payment_terms:text(q.payment_terms,'payment_terms',1,2000),lines:[]};
-    if(!isoDate(quote.received_date)||!isoDate(quote.valid_until))invalid('received_date','Use valid quotation receipt and expiry dates');if(!/^[A-Z]{3}$/.test(quote.currency))invalid('currency','Use a three-letter uppercase currency');if(quote.delivery_days>3650)invalid('delivery_days','Delivery days must be between zero and 3650');
-    if(!['itemized','total_only'].includes(quote.amount_mode))invalid('amount_mode','Choose item pricing or one overall quotation total');
-    if(quote.amount_mode==='total_only'){if(quote.total_amount===null)invalid('total_amount',"Enter the vendor's overall quotation total");if(amount(quote.total_amount,20,2).numerator<=BigInt(0))invalid('total_amount','Overall quotation total must be a positive amount');quote.freight='0';quote.other_charges='0';}else if(quote.total_amount!==null)invalid('total_amount','Overall total is only allowed for a total-only quotation');
-    if(!Array.isArray(q.lines)||!q.lines.length||q.lines.length>100)invalid('lines','Record from one to 100 quotation items');amount(quote.freight,14,2);amount(quote.other_charges,14,2);
-    for(const raw of q.lines){const l=object(raw,['line_id','unit_price','pricing_mode','line_total','coverage_type','warranty_months','discount_pct','tax_pct','compliant','notes']);const line:LineInput={line_id:uuid(l.line_id),unit_price:l.unit_price==null?null:string(l.unit_price,'unit_price'),pricing_mode:string(l.pricing_mode,'pricing_mode',''),line_total:l.line_total==null?null:string(l.line_total,'line_total'),coverage_type:string(l.coverage_type,'coverage_type',''),warranty_months:l.warranty_months==null?null:version(l.warranty_months,'warranty_months'),discount_pct:string(l.discount_pct,'discount_pct',''),tax_pct:string(l.tax_pct,'tax_pct',''),compliant:l.compliant===true,notes:string(l.notes,'notes','')};
-        if(l.compliant!==undefined&&typeof l.compliant!=='boolean')invalid('compliant','Use true or false');
-        if(quote.amount_mode==='total_only'){Object.assign(line,{unit_price:null,line_total:null,pricing_mode:'',coverage_type:'',warranty_months:null,discount_pct:'0',tax_pct:'0',compliant:false,notes:''});quote.lines.push(line);continue;}
-        if(line.warranty_months!==null&&![6,12,24,48].includes(line.warranty_months))invalid('warranty_months','Choose 6, 12, 24 or 48 months');line.pricing_mode||='unit_price';line.coverage_type||='warranty';if(!['warranty','guarantee','both'].includes(line.coverage_type))invalid('coverage_type','Choose warranty, guarantee or both');if(!['unit_price','line_total'].includes(line.pricing_mode))invalid('pricing_mode','Choose unit price or line total');
-        if(line.unit_price!==null)amount(line.unit_price,12,2);if(line.line_total!==null)amount(line.line_total,18,2);for(const raw of [line.discount_pct,line.tax_pct])if(amount(raw,3,2).compare(amount('100',3,2))>0)invalid('tax_pct','Discount and tax percentages must be from zero to 100');line.notes=text(line.notes,'notes',0,2000);quote.lines.push(line);
+import type { QuoteInput, LineInput } from './types';
+const text = (value: unknown, field: string, min: number, max: number) => { const s = trim(string(value, field, '')); if ([...s].length < min || [...s].length > max)
+    invalid(field, 'Record ' + field + ' within the permitted length'); return s; };
+export function input(raw: Record<string, unknown>) {
+    const b = object(raw, ['version', 'reason', 'quote']), q = object(b.quote, ['document_id', 'amount_mode', 'total_amount', 'reference', 'attachment_id', 'evidence_reference', 'document_not_provided', 'no_document_reason', 'received_date', 'valid_until', 'currency', 'freight', 'other_charges', 'delivery_days', 'delivery_terms', 'payment_terms', 'lines']);
+    if (q.document_not_provided !== undefined && typeof q.document_not_provided !== 'boolean')
+        invalid('document_not_provided', 'Use true or false');
+    const quote: QuoteInput = { document_id: uuid(q.document_id), amount_mode: string(q.amount_mode, 'amount_mode', '') || 'itemized', total_amount: q.total_amount == null ? null : string(q.total_amount, 'total_amount'), reference: text(q.reference, 'reference', 1, 128), attachment_id: q.attachment_id == null ? null : uuid(q.attachment_id), evidence_reference: text(q.evidence_reference, 'evidence_reference', 0, 500), document_not_provided: q.document_not_provided === true, no_document_reason: text(q.no_document_reason, 'no_document_reason', 0, 2000), received_date: string(q.received_date, 'received_date', ''), valid_until: string(q.valid_until, 'valid_until', ''), currency: string(q.currency, 'currency', ''), freight: string(q.freight, 'freight', ''), other_charges: string(q.other_charges, 'other_charges', ''), delivery_days: version(q.delivery_days ?? 0, 'delivery_days'), delivery_terms: text(q.delivery_terms, 'delivery_terms', 1, 2000), payment_terms: text(q.payment_terms, 'payment_terms', 1, 2000), lines: [] };
+    if (!isoDate(quote.received_date) || !isoDate(quote.valid_until))
+        invalid('received_date', 'Use valid quotation receipt and expiry dates');
+    if (!/^[A-Z]{3}$/.test(quote.currency))
+        invalid('currency', 'Use a three-letter uppercase currency');
+    if (quote.delivery_days > 3650)
+        invalid('delivery_days', 'Delivery days must be between zero and 3650');
+    if (!['itemized', 'total_only'].includes(quote.amount_mode))
+        invalid('amount_mode', 'Choose item pricing or one overall quotation total');
+    if (quote.amount_mode === 'total_only') {
+        if (quote.total_amount === null)
+            invalid('total_amount', "Enter the vendor's overall quotation total");
+        if (amount(quote.total_amount, 20, 2).numerator <= BigInt(0))
+            invalid('total_amount', 'Overall quotation total must be a positive amount');
+        quote.freight = '0';
+        quote.other_charges = '0';
     }
-    return{version:version(b.version??0),reason:text(b.reason,'reason',1,2000),quote};
+    else if (quote.total_amount !== null)
+        invalid('total_amount', 'Overall total is only allowed for a total-only quotation');
+    if (!Array.isArray(q.lines) || !q.lines.length || q.lines.length > 100)
+        invalid('lines', 'Record from one to 100 quotation items');
+    amount(quote.freight, 14, 2);
+    amount(quote.other_charges, 14, 2);
+    for (const raw of q.lines) {
+        const l = object(raw, ['line_id', 'unit_price', 'pricing_mode', 'line_total', 'coverage_type', 'warranty_months', 'discount_pct', 'tax_pct', 'compliant', 'notes']);
+        const line: LineInput = { line_id: uuid(l.line_id), unit_price: l.unit_price == null ? null : string(l.unit_price, 'unit_price'), pricing_mode: string(l.pricing_mode, 'pricing_mode', ''), line_total: l.line_total == null ? null : string(l.line_total, 'line_total'), coverage_type: string(l.coverage_type, 'coverage_type', ''), warranty_months: l.warranty_months == null ? null : version(l.warranty_months, 'warranty_months'), discount_pct: string(l.discount_pct, 'discount_pct', ''), tax_pct: string(l.tax_pct, 'tax_pct', ''), compliant: l.compliant === true, notes: string(l.notes, 'notes', '') };
+        if (l.compliant !== undefined && typeof l.compliant !== 'boolean')
+            invalid('compliant', 'Use true or false');
+        if (quote.amount_mode === 'total_only') {
+            Object.assign(line, { unit_price: null, line_total: null, pricing_mode: '', coverage_type: '', warranty_months: null, discount_pct: '0', tax_pct: '0', compliant: false, notes: '' });
+            quote.lines.push(line);
+            continue;
+        }
+        if (line.warranty_months !== null && ![6, 12, 24, 48].includes(line.warranty_months))
+            invalid('warranty_months', 'Choose 6, 12, 24 or 48 months');
+        line.pricing_mode ||= 'unit_price';
+        line.coverage_type ||= 'warranty';
+        if (!['warranty', 'guarantee', 'both'].includes(line.coverage_type))
+            invalid('coverage_type', 'Choose warranty, guarantee or both');
+        if (!['unit_price', 'line_total'].includes(line.pricing_mode))
+            invalid('pricing_mode', 'Choose unit price or line total');
+        if (line.unit_price !== null)
+            amount(line.unit_price, 12, 2);
+        if (line.line_total !== null)
+            amount(line.line_total, 18, 2);
+        for (const raw of [line.discount_pct, line.tax_pct])
+            if (amount(raw, 3, 2).compare(amount('100', 3, 2)) > 0)
+                invalid('tax_pct', 'Discount and tax percentages must be from zero to 100');
+        line.notes = text(line.notes, 'notes', 0, 2000);
+        quote.lines.push(line);
+    }
+    return { version: version(b.version ?? 0), reason: text(b.reason, 'reason', 1, 2000), quote };
 }
-export function normalizeMoney(raw:QuoteInput){const q=structuredClone(raw);for(const l of q.lines){l.tax_pct='18.00';if(l.unit_price!==null)l.unit_price=amount(l.unit_price,12,2).fixed();if(l.line_total!==null)l.line_total=amount(l.line_total,18,2).fixed();l.discount_pct=amount(l.discount_pct,3,2).fixed();}q.freight=amount(q.freight,18,2).fixed();q.other_charges=amount(q.other_charges,18,2).fixed();return q;}
+export function normalizeMoney(raw: QuoteInput) { const q = structuredClone(raw); for (const l of q.lines) {
+    l.tax_pct = '18.00';
+    if (l.unit_price !== null)
+        l.unit_price = amount(l.unit_price, 12, 2).fixed();
+    if (l.line_total !== null)
+        l.line_total = amount(l.line_total, 18, 2).fixed();
+    l.discount_pct = amount(l.discount_pct, 3, 2).fixed();
+} q.freight = amount(q.freight, 18, 2).fixed(); q.other_charges = amount(q.other_charges, 18, 2).fixed(); return q; }

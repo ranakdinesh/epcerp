@@ -1,14 +1,26 @@
 import { randomUUID } from 'node:crypto';
 import type { DB } from '../../db';
-import { timeSQL,timestamp } from '../../inbox/repository';
+import { timeSQL, timestamp } from '../../inbox/repository';
 import { journal } from '../core/journal';
 import { stale } from './policy';
 import { submission } from './fingerprint';
 import type { Record as Advance } from './types';
-const fields=`id,project_id,package_id,version,state,is_active,source_snapshot,data,created_by_id,updated_by_id,${timeSQL('created_at')} AS created_at,${timeSQL('updated_at')} AS updated_at`;
-const view=(r:Advance&{data:Advance}):Advance=>{const{data,...columns}=r;return{...data,...columns,created_at:timestamp(r.created_at)!,updated_at:timestamp(r.updated_at)!,created_by_id:r.created_by_id??'00000000-0000-0000-0000-000000000000',updated_by_id:r.updated_by_id??'00000000-0000-0000-0000-000000000000'};};
-export async function get(db:DB,p:string,id:string){const r=(await db.query(`SELECT ${fields} FROM purchase_advances WHERE project_id=$1 AND package_id=$2 FOR UPDATE`,[p,id])).rows[0];return r?view(r):null;}
-export async function save(db:DB,r:Advance){const submitted=r.submitted_version>0?submission(r):{snapshot:'',fingerprint:''};let result;try{result=r.version===1?await db.query(`INSERT INTO purchase_advances(id,project_id,package_id,order_id,order_version,version,state,source_snapshot,data,submitted_snapshot,source_fingerprint,decision_id,is_active,created_at,updated_at,created_by_id,updated_by_id)VALUES($1,$2,$3,$4,$5,1,$6,$7,$8,$9,$10,$11,true,$12,$12,$13,$13)RETURNING ${fields}`,[r.id,r.project_id,r.package_id,r.source_snapshot.order_id,r.source_snapshot.order_version,r.state,JSON.stringify(r.source_snapshot),JSON.stringify(r),submitted.snapshot,submitted.fingerprint,r.decision_id||null,r.created_at,r.created_by_id]):await db.query(`UPDATE purchase_advances SET version=version+1,state=$3,source_snapshot=$4,data=$5,submitted_snapshot=$6,source_fingerprint=$7,decision_id=$8,updated_at=$9,updated_by_id=$10 WHERE id=$1 AND version=$2 AND is_active RETURNING ${fields}`,[r.id,r.version-1,r.state,JSON.stringify(r.source_snapshot),JSON.stringify(r),submitted.snapshot,submitted.fingerprint,r.decision_id||null,r.updated_at,r.updated_by_id]);}catch(e){if((e as {code?:string}).code==='23505')throw stale();throw e;}if(!result.rowCount)throw stale();return view(result.rows[0]);}
-export async function history(db:DB,id:string){return(await db.query(`SELECT id,subject_id AS request_id,action,reason,before_snapshot AS before,after_snapshot AS after,${timeSQL('created_at')} AS at,created_by_id AS actor_id FROM purchase_advance_events WHERE subject_id=$1 ORDER BY created_at DESC,id DESC`,[id])).rows.map(r=>({...r,at:timestamp(r.at)!}));}
-export async function event(db:DB,before:Advance|null,after:Advance,action:string,reason:string,actor:string){const id=randomUUID();await db.query('INSERT INTO purchase_advance_events(id,subject_id,action,reason,before_snapshot,after_snapshot,created_at,created_by_id)VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,after.id,action,reason,JSON.stringify(before),JSON.stringify(after),after.updated_at,actor]);await journal(db,{id,module:'purchase_advances',type:'purchase_advance',entity:after.id,version:after.version,action,actor,project:after.project_id,at:after.updated_at});}
-export async function queue(db:DB,offset:number){return(await db.query(`SELECT ${fields} FROM purchase_advances WHERE state<>'draft' AND is_active ORDER BY updated_at DESC,id DESC LIMIT 50 OFFSET $1`,[offset])).rows.map(view);}
+const fields = `id,project_id,package_id,version,state,is_active,source_snapshot,data,created_by_id,updated_by_id,${timeSQL('created_at')} AS created_at,${timeSQL('updated_at')} AS updated_at`;
+const view = (r: Advance & {
+    data: Advance;
+}): Advance => { const { data, ...columns } = r; return { ...data, ...columns, created_at: timestamp(r.created_at)!, updated_at: timestamp(r.updated_at)!, created_by_id: r.created_by_id ?? '00000000-0000-0000-0000-000000000000', updated_by_id: r.updated_by_id ?? '00000000-0000-0000-0000-000000000000' }; };
+export async function get(db: DB, p: string, id: string) { const r = (await db.query(`SELECT ${fields} FROM purchase_advances WHERE project_id=$1 AND package_id=$2 FOR UPDATE`, [p, id])).rows[0]; return r ? view(r) : null; }
+export async function save(db: DB, r: Advance) { const submitted = r.submitted_version > 0 ? submission(r) : { snapshot: '', fingerprint: '' }; let result; try {
+    result = r.version === 1 ? await db.query(`INSERT INTO purchase_advances(id,project_id,package_id,order_id,order_version,version,state,source_snapshot,data,submitted_snapshot,source_fingerprint,decision_id,is_active,created_at,updated_at,created_by_id,updated_by_id)VALUES($1,$2,$3,$4,$5,1,$6,$7,$8,$9,$10,$11,true,$12,$12,$13,$13)RETURNING ${fields}`, [r.id, r.project_id, r.package_id, r.source_snapshot.order_id, r.source_snapshot.order_version, r.state, JSON.stringify(r.source_snapshot), JSON.stringify(r), submitted.snapshot, submitted.fingerprint, r.decision_id || null, r.created_at, r.created_by_id]) : await db.query(`UPDATE purchase_advances SET version=version+1,state=$3,source_snapshot=$4,data=$5,submitted_snapshot=$6,source_fingerprint=$7,decision_id=$8,updated_at=$9,updated_by_id=$10 WHERE id=$1 AND version=$2 AND is_active RETURNING ${fields}`, [r.id, r.version - 1, r.state, JSON.stringify(r.source_snapshot), JSON.stringify(r), submitted.snapshot, submitted.fingerprint, r.decision_id || null, r.updated_at, r.updated_by_id]);
+}
+catch (e) {
+    if ((e as {
+        code?: string;
+    }).code === '23505')
+        throw stale();
+    throw e;
+} if (!result.rowCount)
+    throw stale(); return view(result.rows[0]); }
+export async function history(db: DB, id: string) { return (await db.query(`SELECT id,subject_id AS request_id,action,reason,before_snapshot AS before,after_snapshot AS after,${timeSQL('created_at')} AS at,created_by_id AS actor_id FROM purchase_advance_events WHERE subject_id=$1 ORDER BY created_at DESC,id DESC`, [id])).rows.map(r => ({ ...r, at: timestamp(r.at)! })); }
+export async function event(db: DB, before: Advance | null, after: Advance, action: string, reason: string, actor: string) { const id = randomUUID(); await db.query('INSERT INTO purchase_advance_events(id,subject_id,action,reason,before_snapshot,after_snapshot,created_at,created_by_id)VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [id, after.id, action, reason, JSON.stringify(before), JSON.stringify(after), after.updated_at, actor]); await journal(db, { id, module: 'purchase_advances', type: 'purchase_advance', entity: after.id, version: after.version, action, actor, project: after.project_id, at: after.updated_at }); }
+export async function queue(db: DB, offset: number) { return (await db.query(`SELECT ${fields} FROM purchase_advances WHERE state<>'draft' AND is_active ORDER BY updated_at DESC,id DESC LIMIT 50 OFFSET $1`, [offset])).rows.map(view); }

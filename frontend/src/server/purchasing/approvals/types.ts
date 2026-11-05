@@ -1,16 +1,177 @@
-export type Item={id:string;sku:string;description:string;uom:string;manufacturer:string;engineering_key:string};
-export type CommercialPrice={discount_percent:string;tax_percent:string;pricing_mode:string;unit_price:string;base:string;discount:string;tax:string;allocated_charges:string};
-export type QuoteLine={coverage:string;months:number|null;notes:string;price:CommercialPrice;line_id:string;quantity:string;quoted:string;item:Item};
-export type ApprovalQuote={lowest:boolean;key:string;document_id:string;group_id:string;group_name:string;vendor_id:string;vendor:string;reference:string;total:string;revision:number;scope_revision:number;terms:string;valid_until:string;eligible:boolean;exclusions:string[];lines:QuoteLine[]};
-export type Verification={state:string;fingerprint:string;message:string};
-export type Budget={revision:number;currency:string;decision_id:string;allocations:{bo_id:string;line_id:string;amount:string}[]};
-export type Source={project_id:string;bo_id:string;currency:string;available:boolean;groups:{id:string;name:string;scope_revision:number}[];quotes:ApprovalQuote[];budget:Budget|null;verifications:Record<string,Verification>};
-export type ApprovalLine={price?:CommercialPrice;coverage?:string;months?:number;executive_item_note?:string;line_id:string;item:Item;quantity:string;budget?:string;quoted:string;difference?:string;decision:string|null;comment:string};
-export type Nomination={quote_key:string;best_price:boolean;preferred:boolean;best_price_comment:string;preferred_comment:string};
-export type Proposal=Nomination&{snapshot:Attempt};
-export type Attempt={budget_issue?:string;terms?:string;valid_until?:string;review_comment?:string;proposals?:Proposal[];return_action?:string;currency:string;id:string;quote_key:string;document_id:string;revision:number;group_id:string;group_name:string;vendor_id:string;vendor:string;reference:string;total:string;scope_revision:number;budget_revision:number;verification_fingerprint:string;lines:ApprovalLine[];state:string;effective_state?:string;message?:string;submitted_by_id:string;submitted_at:string;reason:string;reviewed_by_id:string|null;reviewed_at:string|null;decision_id:string|null};
-export type ApprovalRecord={project_id:string;bo_id:string;version:number;attempts:Attempt[];is_active:boolean;created_at:string;updated_at:string;created_by_id:string|null;updated_by_id:string|null};
-export type Decision={line_id:string;decision:string;comment:string};
-export type Command={proposals:Nomination[];selected_quote_key:string;return_action:string;version:number;reason:string;quote_key:string;attempt_id:string;decisions:Decision[]};
-export type Capabilities={read:boolean;submit:boolean;review_read:boolean;review:boolean;verify:boolean;budget_read:boolean;budget_write:boolean};
-export type Draft={is_active:boolean;project_id:string;bo_id:string;group_id:string;version:number;proposals:Nomination[];comment:string;updated_by:string;updated_at:string};
+export type Item = {
+    id: string;
+    sku: string;
+    description: string;
+    uom: string;
+    manufacturer: string;
+    engineering_key: string;
+};
+export type CommercialPrice = {
+    discount_percent: string;
+    tax_percent: string;
+    pricing_mode: string;
+    unit_price: string;
+    base: string;
+    discount: string;
+    tax: string;
+    allocated_charges: string;
+};
+export type QuoteLine = {
+    coverage: string;
+    months: number | null;
+    notes: string;
+    price: CommercialPrice;
+    line_id: string;
+    quantity: string;
+    quoted: string;
+    item: Item;
+};
+export type ApprovalQuote = {
+    lowest: boolean;
+    key: string;
+    document_id: string;
+    group_id: string;
+    group_name: string;
+    vendor_id: string;
+    vendor: string;
+    reference: string;
+    total: string;
+    revision: number;
+    scope_revision: number;
+    terms: string;
+    valid_until: string;
+    eligible: boolean;
+    exclusions: string[];
+    lines: QuoteLine[];
+};
+export type Verification = {
+    state: string;
+    fingerprint: string;
+    message: string;
+};
+export type Budget = {
+    revision: number;
+    currency: string;
+    decision_id: string;
+    allocations: {
+        bo_id: string;
+        line_id: string;
+        amount: string;
+    }[];
+};
+export type Source = {
+    project_id: string;
+    bo_id: string;
+    currency: string;
+    available: boolean;
+    groups: {
+        id: string;
+        name: string;
+        scope_revision: number;
+    }[];
+    quotes: ApprovalQuote[];
+    budget: Budget | null;
+    verifications: Record<string, Verification>;
+};
+export type ApprovalLine = {
+    price?: CommercialPrice;
+    coverage?: string;
+    months?: number;
+    executive_item_note?: string;
+    line_id: string;
+    item: Item;
+    quantity: string;
+    budget?: string;
+    quoted: string;
+    difference?: string;
+    decision: string | null;
+    comment: string;
+};
+export type Nomination = {
+    quote_key: string;
+    best_price: boolean;
+    preferred: boolean;
+    best_price_comment: string;
+    preferred_comment: string;
+};
+export type Proposal = Nomination & {
+    snapshot: Attempt;
+};
+export type Attempt = {
+    budget_issue?: string;
+    terms?: string;
+    valid_until?: string;
+    review_comment?: string;
+    proposals?: Proposal[];
+    return_action?: string;
+    currency: string;
+    id: string;
+    quote_key: string;
+    document_id: string;
+    revision: number;
+    group_id: string;
+    group_name: string;
+    vendor_id: string;
+    vendor: string;
+    reference: string;
+    total: string;
+    scope_revision: number;
+    budget_revision: number;
+    verification_fingerprint: string;
+    lines: ApprovalLine[];
+    state: string;
+    effective_state?: string;
+    message?: string;
+    submitted_by_id: string;
+    submitted_at: string;
+    reason: string;
+    reviewed_by_id: string | null;
+    reviewed_at: string | null;
+    decision_id: string | null;
+};
+export type ApprovalRecord = {
+    project_id: string;
+    bo_id: string;
+    version: number;
+    attempts: Attempt[];
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    created_by_id: string | null;
+    updated_by_id: string | null;
+};
+export type Decision = {
+    line_id: string;
+    decision: string;
+    comment: string;
+};
+export type Command = {
+    proposals: Nomination[];
+    selected_quote_key: string;
+    return_action: string;
+    version: number;
+    reason: string;
+    quote_key: string;
+    attempt_id: string;
+    decisions: Decision[];
+};
+export type Capabilities = {
+    read: boolean;
+    submit: boolean;
+    review_read: boolean;
+    review: boolean;
+    verify: boolean;
+    budget_read: boolean;
+    budget_write: boolean;
+};
+export type Draft = {
+    is_active: boolean;
+    project_id: string;
+    bo_id: string;
+    group_id: string;
+    version: number;
+    proposals: Nomination[];
+    comment: string;
+    updated_by: string;
+    updated_at: string;
+};

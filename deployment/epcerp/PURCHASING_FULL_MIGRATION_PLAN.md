@@ -9,13 +9,13 @@ Implementation order (all phases are required before claiming full completion):
 
 - [ ] Shared transaction/access/decimal contracts, workspace ownership, dashboard
       and progress over all purchasing stages.
-- [ ] BO preparation, register completion/reopen, requirement publication and PDF;
+- [x] BO preparation, register completion/reopen, requirement publication and PDF;
       formal indents, grouping, vendor documents, invitations/notifications and holds.
-- [ ] Quotations, encrypted attachments, tax/exact totals, comparisons/shortlists,
+- [x] Quotations, encrypted attachments, tax/exact totals, comparisons/shortlists,
       budget preview, Accounts approval queue/review, task/inbox correspondence.
-- [ ] Vendor awards, allocations, sourcing/LOI documents/review, technical approvals
+- [x] Vendor awards, allocations, sourcing/LOI documents/review, technical approvals
       and evidence uploads, client-stamped purchase orders and release/document paths.
-- [ ] Accounts acceptance, advances/disbursement, inspections/reports, quality and
+- [x] Accounts acceptance, advances/disbursement, inspections/reports, quality and
       client clearance, dispatch, site receipt, GRN, engineer confirmation and linked
       final Accounts evidence/progress.
 - [ ] Every registered purchasing route and dependent purchasing queue/document
@@ -34,18 +34,37 @@ Concurrent Tender/provider work is outside this feature's commits and must survi
 combined local deployment. Record exact tested commits, overlay hashes, image IDs,
 schema version and phase-specific versus combined verification separately.
 
-## Current implementation checkpoint
+## Implementation and verification
 
-Native services exist for shared purchasing scope/ownership, exact decimal/rational
-arithmetic, BO/material publication, formal indent transitions and source evidence,
-item/vendor grouping, holds, vendor indent documents/terms/dispatch records and
-quotation revisions/comparisons/encrypted evidence, Accounts shortlists/drafts/budget previews/decisions/queues and atomic inbox correspondence, and the shared twenty-stage package catalogue/assignments/blocker coordination, sourcing/RFQ/LOI release and allocation ledger, atomic approved-group award handoff, technical evidence uploads/reviews/client approvals and downstream technical clearance, exact-revision client-signed PO preparation/release, vendor acceptance, advance requests/Finance review/disbursement and Accounts advance queue, material inspection/witness-point clearance and revisions, issued IR/IRN with quantity limits, and verified quality certificate readiness/revocation. They are **not enabled in live
-routing yet**. PDF and complete downstream approvals/execution/progress remain required.
+Native Next.js services now cover the complete workflow: ownership/dashboard,
+BO and standalone material publication, formal indents, grouping, vendor documents,
+client make rules and holds; quotation evidence/comparisons/shortlists, budget
+preview and independent Accounts decisions; approved-group award allocations,
+reviewed encrypted vendor LOIs, technical evidence and client approvals; signed
+PO revision/release, vendor acknowledgement and independently reviewed advances;
+inspection/witness points, IR/IRN, verified quality certificates, MDCC, dispatch,
+site receipt, GRN/warranty, engineer confirmation and final Accounts handover.
 
-Twenty-eight synthetic compatibility checks currently pass using the original complete
-Go purchasing composition as the oracle. They verify bidirectional data and history,
-atomic publication/rollback, BO reopen/version handling, formal release limits,
-issued grouping/invitations, holds, frozen vendor terms/idempotent generation,
-print/dispatch notices, exact quotation calculations and encrypted-file interoperability. Financial scope is also compared with the original Go access gate, including explicit profile requirements and revocation for the PM. New checks cover native package creation/assignment/task-only views/captured resolver/Go resolution, frozen shortlist history, approved budget binding, Finance-only budget visibility, missing-Director rollback, and direct Go/native decision fingerprint equivalence. Sourcing checks cover proportional commercial evidence, cancellation/re-reservation and immutable release. Award checks cover exact linked indent/package/source snapshots and retry idempotence. Technical checks cover required evidence, independent review, stamped client approval with condition closure, and bidirectional Go/Next.js encrypted-object interoperability using a localhost-only in-memory fixture. PO/acceptance/advance checks also cover draft sign-off invalidation, per-revision signed files, fiscal numbering and rollback, immutable release/payment, exception blockers, explicit financial profiles/revocation and Go disbursement interoperability. Repeated quotation/PO downloads exposed an existing audit uniqueness bug; both writers now assign per-file audit event versions while retaining the existing schema/entity contracts and all historical evidence. Inspection/report/quality checks compare full source snapshots, history and action projections; pending witness points, over-quantity reports, obsolete final records, missing verification grants and expired certificates fail closed. Existing Go purchasing unit tests and scoped TypeScript/ESLint checks also pass.
-This is a checkpoint within the requested full migration, not a claim of completion
-or a Docker deployment. The existing local preview remains on its prior verified build.
+`frontend/src/server/purchasing/README.md` documents the capability boundaries.
+`paths.ts` and `http.ts` own the complete API surface. The single
+`EPCERP_PURCHASING_OWNER=nextjs` switch retires Go purchasing, project-material and
+final Accounts HTTP routes and upload guards; compatibility readers required by
+unmigrated internal consumers remain. Native failures never retry through Go.
+
+Synthetic feature checks run mutations through the native HTTP adapter and compare
+saved records, immutable history, source snapshots and action projections with the
+original Go composition. They cover exact quantities and prices, stale upstream
+revisions, scoped authority/revocation, separate Finance decisions, Director-notice
+rollback, encrypted-object interchange, LOI hashing/versioned reviews, multipart
+input, PDF exports, stage weights, complete BO coverage and workspace summaries.
+The private QA runner disables cloud/email delivery and uses a localhost-only
+in-memory object fixture. Go ownership retirement has separate unit verification.
+
+TypeScript, scoped ESLint, the frontend regression suite and a production Next.js
+build are also checked. Native BO/comparison/Finance/LOI PDFs have been rendered and
+visually inspected. No schema migration was introduced by purchasing.
+
+The final local cutover record will identify the frozen combined checkout, all
+included remote tips, concurrent Tender overlay hashes, matching image identities,
+verified backup, schema version and preservation checks. Local preview verification
+is separate from a reviewed merge to `main` or production deployment.

@@ -1,0 +1,47 @@
+{
+  "terms": [
+    "Price basis, delivery, payment and warranty are as recorded in the approved commercial terms above. Tax, discounts and freight are shown separately in the commercial schedule.",
+    "Materials and workmanship shall conform to the approved technical specifications and drawings. The vendor shall provide stamped / signed technical compliance acknowledgement.",
+    "Material shall be dispatched only after receiving the required written dispatch clearance. Inspection and testing shall follow the approved QAP and client requirements.",
+    "Any proposed deviation in quantity, make or specification shall be submitted for written approval before implementation.",
+    "The vendor shall indemnify Vishal Technopower Private Limited against claims or losses arising from defective supplies, technical non-compliance or legal violations related to the goods supplied.",
+    "Both parties shall maintain the confidentiality of proprietary and technical information exchanged in connection with the order.",
+    "Vishal Technopower Private Limited reserves the right to terminate for failure to meet agreed delivery, quality or contractual obligations with seven days' written notice. Recovery of advances and alternative procurement costs shall follow the agreed contract.",
+    "Disputes shall first be resolved amicably. Unresolved disputes shall be referred to arbitration under the Arbitration and Conciliation Act, 1996, with the venue at Ghaziabad, Uttar Pradesh.",
+    "The vendor shall comply with applicable statutory and regulatory requirements, including GST and environmental requirements.",
+    "This LOI is conditional on client technical approval. It is not manufacturing clearance or a released purchase order."
+  ],
+  "notes": [
+    "All materials shall comply with the approved technical specifications, BOQ descriptions and documents.",
+    "Submit applicable technical documents and QAP for the end client's review. Manufacturing clearance is separate from this LOI.",
+    "Applicable client / third-party inspection and dispatch clearance shall follow the approved documents and agreed inspection requirements.",
+    "Factory inspection does not replace final acceptance of materials received at site in good condition.",
+    "Any change in quantity, make or technical specification requires written approval."
+  ],
+  "documents": {
+    "general": [
+      "Technical datasheets / guaranteed technical particulars",
+      "Applicable GA drawings and technical calculations",
+      "Quality assurance plan and applicable test certificates"
+    ],
+    "cable": [
+      "Cable technical datasheets / guaranteed technical particulars",
+      "Quality assurance plan (QAP)",
+      "Applicable BIS certificate and acceptance / routine test reports",
+      "Test certificates for tests required by the approved QAP"
+    ],
+    "panel": [
+      "GA drawing, single-line diagram and bill of materials",
+      "Control wiring diagram and technical datasheets",
+      "QAP, test certificates and calibration certificates",
+      "Warranty certificate and other client-required inspection documents"
+    ],
+    "pole": [
+      "GA drawing, technical datasheet and foundation drawing",
+      "Structural and foundation design calculations",
+      "QAP and test certificates for pole material and accessories",
+      "Warranty letter and other relevant client-required certificates"
+    ]
+  },
+  "notice": "LOI is subject to approval of technical documents. Manufacturing clearance shall be provided only after approval of technical documents by the end client. Quantities are tentative and subject to the end client's confirmation."
+}
