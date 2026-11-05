@@ -1,1 +1,0 @@
-DROP TABLE auth_personal_contact_changes;

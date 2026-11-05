@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../../README.md). The Go backend is no longer in the working tree.
+
 # Project Team and Responsibilities
 
 Team management stays inside the Projects server module. `http.ts` owns only

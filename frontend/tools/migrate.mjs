@@ -1,6 +1,6 @@
 // Explicit operator CLI, never schema synchronization during application startup.
-import pg from 'pg';import{readdir,readFile}from'node:fs/promises';import{join}from'node:path';
-const roots=process.env.EPCERP_MIGRATION_ROOT?[process.env.EPCERP_MIGRATION_ROOT]:['../backend/sql/migrations','../backend/internal/modules/auth/sql/migrations','../backend/internal/modules/tender_fms/sql/migrations'];
+import pg from 'pg';import{readdir,readFile}from'node:fs/promises';import{join}from'node:path';import{fileURLToPath}from'node:url';
+const roots=process.env.EPCERP_MIGRATION_ROOT?[process.env.EPCERP_MIGRATION_ROOT]:[fileURLToPath(new URL('../migrations/',import.meta.url))];
 const files=new Map();for(const root of roots)for(const name of await readdir(root)){const m=/^(\d+)_.+\.up\.sql$/.exec(name);if(m){const version=Number(m[1]);if(files.has(version))throw Error('Duplicate migration version');files.set(version,join(root,name))}}
 const latest=Math.max(...files.keys());if(files.size!==latest||latest<101)throw Error('Incomplete owned migration history');
 const client=new pg.Client({connectionString:process.env.EPCERP_DATABASE_URL,connectionTimeoutMillis:10000,statement_timeout:30000});

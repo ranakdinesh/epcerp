@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { effectivePermissions, strongPassword, type User } from "../../src/server/auth/domain";
 import { hashPassword, issueAccess, validPHC, verifyAccess, verifyPassword } from "../../src/server/auth/security";
 import { openMail, sealMail } from "../../src/server/auth/mail";
@@ -11,7 +10,7 @@ import registry from "../../src/server/auth/permissions.json";
 
 process.env.VTPL_JWT_SECRET_KEY = "epcerp-synthetic-auth-compatibility-secret-only";
 process.env.EPCERP_IMAGE_ENCRYPTION_KEY = "11".repeat(32);
-const backend = fileURLToPath(new URL("../../../backend",import.meta.url));
+const backend = process.env.EPCERP_LEGACY_BACKEND;
 const fixturePath = process.env.EPCERP_AUTH_COMPATIBILITY_FILE;
 
 test("Go Argon2id/i passwords and JWTs survive migration in both directions", { skip: !fixturePath }, async () => {
@@ -25,7 +24,7 @@ test("Go Argon2id/i passwords and JWTs survive migration in both directions", { 
   const token = issueAccess(fixture.id,Math.floor(Date.now()/1000)+3600,0).token;
   assert.equal(openMail(Buffer.from(fixture.mail_payload,"base64"),fixture.mail_hash).toString(),"synthetic queued credential");
   const mail = sealMail(Buffer.from("synthetic queued credential"));
-  const result = spawnSync(process.env.EPCERP_AUTH_COMPATIBILITY_BINARY ?? "go", process.env.EPCERP_AUTH_COMPATIBILITY_BINARY ? ["verify"] : ["run","./tools/auth-compatibility","verify"], {
+  const result = spawnSync(process.env.EPCERP_AUTH_COMPATIBILITY_BINARY!, ["verify"], {
     cwd:backend,input:JSON.stringify({Token:token,Password:fixture.password,Hash:hash,Payload:mail.payload.toString("base64"),PayloadHash:mail.hash}),encoding:"utf8",
   });
   assert.equal(result.status,0,result.stderr);
@@ -71,8 +70,16 @@ test("request parsing bounds streamed bodies and rejects unknown authority field
   await assert.rejects(body(new Request("http://localhost",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:"forged"})}),["username"]));
   await assert.rejects(body(new Request("http://localhost",{method:"POST",headers:{"Content-Type":"application/json"},body:"x".repeat(20000)}),["username"]), {status:413});
 });
-test("transition permission registries agree with Go", () => {
+test("transition permission registries agree with the historical reference", {skip:!backend}, () => {
   const go = readFileSync(`${backend}/internal/modules/auth/application/permissions.go`,"utf8");
   const expected = [...go.matchAll(/\{Code: "([^"]+)", Description: "([^"]+)", Group: "([^"]+)"\}/g)].map(m=>({code:m[1],description:m[2],group:m[3]}));
   assert.deepEqual(registry,expected);
+});
+
+test('retained legacy Argon2id/i hashes and credential envelopes open without a Go runtime',async()=>{
+ const fixture=JSON.parse(readFileSync(new URL('../fixtures/legacy-auth.json',import.meta.url),'utf8'));
+ assert.equal(fixture.synthetic_only,true);
+ for(const hash of fixture.hashes){assert.equal(await verifyPassword(fixture.password,hash),true);assert.equal(await verifyPassword('incorrect',hash),false);}
+ assert.equal(openMail(Buffer.from(fixture.mail_payload,'base64'),fixture.mail_hash).toString(),'synthetic queued credential');
+ const codes=registry.map(p=>p.code);assert.equal(new Set(codes).size,codes.length);assert.ok(registry.every(p=>p.code&&p.description&&p.group));
 });

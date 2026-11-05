@@ -1,26 +1,20 @@
 # epcERP
 
-Next.js application and Node services for EPC operations.
+EPC operations application built with Next.js, TypeScript and PostgreSQL.
 
-- `frontend/src/server/`: native application modules, authentication, authorization and background orchestration.
-- `frontend/migrations/`: owned PostgreSQL migration history; explicit Node migration CLI at `frontend/tools/migrate.mjs`.
-- `frontend/tools/document-processor/`: private offline document validation, conversion and extraction helpers.
-- `deployment/epcerp/`: local Docker stack and operator tooling.
-- `backend/`: archived Go implementation and compatibility test oracles; Go application services are disabled by default under the `legacy-go` Compose profile.
+- `frontend/src/server/`: authentication, master data, tenders, projects, purchasing and platform services.
+- `frontend/migrations/`: the complete owned PostgreSQL migration history.
+- `frontend/tools/document-processor/`: private document validation, conversion and extraction helpers.
+- `deployment/epcerp/`: Docker configuration and operator tools.
 
-The complete local application now runs without the Go API or Go workers. See
-[the runtime migration record](deployment/epcerp/GO_RETIREMENT_VERIFICATION.md)
-and [native platform structure](frontend/src/server/platform/README.md).
+Start with [frontend setup](frontend/README.md) or [Docker setup](deployment/epcerp/README.md).
+The ERP has no Go application backend, Go worker or local-model service. PostgreSQL,
+MinIO object storage and ClamAV remain required infrastructure. MinIO's optional
+vendor-image build uses upstream Go source; no ERP Go source is kept in this tree.
 
-See each project's README for setup and verification. Local `.env` files,
-credentials, database snapshots, build outputs and dependencies stay outside Git.
+The removed implementation remains recoverable in Git history. Optional historical
+compatibility checks are documented in [the test guide](frontend/scripts/compatibility/README.md).
+Database volumes, documents, credentials and encryption keys are never Git cleanup targets.
 
-Default Compose selects native ownership for all application modules and disables
-Go fallback. Existing passwords, encryption keys and the PostgreSQL database are
-preserved. Earlier module migration guides remain as historical references; the
-runtime migration record above describes the current deployment.
-
-Native services use `EPCERP_DATABASE_URL` for the owned epcERP database. The local
-Docker database is exposed at `127.0.0.1:5439`; use the configured private
-credentials and preserve its volumes. Never point the migration CLI at another
-application's database. Loopback inside a container refers to that container.
+The reviewed release target is `main`; combined development work uses
+`codex/development`. [Migration/deployment records](deployment/epcerp/history/) are historical evidence.

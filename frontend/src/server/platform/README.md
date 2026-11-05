@@ -1,8 +1,8 @@
 # Native platform services
 
 All application request handling and queue orchestration runs in Next.js/Node.
-`backend-request.ts` dispatches platform and business routes in process. With
-`EPCERP_GO_DISABLED=true`, unowned routes return 404 and cannot fall back to Go.
+`backend-request.ts` dispatches platform and business routes in process. Unowned
+routes always return 404 and cannot make a network fallback.
 
 - `organisation.ts`: departments, reporting lines and team directory.
 - `inventory.ts`: live cross-module responsibilities used by offboarding.

@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../README.md). The Go backend is no longer in the working tree.
+
 # Native authentication and authorization
 
 This module owns credentials, sessions, account security, user administration,

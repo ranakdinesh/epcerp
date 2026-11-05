@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../README.md). The Go backend is no longer in the working tree.
+
 # Native Project Master
 
 `EPCERP_PROJECTS_OWNER=nextjs` owns Project Master list/detail, registration,

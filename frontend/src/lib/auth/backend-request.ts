@@ -1,8 +1,8 @@
 import "server-only";
+import "@/server/runtime";
 import { backendApiUrl } from "./backend-config";
 
-// Module ownership is explicit. Native services run in-process; unmigrated
-// resources use Go. Native failures never fall back to another writer.
+// All application services run in process. Unmapped routes never use a network fallback.
 export async function backendRequest(input: string | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(input);
   if (url.origin === new URL(backendApiUrl).origin) {
@@ -66,6 +66,5 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
       if(ownsMasterPath(path) && (!/^\/suppliers(?:\/|$)/.test(path) || ownsNativeSupplierPath(path))) return handleMaster(new Request(url,init));
     }
   }
-  if(process.env.EPCERP_GO_DISABLED === "true")return Response.json({detail:"Not found"},{status:404,headers:{"Cache-Control":"no-store"}});
-  return fetch(input,init);
+  return Response.json({detail:"Not found"},{status:404,headers:{"Cache-Control":"no-store"}});
 }

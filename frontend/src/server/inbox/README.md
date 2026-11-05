@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../README.md). The Go backend is no longer in the working tree.
+
 # Native personal Inbox
 
 `EPCERP_INBOX_OWNER=nextjs` selects native list/detail and read/acknowledgement

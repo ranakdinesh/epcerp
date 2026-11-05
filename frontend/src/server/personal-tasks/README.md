@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../README.md). The Go backend is no longer in the working tree.
+
 # Native Personal Tasks
 
 `EPCERP_PERSONAL_TASKS_OWNER=nextjs` selects the native `GET /my-tasks` dashboard.

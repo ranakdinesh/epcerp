@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../../README.md). The Go backend is no longer in the working tree.
+
 # Tender register ownership
 
 `EPCERP_TENDER_REGISTER_OWNER=nextjs` selects native named capture, register

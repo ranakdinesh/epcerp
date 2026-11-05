@@ -17,7 +17,7 @@ if [ ! -f .env ]; then
     } > .env
   )
 fi
-# Preserve this Go-only key across rebuilds so imported evidence remains readable.
+# Preserve this document encryption key across rebuilds so imported evidence remains readable.
 if ! grep -q '^EPCERP_SUPPLIER_DOCUMENT_KEY=' .env; then
   supplier_document_key=$(openssl rand -hex 32)
   umask 077

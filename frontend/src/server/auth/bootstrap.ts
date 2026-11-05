@@ -9,7 +9,7 @@ export async function initializeAuth() {
   config();
   await transaction(async db => {
     const [migration] = await rows<{ version: string; dirty: boolean }>(db, "SELECT version,dirty FROM public.schema_migrations");
-    if (!migration || migration.dirty || Number(migration.version) < 96) throw new Error("Apply the owned Go migrations before starting Next.js Auth");
+    if (!migration || migration.dirty || Number(migration.version) < 96) throw new Error("Apply the owned Node migrations before starting Next.js Auth");
     await lock(db,"auth.administration");
     for (const p of registry) await db.query("INSERT INTO auth.permissions(id,code,description) VALUES($1,$2,$3) ON CONFLICT(code) DO UPDATE SET description=EXCLUDED.description", [randomUUID(),p.code,p.description]);
     const [role] = await rows<{ id: string }>(db, "INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,'superadmin','Platform super administrator',true) ON CONFLICT(name) DO UPDATE SET name=roles.name RETURNING id", [randomUUID()]);

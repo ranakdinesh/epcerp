@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../README.md). The Go backend is no longer in the working tree.
+
 # Native TSC cloud/manual workflow
 
 This module owns the TSC workspace and native Tender intake. `EPCERP_TSC_OWNER=nextjs`

@@ -14,7 +14,6 @@ export VTPL_BOOTSTRAP_SUPERADMIN_USERNAME=superadmin VTPL_BOOTSTRAP_SUPERADMIN_E
 export EPCERP_TSC_CLOUD_APPROVED=true EPCERP_TSC_GEMINI_API_KEY=synthetic-test-key EPCERP_TSC_OPENAI_API_KEY=synthetic-test-key
 export EPCERP_TSC_GEMINI_TIER=paid EPCERP_TSC_USD_INR=95
 unset EPCERP_TSC_TEST_PROVIDER_URL EPCERP_TSC_TENDER_LIMIT_PAISE EPCERP_TSC_DAILY_LIMIT_PAISE
-cd "$root/backend"
-go run ./cmd/migrate up
+node tools/migrate.mjs up
 cd "$root/frontend"
 node --conditions=react-server --import tsx --test --test-concurrency=1 tests/server-tsc/*.test.ts

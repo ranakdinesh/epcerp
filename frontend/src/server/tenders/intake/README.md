@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../../README.md). The Go backend is no longer in the working tree.
+
 # Native Tender intake
 
 `EPCERP_TENDER_INTAKE_OWNER=nextjs` owns draft create/list/detail, batch retention,

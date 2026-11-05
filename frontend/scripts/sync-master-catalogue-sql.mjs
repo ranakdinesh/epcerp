@@ -1,13 +1,13 @@
-// Keep the native repositories on the reviewed SQL used by Go readers during migration.
+// Keep the native repositories on the native module's reviewed SQL.
 import fs from 'node:fs';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'../..');
 const registry={};
 for(const area of ['categories','manufacturers','templates','items','vendor_profile','vendor_documents','document_approval','vendor_verification','vendor_review_assignments']){
- const source=fs.readFileSync(path.join(root,`backend/internal/modules/master/adapters/sql/${area}.sql`),'utf8');
+ const source=fs.readFileSync(path.join(root,`frontend/src/server/master/catalogue/queries/${area}.sql`),'utf8');
  const queries={};
  for(const match of source.matchAll(/-- name: (\w+) :(\w+)\n([\s\S]*?)(?=-- name:|$)/g)){
-  // Storage relocation and aggregated task reads remain Go-owned.
+  // Historical relocation queries are not part of the active document service.
   if (["VendorDocumentsNextInline","VendorDocumentsRelocate","VendorDocumentsDocumentCreatedAt","DocumentTasksOwn"].includes(match[1])) continue;
   const keys=[];
   const named=key=>{if(!keys.includes(key))keys.push(key);return '$'+(keys.indexOf(key)+1);};

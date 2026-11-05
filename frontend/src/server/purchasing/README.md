@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../README.md). The Go backend is no longer in the working tree.
+
 # Purchasing server module
 
 This module owns the complete purchasing HTTP workflow in Next.js. The existing database, password hashes and encrypted object formats are retained. Set `EPCERP_PURCHASING_OWNER=nextjs` consistently on the frontend and every Go application writer. Native failures never fall back to Go. Go HTTP routes and upload guards are disabled by the same switch; transaction-bound readers needed by unmigrated consumers remain available.

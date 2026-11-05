@@ -1,3 +1,5 @@
+> Historical migration notes. Current runtime and setup: [frontend README](../../../../README.md). The Go backend is no longer in the working tree.
+
 # Project budgets
 
 This capability lives within the Projects server module. `http.ts` owns

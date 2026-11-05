@@ -9,13 +9,18 @@
     "lint": "eslint",
     "test:control": "node --test tests/project-control.test.mjs",
     "test:delivery": "node --test tests/delivery-plan.test.mjs",
-    "test:isolation": "node --test tests/go-isolation.test.mjs",
+    "test:isolation": "node --test tests/native-isolation.test.mjs",
     "test": "node --test tests/*.test.mjs",
     "prebuild": "node scripts/prepare-pdf-viewer.mjs",
     "predev": "node scripts/prepare-pdf-viewer.mjs",
     "test:auth": "node --conditions=react-server --import tsx --test tests/server-auth/*.test.ts",
     "test:master": "node --conditions=react-server --import tsx --test tests/server-master/*.test.ts",
-    "test:tsc": "bash scripts/verify-tsc.sh"
+    "test:tsc": "bash scripts/verify-tsc.sh",
+    "migrate": "node tools/migrate.mjs up",
+    "typecheck": "tsc --noEmit",
+    "test:native": "bash scripts/verify-native.sh",
+    "sync:catalogue": "node scripts/sync-master-catalogue-sql.mjs",
+    "sync:template": "node scripts/sync-tender-format-template.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1161.0",
