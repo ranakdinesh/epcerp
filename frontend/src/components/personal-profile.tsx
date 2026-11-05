@@ -19,7 +19,7 @@ export function PersonalProfileProvider({ children }: { children: ReactNode }) {
  const pending = useRef(new Map<string, Promise<void>>());
  const load = useCallback((id: string) => {
   if (!pending.current.has(id)) pending.current.set(id, fetch(`/api/auth/user_profile/${encodeURIComponent(id)}`).then(async r => {
-   if (r.ok) { const p = await r.json() as Profile; setProfiles(v => ({ ...v, [id]: p })); }
+   if (r.ok) { const p = await r.json() as Profile; setProfiles(v => v[id] && v[id].version > p.version ? v : ({ ...v, [id]: { ...p, contact: p.contact ?? v[id]?.contact } })); }
   }).catch(() => { pending.current.delete(id); }));
   return pending.current.get(id)!;
  }, []);
@@ -51,7 +51,8 @@ async function result(r: Response, form?: HTMLFormElement) {
  return body as Profile;
 }
 export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "password"; close: () => void }) {
- const user = useAuthenticatedUser(); const profile = useProfile(user.id);
+ const user = useAuthenticatedUser();
+ const [profile, setProfile] = useState<Profile>();
  const store = useContext(ProfileContext)!; const router = useRouter();
  const dialog = useRef<HTMLDialogElement>(null);
  const upload = useRef<HTMLInputElement>(null);
@@ -64,13 +65,13 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
  const save = store.save;
  useEffect(() => {
   let active = true;
-  fetch("/api/auth/user_profile/me").then(r => result(r)).then(p => { if (active) { save(p); setReady(true); } }).catch(() => { if (active) setError("Unable to load your profile. Close and reopen to retry."); });
+  fetch("/api/auth/user_profile/me").then(r => result(r)).then(p => { if (active) { save(p); setProfile(p); setReady(true); } }).catch(() => { if (active) setError("Unable to load your profile. Close and reopen to retry."); });
   return () => { active = false; };
  }, [save]);
  useEffect(() => { const overflow = document.body.style.overflow; const element = dialog.current; element?.showModal(); document.body.style.overflow = "hidden"; return () => { element?.close(); document.body.style.overflow = overflow; }; }, []);
  async function run(work: () => Promise<void>) { if (busy) return; setBusy(true); setNotice(""); setError(""); try { await work(); } catch(e) { setError(e instanceof Error ? e.message : "Unable to save changes."); } finally { setBusy(false); } }
  async function details(e: FormEvent<HTMLFormElement>) { e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); await run(async () => {
-  store.save(await result(await fetch("/api/auth/user_profile/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: data.get("display_name"), contact: { first_name: String(data.get("first_name")).trim(), last_name: String(data.get("last_name")).trim(), mobile: String(data.get("mobile")).trim() }, expected_contact: profile?.contact, version: profile?.version }) }), form)); setNotice("Your personal details have been saved."); router.refresh();
+  const saved = await result(await fetch("/api/auth/user_profile/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: data.get("display_name"), contact: { first_name: String(data.get("first_name")).trim(), last_name: String(data.get("last_name")).trim(), mobile: String(data.get("mobile")).trim() }, expected_contact: profile?.contact, version: profile?.version }) }), form); store.save(saved); setProfile(saved); setNotice("Your personal details have been saved."); router.refresh();
  }); }
  async function security(e: FormEvent<HTMLFormElement>, password: boolean) { e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); if (password && data.get("password") !== data.get("confirmation")) { setConfirmationError("Passwords do not match."); form.querySelector<HTMLInputElement>('[name="confirmation"]')?.focus(); return; } await run(async () => {
   await result(await fetch(password ? "/api/auth/me/password" : "/api/auth/me/email", { method: password ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(password ? { current_password: data.get("current_password"), password: data.get("password") } : { current_password: data.get("current_password"), email: data.get("email") }) }), form);
@@ -82,7 +83,8 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
    setPhotoStage(file ? "Preparing photo…" : "Removing photo…");
    const prepared = file ? await prepareProfilePhoto(file) : undefined;
    if (prepared) setPhotoStage("Uploading photo…");
-   store.save(await result(await fetch("/api/auth/user_profile/me/photo", prepared ? { method: "PUT", headers: { "Content-Type": prepared.type }, body: prepared } : { method: "DELETE" })));
+   const saved = await result(await fetch("/api/auth/user_profile/me/photo", prepared ? { method: "PUT", headers: { "Content-Type": prepared.type }, body: prepared } : { method: "DELETE" }));
+   store.save(saved); setProfile(saved);
    setNotice(file ? "Photo updated." : "Photo removed.");
   } finally { setPhotoStage(""); }
  }); }
@@ -122,8 +124,8 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
 }
 
 export function ProfileCompletionReminder(){
- const user=useAuthenticatedUser();const[open,setOpen]=useState(false);
- const missing=typeof user.first_name==="string"&&(!user.first_name||!user.last_name||!user.mobile);
- if(!missing)return null;
- return <><aside role="status" className="ui-notice--warning m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"><p>Your profile is missing contact details. Complete your name and mobile number when available.</p><button type="button" className={actionButtonClass("secondary")} onClick={()=>setOpen(true)}>Complete my profile</button></aside>{open&&<PersonalAccountDialog mode="profile" close={()=>setOpen(false)}/>}</>;
+ const user=useAuthenticatedUser();const profile=useProfile(user.id);const[open,setOpen]=useState(false);
+ const contact=profile?.contact ?? user;
+ const missing=typeof contact.first_name==="string"&&(!contact.first_name||!contact.last_name||!contact.mobile);
+ return <>{missing&&<aside role="status" className="ui-notice--warning m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"><p>Your profile is missing contact details. Complete your name and mobile number when available.</p><button type="button" className={actionButtonClass("secondary")} onClick={()=>setOpen(true)}>Complete my profile</button></aside>}{open&&<PersonalAccountDialog mode="profile" close={()=>setOpen(false)}/>}</>;
 }

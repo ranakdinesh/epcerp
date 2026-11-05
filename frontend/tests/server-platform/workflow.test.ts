@@ -104,6 +104,17 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             await call(handleProfile, '/auth/user_profile/me', 'PATCH', {
                 display_name: 'Stale', version: own.version, expected_contact: own.contact, contact: own.contact
             }, 409, staff);
+            const reloaded = await call(handleProfile, '/auth/user_profile/me', 'GET', undefined, 200, staff);
+            assert.equal(reloaded.contact.first_name, 'Updated');
+            assert.equal(reloaded.version, own.version + 1);
+            const updated = await call(handleProfile, '/auth/user_profile/me', 'PATCH', {
+                display_name: 'Tender staff', version: reloaded.version, expected_contact: reloaded.contact,
+                contact: { ...reloaded.contact, last_name: 'Persisted' }
+            }, 200, staff);
+            const reopened = await call(handleProfile, '/auth/user_profile/me', 'GET', undefined, 200, staff);
+            assert.deepEqual(reopened.contact, updated.contact);
+            assert.equal(reopened.contact.last_name, 'Persisted');
+            assert.equal(reopened.version, updated.version);
             const publicView = await call(handleProfile, '/auth/user_profile/' + user);
             assert.equal(publicView.display_name, 'Tender staff');
             assert.equal(publicView.contact, undefined);

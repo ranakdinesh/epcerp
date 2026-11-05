@@ -37,7 +37,7 @@ export async function handleProfile(r: Request) {
                 name = b.display_name.trim();
                 if (b.contact !== undefined) {
                     const c = contact(object(b.contact, ['first_name', 'last_name', 'mobile'])), expected = object(b.expected_contact, ['first_name', 'last_name', 'mobile']);
-                    if (b.version !== (row?.version ?? 0) || ['first_name', 'last_name', 'mobile'].some(k => u[k] !== expected[k]))
+                    if (b.version !== Number(row?.version ?? 0) || ['first_name', 'last_name', 'mobile'].some(k => u[k] !== expected[k]))
                         throw new AppError(409, 'Your profile changed. Close and reopen it before saving.');
                     const before = { first_name: u.first_name, last_name: u.last_name, mobile: u.mobile };
                     await db.query('UPDATE auth.users SET first_name=$2,last_name=$3,mobile=$4,updated_at=clock_timestamp(),updated_by_id=$1 WHERE id=$1', [target, c.first_name, c.last_name, c.mobile]);
