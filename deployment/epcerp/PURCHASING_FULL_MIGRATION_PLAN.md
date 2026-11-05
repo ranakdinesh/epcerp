@@ -39,13 +39,13 @@ schema version and phase-specific versus combined verification separately.
 Native services exist for shared purchasing scope/ownership, exact decimal/rational
 arithmetic, BO/material publication, formal indent transitions and source evidence,
 item/vendor grouping, holds, vendor indent documents/terms/dispatch records and
-quotation revisions/comparisons/encrypted evidence. They are **not enabled in live
+quotation revisions/comparisons/encrypted evidence, Accounts shortlists/drafts/budget previews/decisions/queues and atomic inbox correspondence, and the shared twenty-stage package catalogue/assignments/blocker coordination. They are **not enabled in live
 routing yet**. PDF and complete downstream approvals/execution/progress remain required.
 
-Eighteen synthetic compatibility checks currently pass using the original complete
+Twenty synthetic compatibility checks currently pass using the original complete
 Go purchasing composition as the oracle. They verify bidirectional data and history,
 atomic publication/rollback, BO reopen/version handling, formal release limits,
 issued grouping/invitations, holds, frozen vendor terms/idempotent generation,
-print/dispatch notices, exact quotation calculations and encrypted-file interoperability. Financial scope is also compared with the original Go access gate, including explicit profile requirements and revocation for the PM.
+print/dispatch notices, exact quotation calculations and encrypted-file interoperability. Financial scope is also compared with the original Go access gate, including explicit profile requirements and revocation for the PM. New checks cover native package creation/assignment/task-only views/captured resolver/Go resolution, frozen shortlist history, approved budget binding, Finance-only budget visibility, missing-Director rollback, and direct Go/native decision fingerprint equivalence.
 This is a checkpoint within the requested full migration, not a claim of completion
 or a Docker deployment. The existing local preview remains on its prior verified build.

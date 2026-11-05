@@ -4,14 +4,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ranakdinesh/epcERP/internal/infrastructure/database"
 	access "github.com/ranakdinesh/epcERP/internal/modules/project_access"
 	gateout "github.com/ranakdinesh/epcERP/internal/modules/project_access/adapters/outbound"
 	gatedomain "github.com/ranakdinesh/epcERP/internal/modules/project_access/domain"
+	budgets "github.com/ranakdinesh/epcERP/internal/modules/project_budgets"
+	domain "github.com/ranakdinesh/epcERP/internal/modules/purchase_fms/domain"
 	"mime"
 	"mime/multipart"
 	"net/textproto"
@@ -82,7 +86,20 @@ func main() {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"status": status, "can_write": result.CanWrite})
 		return
 	}
+	if v.Operation == "approval_fingerprint" {
+		var a domain.QuotationApprovalsAttempt
+		if e = json.Unmarshal(v.Body, &a); e != nil {
+			panic(e)
+		}
+		data, err := json.Marshal(a)
+		if err != nil {
+			panic(err)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"fingerprint": fmt.Sprintf("%x", sha256.Sum256(data))})
+		return
+	}
 	r := chi.NewRouter()
+	budgets.New(r, p, resolver{p, v.Actor})
 	if _, e = composition.New(r, p, resolver{p, v.Actor}); e != nil {
 		panic(e)
 	}
