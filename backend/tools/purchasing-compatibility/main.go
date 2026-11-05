@@ -56,6 +56,7 @@ func main() {
 		Binary                                                          bool
 		Write                                                           bool
 		Body                                                            json.RawMessage
+		Fields                                                          map[string]string
 	}
 	if e = json.NewDecoder(os.Stdin).Decode(&v); e != nil {
 		panic(e)
@@ -109,6 +110,11 @@ func main() {
 	if v.Operation == "upload" {
 		var buffer bytes.Buffer
 		writer := multipart.NewWriter(&buffer)
+		for name, value := range v.Fields {
+			if err := writer.WriteField(name, value); err != nil {
+				panic(err)
+			}
+		}
 		header := textproto.MIMEHeader{}
 		header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": "file", "filename": v.Name}))
 		header.Set("Content-Type", v.Mime)

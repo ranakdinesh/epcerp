@@ -1,0 +1,12 @@
+export type Source={supplier_name?:string;case_id:string;version:number;project_id:string;package_id:string;loi_reference:string;supplier_id:string;description:string;quantity:string;currency:string;total:string;financial_reference:string;released_date:string;project_available:boolean;blockers:string[]};
+export type Document={id:string;kind:string;title:string;category:string;standard:string;required:boolean;status:string;revision:string;received_date:string;file_id:string;notes:string;na_reason:string;is_active:boolean};
+export type File={id:string;case_id:string;purpose:string;name:string;media_type:string;size:number;sha256:string;is_active:boolean};
+export type Submission={revision:number;reference:string;date:string;target_date:string;authority:string;file_id:string;documents:Document[];submitted_by_id:string;submitted_at:string};
+export type TeamReview={revision:number;approved:boolean;remarks:string;reviewer_id:string;reviewed_at:string};
+export type Approval={revision:number;status:string;reference:string;date:string;approver_name:string;approver_designation:string;file_id:string;qap_approved:boolean;conditions_closed:boolean;closure_file_id:string;remarks:string;recorded_by_id:string;recorded_at:string};
+export type Case={id:string;project_id:string;package_id:string;source_snapshot:Source;version:number;revision:number;state:string;documents:Document[];submission:Submission|null;team_review:TeamReview|null;approval:Approval|null;is_active:boolean;created_at:string;updated_at:string;created_by_id:string;updated_by_id:string};
+export type Capabilities={read:boolean;write:boolean;approve:boolean;scoped:boolean;work:Record<number,boolean>};
+export type DocumentInput=Omit<Document,'required'|'is_active'>&{required:boolean|null;is_active:boolean|null};
+export type SubmissionInput=Pick<Submission,'reference'|'date'|'target_date'|'authority'|'file_id'>;
+export type ApprovalInput=Pick<Approval,'status'|'reference'|'date'|'approver_name'|'approver_designation'|'file_id'|'closure_file_id'|'remarks'>;
+export type Command={version:number;action:string;reason:string;document:DocumentInput|null;submission:SubmissionInput|null;approve:boolean|null;remarks:string;approval:ApprovalInput|null;qap_approved:boolean|null;conditions_closed:boolean|null};

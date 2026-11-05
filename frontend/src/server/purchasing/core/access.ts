@@ -23,7 +23,7 @@ export async function project(db: DB, target: string, lock = false): Promise<Pro
     return row as Project;
 }
 export async function scope(db: DB, user: Actor, project: Project, workspace: Workspace, permission: string, write: boolean, hold = false) {
-    if (!user.allows(permission) || !readable(user, project, workspace)) throw forbidden();
+    if (!user.allows('projects.purchase_workflow.view') || !user.allows('projects.purchase_workflow.read') || !user.allows(permission) || !readable(user, project, workspace)) throw forbidden();
     const canWrite = executable(user, project, workspace) && (hold ? project.is_active && project.lifecycle_status !== 'closed' : open(project));
     if (write) {
         if (!hold && !project.purchase_enabled) invalid('purchase_enabled', 'Purchase FMS is not enabled for this project');
