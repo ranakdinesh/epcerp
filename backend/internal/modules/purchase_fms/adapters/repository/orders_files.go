@@ -31,5 +31,9 @@ func (r *ordersRepository) FileEvent(ctx context.Context, e domain.OrdersFileEve
 	if err != nil {
 		return err
 	}
-	return r.j.Record(ctx, events.Event{ID: e.ID, Module: "purchase_orders", EntityType: "purchase_order_client_file", EntityID: e.FileID, EntityVersion: 1, Action: e.Action, ActorID: e.ActorID, ActorKind: "user", CorrelationID: e.ID, ScopeKind: "project", ScopeID: o.ProjectID.String(), Visibility: "restricted", OccurredAt: e.At}, nil)
+	version, err := r.q.OrdersClientFileEventVersion(ctx, dtos.UUID(e.FileID))
+	if err != nil {
+		return err
+	}
+	return r.j.Record(ctx, events.Event{ID: e.ID, Module: "purchase_orders", EntityType: "purchase_order_client_file", EntityID: e.FileID, EntityVersion: version, Action: e.Action, ActorID: e.ActorID, ActorKind: "user", CorrelationID: e.ID, ScopeKind: "project", ScopeID: o.ProjectID.String(), Visibility: "restricted", OccurredAt: e.At}, nil)
 }

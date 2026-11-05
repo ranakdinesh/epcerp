@@ -23,3 +23,6 @@ VALUES(@id,@order_id,@draft_revision,@name,@media_type,@byte_size,@sha256,@objec
 INSERT INTO purchase_order_client_file_events(id,file_id,order_id,action,created_at,created_by_id)VALUES(@id,@file_id,@order_id,@action,@at,@actor_id);
 -- name: OrdersGetByID :one
 SELECT * FROM purchase_orders WHERE id= @id;
+
+-- name: OrdersClientFileEventVersion :one
+SELECT count(*)::bigint FROM purchase_order_client_file_events WHERE file_id=$1;

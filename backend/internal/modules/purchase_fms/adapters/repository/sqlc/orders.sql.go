@@ -67,6 +67,17 @@ func (q *Queries) OrdersClientFileEvent(ctx context.Context, arg OrdersClientFil
 	return err
 }
 
+const ordersClientFileEventVersion = `-- name: OrdersClientFileEventVersion :one
+SELECT count(*)::bigint FROM purchase_order_client_file_events WHERE file_id=$1
+`
+
+func (q *Queries) OrdersClientFileEventVersion(ctx context.Context, fileID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, ordersClientFileEventVersion, fileID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const ordersDocumentEvent = `-- name: OrdersDocumentEvent :exec
 INSERT INTO purchase_order_document_events(id,order_id,order_version,created_at,created_by_id)VALUES($1,$2,$3,$4,$5)
 `

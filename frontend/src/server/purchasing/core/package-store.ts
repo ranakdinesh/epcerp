@@ -1,0 +1,17 @@
+import { randomUUID } from 'node:crypto';
+import type { DB } from '../../db';
+import { timestamp,timeSQL } from '../../inbox/repository';
+import { journal } from './journal';
+export type PackageRecord={id:string;project_id:string;package_id:string;version:number;is_active:boolean;created_at:string;updated_at:string;created_by_id:string;updated_by_id:string};
+// SQL plumbing only. Each capability owns its source guards, transitions and projections.
+export function packageStore<T extends PackageRecord>(c:{table:string;events:string;module:string;type:string;stale:()=>Error;columns:(r:T)=>Record<string,unknown>;decode?:(r:T,row:Record<string,unknown>)=>T}){
+    for(const name of[c.table,c.events])if(!/^purchase_[a-z_]+$/.test(name))throw new Error('Invalid purchase record table');
+    const view=(row:Record<string,unknown>):T=>{const r={...(row.data as T),id:row.id,project_id:row.project_id,package_id:row.package_id,version:row.version,is_active:row.is_active,created_at:timestamp(row.at_created as string)!,updated_at:timestamp(row.at_updated as string)!,created_by_id:row.created_by_id??'00000000-0000-0000-0000-000000000000',updated_by_id:row.updated_by_id??'00000000-0000-0000-0000-000000000000'}as T;return c.decode?c.decode(r,row):r;};
+    const fields=`*,${timeSQL('created_at')} AS at_created,${timeSQL('updated_at')} AS at_updated`;
+    return{
+        async get(db:DB,p:string,id:string){const row=(await db.query(`SELECT ${fields} FROM ${c.table} WHERE project_id=$1 AND package_id=$2 FOR UPDATE`,[p,id])).rows[0];return row?view(row):null;},
+        async save(db:DB,r:T){const columns=Object.entries(c.columns(r));for(const[k]of columns)if(!/^[a-z_]+$/.test(k))throw new Error('Invalid purchase record column');const values=[r.id,r.project_id,r.package_id,JSON.stringify(r),r.updated_at,r.updated_by_id,...columns.map(([,v])=>v&&typeof v==='object'?JSON.stringify(v):v)];let result;try{result=r.version===1?await db.query(`INSERT INTO ${c.table}(id,project_id,package_id,data,created_at,updated_at,created_by_id,updated_by_id,version${columns.map(([k])=>','+k).join('')})VALUES($1,$2,$3,$4,$5,$5,$6,$6,1${columns.map((_,i)=>',$'+(i+7)).join('')})RETURNING ${fields}`,values):await db.query(`UPDATE ${c.table} SET data=$4,updated_at=$5,updated_by_id=$6,version=version+1${columns.map(([k],i)=>','+k+'=$'+(i+7)).join('')} WHERE id=$1 AND project_id=$2 AND package_id=$3 AND version=$${values.length+1} AND is_active RETURNING ${fields}`,[...values,r.version-1]);}catch(e){if((e as{code?:string}).code==='23505')throw c.stale();throw e;}if(!result.rowCount)throw c.stale();return view(result.rows[0]);},
+        async history(db:DB,id:string){return(await db.query(`SELECT id,subject_id,action,reason,before_snapshot AS before,after_snapshot AS after,${timeSQL('created_at')} AS at,created_by_id AS actor_id FROM ${c.events} WHERE subject_id=$1 ORDER BY created_at DESC,id DESC`,[id])).rows.map(r=>({...r,at:timestamp(r.at)!}));},
+        async event(db:DB,before:T|null,after:T,action:string,reason:string,actor:string){const id=randomUUID();await db.query(`INSERT INTO ${c.events}(id,subject_id,action,reason,before_snapshot,after_snapshot,created_at,created_by_id)VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[id,after.id,action,reason,JSON.stringify(before),JSON.stringify(after),after.updated_at,actor]);await journal(db,{id,module:c.module,type:c.type,entity:after.id,version:after.version,action,actor,project:after.project_id,at:after.updated_at});},
+    };
+}

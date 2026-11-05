@@ -111,6 +111,7 @@ type Querier interface {
 	LOIReviewSave(ctx context.Context, arg LOIReviewSaveParams) error
 	OrdersClientFile(ctx context.Context, arg OrdersClientFileParams) (PurchaseOrderClientFile, error)
 	OrdersClientFileEvent(ctx context.Context, arg OrdersClientFileEventParams) error
+	OrdersClientFileEventVersion(ctx context.Context, fileID pgtype.UUID) (int64, error)
 	OrdersDocumentEvent(ctx context.Context, arg OrdersDocumentEventParams) error
 	OrdersEvent(ctx context.Context, arg OrdersEventParams) error
 	OrdersGetByID(ctx context.Context, id pgtype.UUID) (PurchaseOrder, error)
@@ -148,6 +149,7 @@ type Querier interface {
 	QuotationsAttachment(ctx context.Context, arg QuotationsAttachmentParams) (PurchaseQuotationAttachment, error)
 	QuotationsAttachments(ctx context.Context, documentID pgtype.UUID) ([]QuotationsAttachmentsRow, error)
 	QuotationsEvidenceEvent(ctx context.Context, arg QuotationsEvidenceEventParams) error
+	QuotationsEvidenceEventVersion(ctx context.Context, attachmentID pgtype.UUID) (int64, error)
 	QuotationsEvidenceScope(ctx context.Context, documentID pgtype.UUID) (QuotationsEvidenceScopeRow, error)
 	QuotationsGetRecord(ctx context.Context, arg QuotationsGetRecordParams) (PurchaseGroupQuotation, error)
 	QuotationsHistory(ctx context.Context, arg QuotationsHistoryParams) ([]PurchaseQuotationEvent, error)

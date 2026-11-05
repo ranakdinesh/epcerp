@@ -107,6 +107,17 @@ func (q *Queries) QuotationsEvidenceEvent(ctx context.Context, arg QuotationsEvi
 	return err
 }
 
+const quotationsEvidenceEventVersion = `-- name: QuotationsEvidenceEventVersion :one
+SELECT count(*)::bigint FROM purchase_quotation_evidence_events WHERE attachment_id=$1
+`
+
+func (q *Queries) QuotationsEvidenceEventVersion(ctx context.Context, attachmentID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, quotationsEvidenceEventVersion, attachmentID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const quotationsEvidenceScope = `-- name: QuotationsEvidenceScope :one
 SELECT project_id,bo_id FROM purchase_indent_documents WHERE id= $1
 `

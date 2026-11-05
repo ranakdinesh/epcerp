@@ -144,7 +144,7 @@ func main() {
 	}
 	var body any
 	if e = json.Unmarshal(w.Body.Bytes(), &body); e != nil {
-		panic(e)
+		body = w.Body.String()
 	}
 	if e = json.NewEncoder(os.Stdout).Encode(map[string]any{"status": w.Code, "body": body}); e != nil {
 		panic(e)

@@ -168,7 +168,11 @@ func (r *quotationsRepository) AttachmentEvent(ctx context.Context, v domain.Quo
 	if e != nil {
 		return e
 	}
-	return r.j.Record(ctx, events.Event{ID: id, Module: "group_quotations", EntityType: "purchase_quotation_attachment", EntityID: v.ID, EntityVersion: 1, Action: action, ActorID: a, ActorKind: "user", CorrelationID: id, ScopeKind: "project", ScopeID: scope.ProjectID.String(), Visibility: "restricted", OccurredAt: time.Now().UTC()}, nil)
+	version, e := r.q.QuotationsEvidenceEventVersion(ctx, dtos.UUID(v.ID))
+	if e != nil {
+		return e
+	}
+	return r.j.Record(ctx, events.Event{ID: id, Module: "group_quotations", EntityType: "purchase_quotation_attachment", EntityID: v.ID, EntityVersion: version, Action: action, ActorID: a, ActorKind: "user", CorrelationID: id, ScopeKind: "project", ScopeID: scope.ProjectID.String(), Visibility: "restricted", OccurredAt: time.Now().UTC()}, nil)
 }
 
 var _ ports.QuotationsRepository = (*quotationsRepository)(nil)

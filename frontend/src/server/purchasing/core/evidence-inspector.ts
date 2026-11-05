@@ -35,3 +35,7 @@ export async function inspectQuotation(name:string,mime:string,data:Buffer){
     else bad();
     try{const meta=await sharp(data,{limitInputPixels:40000000}).metadata();if(!meta.width||!meta.height||meta.width*meta.height>40000000||(mime==='image/png'&&meta.format!=='png')||(mime==='image/jpeg'&&meta.format!=='jpeg'))bad();}catch{return bad();}
 }
+export async function inspectTechnical(name:string,mime:string,data:Buffer){
+    try{if(!['application/pdf','image/png','image/jpeg'].includes(mime))throw new Error('Unsupported type');await inspectQuotation(name,mime,data);if(mime!=='application/pdf')await sharp(data,{limitInputPixels:40000000}).raw().toBuffer();}
+    catch{invalid('file','Upload a valid PDF, PNG or JPEG matching its filename and content type');}
+}

@@ -22,3 +22,6 @@ INSERT INTO purchase_quotation_attachments(id,document_id,filename,content_type,
 INSERT INTO purchase_quotation_evidence_events(id,attachment_id,action,created_by_id)VALUES(@id,@attachment_id,@action,@actor_id);
 -- name: QuotationsEvidenceScope :one
 SELECT project_id,bo_id FROM purchase_indent_documents WHERE id= @document_id;
+
+-- name: QuotationsEvidenceEventVersion :one
+SELECT count(*)::bigint FROM purchase_quotation_evidence_events WHERE attachment_id=$1;
