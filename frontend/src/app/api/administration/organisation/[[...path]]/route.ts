@@ -1,3 +1,4 @@
+import { hasSameOrigin } from '@/lib/auth/request-origin';
 import { proxyAuthenticatedRequest } from "@/lib/auth/backend-proxy";
 const methods = new Set(["GET", "POST", "PATCH"]);
 const id = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -5,6 +6,7 @@ const get = new RegExp(`^(departments|employees|team|team/${id}/work|offboarding
 const post = new RegExp(`^(departments|offboarding|offboarding/${id}/(plan|approve|refresh|cancel|complete))$`);
 const patch = new RegExp(`^(departments|employees)/${id}$`);
 async function proxy(request: Request, context: { params: Promise<{ path?: string[] }> }) {
+ if(request.method!=='GET'&&!hasSameOrigin(request))return Response.json({detail:'Same-origin request required'},{status:403});
  const params = await context.params;
  const path = params.path ?? [];
  // Reject decoded path separators and traversal before constructing an upstream URL.

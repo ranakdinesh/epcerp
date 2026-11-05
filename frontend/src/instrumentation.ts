@@ -1,4 +1,8 @@
 export async function register() {
+  if(process.env.NEXT_RUNTIME === 'nodejs' && process.env.EPCERP_PLATFORM_OWNER === 'nextjs') {
+    const {startVerification}=await import('./server/tenders/intake/verification');startVerification();
+    const {startMaintenance}=await import('./server/tenders/intake/maintenance');startMaintenance();
+  }
   if (process.env.NEXT_RUNTIME === "nodejs" && process.env.EPCERP_AUTH_OWNER === "nextjs") {
     const { initializeAuth } = await import("./server/auth/bootstrap");
     await initializeAuth();

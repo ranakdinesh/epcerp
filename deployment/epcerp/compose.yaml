@@ -78,6 +78,7 @@ services:
       retries: 30
 
   migrate:
+    profiles: [legacy-go]
     <<: *api
     command: ["/app/migrate", "up"]
     restart: "no"
@@ -86,6 +87,7 @@ services:
         condition: service_healthy
 
   api:
+    profiles: [legacy-go]
     <<: *api
     networks: [default, reading_internal]
     restart: unless-stopped
@@ -123,6 +125,7 @@ services:
       retries: 15
 
   document-worker:
+    profiles: [legacy-go]
     image: epcerp-document-worker:local
     build:
       context: ../../backend
@@ -182,6 +185,7 @@ services:
       retries: 15
 
   document-package-worker:
+    profiles: [legacy-go]
     image: epcerp-document-worker:local
     build:
       context: ../../backend
@@ -229,6 +233,7 @@ services:
       retries: 15
 
   tsc-worker:
+    profiles: [legacy-go]
     image: epcerp-api:local
     command: [/app/tsc-worker]
     restart: unless-stopped
@@ -274,6 +279,7 @@ services:
       retries: 15
 
   tsc-reranker:
+    profiles: [legacy-go]
     image: epcerp-tsc-reranker:local
     build:
       context: .
@@ -296,6 +302,45 @@ services:
       start_period: 30s
       retries: 12
 
+  schema:
+    image: epcerp-frontend:local
+    command: [node, /app/tools/migrate.mjs, up]
+    restart: "no"
+    environment:
+      EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      EPCERP_MIGRATION_ROOT: /app/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+
+  document-processor:
+    image: epcerp-document-processor:local
+    build:
+      context: ../../frontend
+      dockerfile: ../deployment/epcerp/processor.Dockerfile
+    restart: unless-stopped
+    init: true
+    read_only: true
+    networks: [reading_internal]
+    environment:
+      EPCERP_DOCUMENT_READING_KEY: ${EPCERP_DOCUMENT_READING_KEY:?Run setup.sh first}
+      EPCERP_CLAMD_SOCKET: tcp://clamav:3310
+    tmpfs:
+      - /tmp:size=768m,uid=10001,gid=10001,mode=0700
+    mem_limit: 2g
+    cpus: 1.0
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      clamav:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8082/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
   frontend:
     networks: [default, reading_internal]
     volumes:
@@ -306,7 +351,9 @@ services:
       dockerfile: ../deployment/epcerp/frontend.Dockerfile
     restart: unless-stopped
     environment:
-      EPCERP_API_URL: http://api:8001/api/v1
+      EPCERP_API_URL: http://127.0.0.1:1/api/v1
+      EPCERP_GO_DISABLED: "true"
+      EPCERP_PLATFORM_OWNER: nextjs
       EPCERP_ENVIRONMENT: development
       EPCERP_DEVELOPMENT_HTTP: "true"
       EPCERP_PROJECT_BUDGETS_OWNER: ${EPCERP_PROJECT_BUDGETS_OWNER:-nextjs}
@@ -324,7 +371,7 @@ services:
       EPCERP_TSC_GEMINI_API_KEY: ${EPCERP_TSC_GEMINI_API_KEY:-}
       EPCERP_TSC_OPENAI_API_KEY: ${EPCERP_TSC_OPENAI_API_KEY:-}
       EPCERP_DOCUMENT_PACKAGE_ROOT: /var/lib/epcerp/document-packages
-      EPCERP_TENDER_FORMAT_RENDER_URL: http://document-worker:8082
+      EPCERP_TENDER_FORMAT_RENDER_URL: http://document-processor:8082
       EPCERP_TSC_GEMINI_TIER: ${EPCERP_TSC_GEMINI_TIER:-paid}
       EPCERP_TSC_USD_INR: ${EPCERP_TSC_USD_INR:-95}
       EPCERP_TSC_FX_DATE: ${EPCERP_TSC_FX_DATE:-2026-11-04}
@@ -338,6 +385,7 @@ services:
       EPCERP_VENDOR_DOCUMENTS_OWNER: ${EPCERP_VENDOR_DOCUMENTS_OWNER:-nextjs}
       EPCERP_VENDOR_VERIFICATION_OWNER: ${EPCERP_VENDOR_VERIFICATION_OWNER:-nextjs}
       EPCERP_DATABASE_URL: postgresql://epcerp:${EPCERP_DB_PASSWORD:?Run setup.sh first}@db:5432/epcerp
+      VTPL_DOCUMENT_ENCRYPTION_KEY: ${VTPL_DOCUMENT_ENCRYPTION_KEY:-}
       VTPL_JWT_SECRET_KEY: ${EPCERP_JWT_SECRET:?Run setup.sh first}
       VTPL_JWT_ISSUER: epcERP
       VTPL_JWT_AUDIENCE: epcERP-api
@@ -359,7 +407,11 @@ services:
     ports:
       - "127.0.0.1:9092:3000"
     depends_on:
-      api:
+      schema:
+        condition: service_completed_successfully
+      document-processor:
+        condition: service_healthy
+      storage:
         condition: service_healthy
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/login?session=expired').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]

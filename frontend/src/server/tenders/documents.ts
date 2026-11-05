@@ -34,9 +34,9 @@ export async function originalDocuments(db: DB, snapshot: Snapshot, actor: strin
         if (!row || digest(row.reader_payload) !== row.reader_payload_sha256)
             throw Error('Retained source integrity failed');
         const data = decryptBytes(row.reader_payload, s.sha256);
-        if (data.length !== s.byte_size || data.subarray(0, 5).toString() !== '%PDF-')
+        if (data.length !== s.byte_size)
             throw Error('Retained source integrity failed');
-        result.push({ ...s, data });
+        if(s.kind!=='pdf'){const {officePDF}=await import('../platform/processor');const pdf=await officePDF(data,s.path);result.push({...s,data:pdf,kind:'pdf',byte_size:pdf.length});}else{if(data.subarray(0,5).toString()!=='%PDF-')throw Error('Invalid source PDF');result.push({ ...s, data });}
     }
     return result;
 }

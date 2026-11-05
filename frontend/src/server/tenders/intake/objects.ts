@@ -99,3 +99,5 @@ export async function readObject(key: string, size: number, hash: string) { cons
 finally {
     await input.close();
 } }
+
+export async function removeObject(key:string){const p=await path(key);try{await unlink(p.file);}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}}

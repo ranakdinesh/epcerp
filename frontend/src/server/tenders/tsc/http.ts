@@ -42,14 +42,7 @@ export async function handleTSC(request: Request): Promise<Response> {
         }
         if (!uuid.test(job ?? ''))
             return json({ detail: 'Not found' }, 404);
-        if (method === 'GET' && (!tail.length || ['document', 'evidence'].includes(tail[0])) && await isLegacy(token, draft, job)) {
-            // Explicit historical ownership, never an error fallback from a native operation.
-            const { backendApiUrl } = await import("@/lib/auth/backend-config");
-            const result = await fetch(backendApiUrl + path.replace(/^\/tender-fms/, "/tender-fms"), { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-            if (!tail.length && result.ok)
-                return json({ ...await result.json(), engine: 'go' });
-            return result;
-        }
+        if(await isLegacy(token,draft,job))return (await import('./legacy')).handleLegacy(request,draft,job,tail,token);
         if (!tail.length && method === 'GET')
             return json(await get(token, draft, job));
         if (tail[0] === 'history' && method === 'GET')

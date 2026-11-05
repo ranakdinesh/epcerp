@@ -1,0 +1,406 @@
+{
+  "000016_category_corrections.up.sql": {
+    "original": "backend/sql/migrations/000016_category_corrections.up.sql",
+    "sha256": "a2c3156e6755b1de22e1fda49953fd25a125d578e2c9f27f0e7c30716a30f00b"
+  },
+  "000033_project_purchase_enabled.up.sql": {
+    "original": "backend/sql/migrations/000033_project_purchase_enabled.up.sql",
+    "sha256": "b2beaf13e17db0a36aee94dcef857a9395b7d3b05999fc1416963cef66042680"
+  },
+  "000059_client_form_defaults.up.sql": {
+    "original": "backend/sql/migrations/000059_client_form_defaults.up.sql",
+    "sha256": "2014209a9bb9ae5b720c2d0d08e9da69e781fc62f0436405b9d846e0522ade43"
+  },
+  "000065_quotation_shortlist_drafts.up.sql": {
+    "original": "backend/sql/migrations/000065_quotation_shortlist_drafts.up.sql",
+    "sha256": "6d3dbd28fcf9f25ae7738ff96deab5e3bf1eecd989f2d8470cd9c1f57bc6f1c3"
+  },
+  "000062_quotation_shortlists.up.sql": {
+    "original": "backend/sql/migrations/000062_quotation_shortlists.up.sql",
+    "sha256": "cf0496a0b3c93a4c1858baa04ad6093032bc5252fb4270645e29101d9a92df92"
+  },
+  "000076_vendor_loi_documents.up.sql": {
+    "original": "backend/sql/migrations/000076_vendor_loi_documents.up.sql",
+    "sha256": "3fc9fe05ecfdc04b1284c98cef27c41df4ee0366d2eb57deaaeef602f1b0d94c"
+  },
+  "000029_project_material_requirements.up.sql": {
+    "original": "backend/sql/migrations/000029_project_material_requirements.up.sql",
+    "sha256": "0c0b828805abcb19bd494b1221c5c53e5c6c60de8e52e9b43a575484393d0b4e"
+  },
+  "000007_event_delivery.up.sql": {
+    "original": "backend/sql/migrations/000007_event_delivery.up.sql",
+    "sha256": "ef3eff37353f90dacfa5de05e060818108021d4450473676bf864432be6b46ff"
+  },
+  "000022_purchase_fms_workspace.up.sql": {
+    "original": "backend/sql/migrations/000022_purchase_fms_workspace.up.sql",
+    "sha256": "c2a6efa19dccbe76f6daf3ffac77a066a7a4ba5a02e6eb8300b4e98504959646"
+  },
+  "000086_document_packages.up.sql": {
+    "original": "backend/sql/migrations/000086_document_packages.up.sql",
+    "sha256": "161a794880e70b825c448f8904efa28f3648973045aba159c95ef9e37f87d4a7"
+  },
+  "000003_clients.up.sql": {
+    "original": "backend/sql/migrations/000003_clients.up.sql",
+    "sha256": "62b5fbf66420d7fefa93b735a6737aaa93ae78f53d4393943737630d59efe745"
+  },
+  "000038_project_budget_drafts.up.sql": {
+    "original": "backend/sql/migrations/000038_project_budget_drafts.up.sql",
+    "sha256": "b194ccb4dd7f57e9a067c1fba10ff9da38fb175a5f55e0d879f2f69a857b5e27"
+  },
+  "000055_purchase_grns.up.sql": {
+    "original": "backend/sql/migrations/000055_purchase_grns.up.sql",
+    "sha256": "983af95266af7f9829c488e16e19088fb09bbbb3747af69f93b3b03c5617e675"
+  },
+  "000028_client_purchase_rules.up.sql": {
+    "original": "backend/sql/migrations/000028_client_purchase_rules.up.sql",
+    "sha256": "660be6c67eb5c528c415e820857e3dd999c10b4eb1694b7c223778ac145d84d7"
+  },
+  "000015_category_units_and_creation.up.sql": {
+    "original": "backend/sql/migrations/000015_category_units_and_creation.up.sql",
+    "sha256": "6e22c31846c7c2da6fe8f7b99bbf33b2b7206fa1b61ac2157b6c3e5ae9b8a492"
+  },
+  "000053_purchase_dispatch.up.sql": {
+    "original": "backend/sql/migrations/000053_purchase_dispatch.up.sql",
+    "sha256": "8fc5f9d23eca05b1987658f7fbbe84ac6b49b2f06404df277f59bdb517de40f0"
+  },
+  "000020_catalogue_items.up.sql": {
+    "original": "backend/sql/migrations/000020_catalogue_items.up.sql",
+    "sha256": "1366b122de51f224b03f4a2f124f594259adb8e29d730ed6e46e19563a12df75"
+  },
+  "000036_group_quotations.up.sql": {
+    "original": "backend/sql/migrations/000036_group_quotations.up.sql",
+    "sha256": "eeb1dbef3621ffd70daf9b1e80c1ce736e190e9a12575c9e7956dde29834875d"
+  },
+  "000073_client_signed_purchase_orders.up.sql": {
+    "original": "backend/sql/migrations/000073_client_signed_purchase_orders.up.sql",
+    "sha256": "74260e1da56e46ce39568ac9c42206371e321994107d7fd35f56dd74be22826a"
+  },
+  "000043_purchase_work_packages.up.sql": {
+    "original": "backend/sql/migrations/000043_purchase_work_packages.up.sql",
+    "sha256": "814bb3199dbdca2247733f0f7da67ed9d952bf7c02e03596f4bb864c1ede68ab"
+  },
+  "000088_tender_assignment_notices.up.sql": {
+    "original": "backend/sql/migrations/000088_tender_assignment_notices.up.sql",
+    "sha256": "b32ea6ff192b6f6f9943cb6e75f5aebe1f8d7f70859a354a45d4fa06494febdd"
+  },
+  "000025_project_imports.up.sql": {
+    "original": "backend/sql/migrations/000025_project_imports.up.sql",
+    "sha256": "5c0862a0cb8a5538250d7ccccb80602b72aced128016a51923c461ae9172732e"
+  },
+  "000035_purchase_indent_documents.up.sql": {
+    "original": "backend/sql/migrations/000035_purchase_indent_documents.up.sql",
+    "sha256": "5d3ec6e18308682912f02d1a108de36440817191564c8f8ad78b7ccd1ffc728f"
+  },
+  "000046_purchase_orders.up.sql": {
+    "original": "backend/sql/migrations/000046_purchase_orders.up.sql",
+    "sha256": "b97a11b728544e47568c3d51fc3b565dbb52720e2d37393456a6e4ee7968adf2"
+  },
+  "000074_approved_vendor_awards.up.sql": {
+    "original": "backend/sql/migrations/000074_approved_vendor_awards.up.sql",
+    "sha256": "a0b077288f7303d733c0b9f3887a72e297b8bda8f9f8365897170cc0b9bb3654"
+  },
+  "000050_purchase_inspection_reports.up.sql": {
+    "original": "backend/sql/migrations/000050_purchase_inspection_reports.up.sql",
+    "sha256": "5e1af55bc5686b0475b674e0d411c6d2d08c1bf0affca0d4f2086951fe7f7e36"
+  },
+  "000008_project_identity.up.sql": {
+    "original": "backend/sql/migrations/000008_project_identity.up.sql",
+    "sha256": "32fc85368bc968e097993c33fbc10eb10026496d48573dfa01a94707850d4bb4"
+  },
+  "000023_project_capture.up.sql": {
+    "original": "backend/sql/migrations/000023_project_capture.up.sql",
+    "sha256": "3fe14fa068f13e91c98e9a5bd1a2b1c790cf25d5cc840a6d22f2a5079edd4a03"
+  },
+  "000068_supplier_review_assignments.up.sql": {
+    "original": "backend/sql/migrations/000068_supplier_review_assignments.up.sql",
+    "sha256": "785eec5a6ca250c6ac7d566584f907f9e3d330e4346b5b8d22adc99e42f3fa10"
+  },
+  "000056_purchase_engineer_confirmations.up.sql": {
+    "original": "backend/sql/migrations/000056_purchase_engineer_confirmations.up.sql",
+    "sha256": "f29b029b3e9cbdba4364bf1d7a672df3fee6b3459bd7b2b743230e509afe7a7b"
+  },
+  "000067_supplier_document_objects.up.sql": {
+    "original": "backend/sql/migrations/000067_supplier_document_objects.up.sql",
+    "sha256": "f726bd50338711fdfb82d3b24fb2cd92367eacb898c1ea69bf921935d11b137c"
+  },
+  "000014_category_catalogue.up.sql": {
+    "original": "backend/sql/migrations/000014_category_catalogue.up.sql",
+    "sha256": "f36ed2eb709f451cd4c19893aa43d911c416a4a946974c27014ca11295966af9"
+  },
+  "000069_supplier_document_approval_tasks.up.sql": {
+    "original": "backend/sql/migrations/000069_supplier_document_approval_tasks.up.sql",
+    "sha256": "2f38f23f062f815decd1cc07237c72e92a20d64e8b7afb1e8d3dd4b6799257f6"
+  },
+  "000045_purchase_technical.up.sql": {
+    "original": "backend/sql/migrations/000045_purchase_technical.up.sql",
+    "sha256": "ff3e3888c8a77c59d35f66c3d673c1f4c75a644a31bb4de18b0117dd984fd1e6"
+  },
+  "000032_purchase_indents.up.sql": {
+    "original": "backend/sql/migrations/000032_purchase_indents.up.sql",
+    "sha256": "24aa50ff7a587a3794dc71de30d20a2fc4c54823844918fcc3c227c1805c1262"
+  },
+  "000027_python_sku_policy.up.sql": {
+    "original": "backend/sql/migrations/000027_python_sku_policy.up.sql",
+    "sha256": "b0a5fabff77624ebb1006d4cf0fddc3383380c99e27a45a004f1931385db2d69"
+  },
+  "000054_purchase_site_receipts.up.sql": {
+    "original": "backend/sql/migrations/000054_purchase_site_receipts.up.sql",
+    "sha256": "f519b475c9dc6fd42a59e30c0fbcc23652134e41cdb3e6ca9da5c5666d065bc1"
+  },
+  "000034_purchase_indent_groups.up.sql": {
+    "original": "backend/sql/migrations/000034_purchase_indent_groups.up.sql",
+    "sha256": "00e3fe4293f07e6b77aee94e41ac70d7c65e5c0e11572d9494927d292f53b730"
+  },
+  "000012_suppliers.up.sql": {
+    "original": "backend/sql/migrations/000012_suppliers.up.sql",
+    "sha256": "d2dfc0b1b97f7c0e01e6a514d5abd2f3f9daa33e387198ce1e95a7758ddfda79"
+  },
+  "000011_client_contact_types.up.sql": {
+    "original": "backend/sql/migrations/000011_client_contact_types.up.sql",
+    "sha256": "5cc7a37e258cab87a16e6a6ff2130bc0498558362bdd1b0994c1df7e1db2764a"
+  },
+  "000013_supplier_workflow.up.sql": {
+    "original": "backend/sql/migrations/000013_supplier_workflow.up.sql",
+    "sha256": "246e9cc493e3869eee7b73c0fdde6d763cd4546e561d1b2090b63a76f41f7d42"
+  },
+  "000004_storage.up.sql": {
+    "original": "backend/sql/migrations/000004_storage.up.sql",
+    "sha256": "e164e360c29192e65e74f89287466e392d383684af160ecbee4f64e49085e747"
+  },
+  "000042_quotation_approvals.up.sql": {
+    "original": "backend/sql/migrations/000042_quotation_approvals.up.sql",
+    "sha256": "9cb7d0f72c8ea7f5efcf3c944a329f3e61bca21cd6b11904ec7dbc39fc1d20a6"
+  },
+  "000048_purchase_advances.up.sql": {
+    "original": "backend/sql/migrations/000048_purchase_advances.up.sql",
+    "sha256": "1cc04f6e84543d24d3799fdb2d772811374bd527052863cbad993c42ed14c5ad"
+  },
+  "000077_vendor_loi_reviews.up.sql": {
+    "original": "backend/sql/migrations/000077_vendor_loi_reviews.up.sql",
+    "sha256": "f3ce343a6387858159f958589906e271660872b2efb5a1b4673a19b909cc24c3"
+  },
+  "000031_purchase_holds.up.sql": {
+    "original": "backend/sql/migrations/000031_purchase_holds.up.sql",
+    "sha256": "253c752300fda4da61461ad58eefbc93a997e74bfb426e41a069d7e4b6f5ffd7"
+  },
+  "000063_quotation_work_notices.up.sql": {
+    "original": "backend/sql/migrations/000063_quotation_work_notices.up.sql",
+    "sha256": "1f829caf3d8f27a1d0a9523caea61b1d84b8003193155704c70351874d9b1c99"
+  },
+  "000070_finance_review_budget_binding.up.sql": {
+    "original": "backend/sql/migrations/000070_finance_review_budget_binding.up.sql",
+    "sha256": "bc7da8d9e73bab60661eee019bd4ffbd4ca1251cec58fdcff35719be5b98983d"
+  },
+  "000005_material_catalogue.up.sql": {
+    "original": "backend/sql/migrations/000005_material_catalogue.up.sql",
+    "sha256": "12756c20ae0c5c9921e66ab153f04100d2ec8f3a55f433d91c0983ea0893fd8c"
+  },
+  "000066_vendor_indent_terms.up.sql": {
+    "original": "backend/sql/migrations/000066_vendor_indent_terms.up.sql",
+    "sha256": "eaa39e45eb52ae8a97c017ff1a9c1df476326068fdadf4cc2bcaac7988a53879"
+  },
+  "000024_work_calendar.up.sql": {
+    "original": "backend/sql/migrations/000024_work_calendar.up.sql",
+    "sha256": "5b911ddad30de2b8b33dac2509a4c8e1bb2f250a68b980dc8d1349618e78c85a"
+  },
+  "000052_purchase_client_clearance.up.sql": {
+    "original": "backend/sql/migrations/000052_purchase_client_clearance.up.sql",
+    "sha256": "ef48b20316ade621b559aa91147f70966fbdc43febe8935e32a89d8bfe8584df"
+  },
+  "000030_purchase_bo.up.sql": {
+    "original": "backend/sql/migrations/000030_purchase_bo.up.sql",
+    "sha256": "c8a59dd3439897e3599ab5c62ba6bfff6bad2d7a2c48aa9962b7b02f67d3f0c1"
+  },
+  "000039_organisation_director.up.sql": {
+    "original": "backend/sql/migrations/000039_organisation_director.up.sql",
+    "sha256": "d8b15370d7679c97089e874eac560c66846de1add8c7bea227711400bc2da453"
+  },
+  "000006_manufacturers.up.sql": {
+    "original": "backend/sql/migrations/000006_manufacturers.up.sql",
+    "sha256": "735a242d503b0c299f24410372558de1e72fac7f44f038754d82a056c07ccacd"
+  },
+  "000037_project_responsibility_profiles.up.sql": {
+    "original": "backend/sql/migrations/000037_project_responsibility_profiles.up.sql",
+    "sha256": "3fc738396fbebcea92dc8a406756742298462f5ca9bfca2c7c60d0ca94cc9384"
+  },
+  "000075_technical_minio_objects.up.sql": {
+    "original": "backend/sql/migrations/000075_technical_minio_objects.up.sql",
+    "sha256": "f0fdb41bab768da8ed07c46769d2db4cbab17dcb60ee52651e787e406f6c5dfe"
+  },
+  "000061_quotation_invoice_total.up.sql": {
+    "original": "backend/sql/migrations/000061_quotation_invoice_total.up.sql",
+    "sha256": "aa633bd7fcbf9d9357b5d722f6492406b60c77404419fa4c09d3aab95493494e"
+  },
+  "000058_personal_purchase_tasks.up.sql": {
+    "original": "backend/sql/migrations/000058_personal_purchase_tasks.up.sql",
+    "sha256": "b765cff1f168a5cf03106c26b89ac25d96f39bad59a465486fb2176319348dbd"
+  },
+  "000040_communication_inbox.up.sql": {
+    "original": "backend/sql/migrations/000040_communication_inbox.up.sql",
+    "sha256": "038d07a10ebbefca9b4cb7a02cc4b6077ad50f695f596e42e2d39cc517c77aee"
+  },
+  "000002_client_references.up.sql": {
+    "original": "backend/sql/migrations/000002_client_references.up.sql",
+    "sha256": "440465439ab5a70678fbd0187d2437b6c75adb1285e6b43af0a03469ceac9252"
+  },
+  "000049_purchase_inspections.up.sql": {
+    "original": "backend/sql/migrations/000049_purchase_inspections.up.sql",
+    "sha256": "c683c88997dd24d3ca5093fc952dfe6a1383f53f84644bf13ea850847bbca034"
+  },
+  "000021_tender_document_reading.up.sql": {
+    "original": "backend/sql/migrations/000021_tender_document_reading.up.sql",
+    "sha256": "e5e686542a32c4635e9e12b7098dddc092fe7c59752b8ebde7af771529a0bf16"
+  },
+  "000047_purchase_acceptance.up.sql": {
+    "original": "backend/sql/migrations/000047_purchase_acceptance.up.sql",
+    "sha256": "f77c2b50072711ec5073b622af50e5c8c09b79b7610d1903264781b0cde46d27"
+  },
+  "000018_template_publications.up.sql": {
+    "original": "backend/sql/migrations/000018_template_publications.up.sql",
+    "sha256": "82361806893e1976ae93594e016fb9430674d902ea92aafeee078828fe6e31ee"
+  },
+  "000071_quotation_optional_item_notes.up.sql": {
+    "original": "backend/sql/migrations/000071_quotation_optional_item_notes.up.sql",
+    "sha256": "66138e09ba3395c9fba3b2681044262b5545b766b9cbef837e7b10bd02e828f7"
+  },
+  "000019_manufacturer_imports.up.sql": {
+    "original": "backend/sql/migrations/000019_manufacturer_imports.up.sql",
+    "sha256": "927627c572f5e9830418a82ec48485a1bde98466f14130fb83402bba22578109"
+  },
+  "000051_purchase_quality.up.sql": {
+    "original": "backend/sql/migrations/000051_purchase_quality.up.sql",
+    "sha256": "0364cd95904b9e3ae976ef6c7457fcfd36f776c80dc09d9a58dd2c3b88836d3c"
+  },
+  "000057_finance_accounts_acceptance.up.sql": {
+    "original": "backend/sql/migrations/000057_finance_accounts_acceptance.up.sql",
+    "sha256": "6a2c67608340cd4b89da48279d9d158bd4ed6eb106e083f9d27e0b6d6ba6d0f6"
+  },
+  "000026_project_metadata.up.sql": {
+    "original": "backend/sql/migrations/000026_project_metadata.up.sql",
+    "sha256": "b05f95889c59c5002596d752359fe669b9734e40129e252c647bc35ff3a6f57f"
+  },
+  "000017_configuration_templates.up.sql": {
+    "original": "backend/sql/migrations/000017_configuration_templates.up.sql",
+    "sha256": "a6c39d0b7bf8a39ff17cbe86b71a23f4c76b3eb53f0408e10ed81e3daf705d18"
+  },
+  "000041_finance_budget_approval.up.sql": {
+    "original": "backend/sql/migrations/000041_finance_budget_approval.up.sql",
+    "sha256": "e76bdecd7c4f31733b75734dda77e633ccd3966077d135ef52ca6d401fe425e9"
+  },
+  "000044_purchase_sourcing.up.sql": {
+    "original": "backend/sql/migrations/000044_purchase_sourcing.up.sql",
+    "sha256": "1e0d524a9ded03afb4b875971f6f129d3c95a86f19c3961132594b8c303903f6"
+  },
+  "000072_optional_quotation_item_budgets.up.sql": {
+    "original": "backend/sql/migrations/000072_optional_quotation_item_budgets.up.sql",
+    "sha256": "8a0d5b50e5d267782d3761ed9b84549fbdab06e2f1423bebc45368f33a03771f"
+  },
+  "000064_quotation_work_tasks.up.sql": {
+    "original": "backend/sql/migrations/000064_quotation_work_tasks.up.sql",
+    "sha256": "7e923acd5b257e7755dad64dfec84def75a26196d764f4a6d202f0c62d8b1c47"
+  },
+  "000084_auth_username_history.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000084_auth_username_history.up.sql",
+    "sha256": "0bf26b11e5ecfed8c1b9418c534e5c1857a8d80a07bc28bc0fb62507b15ed09a"
+  },
+  "000079_auth_credential_onboarding.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000079_auth_credential_onboarding.up.sql",
+    "sha256": "19e6fbc966bbbc09c36c29fc7d98fb3c23dbe6ff7fc2f9bad1432d63373edf97"
+  },
+  "000010_auth_user_profile.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000010_auth_user_profile.up.sql",
+    "sha256": "72c8dac78b42ee756540320c93b68f2ad2f21c90fde5fe7cf0df2cea1ec66d39"
+  },
+  "000078_auth_password_recovery.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000078_auth_password_recovery.up.sql",
+    "sha256": "29a48a7d9130de8fc772a683c7d31ec67f84004ec62dd357e0dbe61e388b4744"
+  },
+  "000081_auth_offboarding.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000081_auth_offboarding.up.sql",
+    "sha256": "8f56cf36590a70590349435f9fc411b099eb32950d13480a64d6ecea93541959"
+  },
+  "000001_auth.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000001_auth.up.sql",
+    "sha256": "100cf7eb1bf64665b75c687b9d043b09a145b2a038414f85e5ccfff1c26aa2f6"
+  },
+  "000080_auth_organisation.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000080_auth_organisation.up.sql",
+    "sha256": "cc30b3809755196303f67102692289a20991028a3f2730487bb14a7dfca5d624"
+  },
+  "000095_immediate_user_deactivation.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000095_immediate_user_deactivation.up.sql",
+    "sha256": "4b17cdc193f66a9f43bd642692ed3b28aae3a40c7c98699eb37d542fd5908a2b"
+  },
+  "000096_auth_security_completion.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000096_auth_security_completion.up.sql",
+    "sha256": "9a15ad6ce7bbe0c2d1a0be2cc13645b44adf4833b57aa45de2b73d80d92b2b7c"
+  },
+  "000089_auth_schema.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000089_auth_schema.up.sql",
+    "sha256": "95cfd145356c461ae7a19db67f41eabc7a468ecdb0f34fc3a0a309f057ec9d19"
+  },
+  "000009_profiles.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000009_profiles.up.sql",
+    "sha256": "b4e37679097bc37d14a08efa9a292d4fcc2894bccffc171bc0959555b108bb2b"
+  },
+  "000060_profile_image_objects.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000060_profile_image_objects.up.sql",
+    "sha256": "8001698f8d684d9a2eb9af71e6f0a11cd809ebcb17c7a612137e57137d697c3e"
+  },
+  "000083_auth_personal_contact.up.sql": {
+    "original": "backend/internal/modules/auth/sql/migrations/000083_auth_personal_contact.up.sql",
+    "sha256": "09c5f9de2ae9ca867baea57ca3393bb5dcf806a0f2e3cf933f336d13d6e84a1e"
+  },
+  "000100_tender_document_management.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000100_tender_document_management.up.sql",
+    "sha256": "5b3edcdf27aa866fb67944d50f9c26622a9b5274a14ccfb838ff340f291b8ded"
+  },
+  "000099_tsc_cloud_workspaces.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000099_tsc_cloud_workspaces.up.sql",
+    "sha256": "6647b27cccdfa89a3fc5bc1d90b3b9d64899f672274a82548332d77e69a5802d"
+  },
+  "000082_tender_owner_handover.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000082_tender_owner_handover.up.sql",
+    "sha256": "6f19686af00aed740c502057d621dc2a74d3a21135ef950c87e2d5674bc761dd"
+  },
+  "000091_document_drafts.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000091_document_drafts.up.sql",
+    "sha256": "62144da246ba7d2c165872583b0f1e99854e6b34df19e533677488ba6c2007d6"
+  },
+  "000085_named_tender_foundation.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000085_named_tender_foundation.up.sql",
+    "sha256": "69a2835ae8089daaadd7d2d6622b9fd10f697cdd9de03dc209c33cf61228914a"
+  },
+  "000094_tsc_local_mode.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000094_tsc_local_mode.up.sql",
+    "sha256": "1473ad198f8c5ad28690f44870f05d27994035b9e070f9ed816c0a029bd2fa97"
+  },
+  "000097_tsc_formats.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000097_tsc_formats.up.sql",
+    "sha256": "1f6575c0d63baf4851339f9043aaa4e2ea8e55087b5e000b2fc1d2aa2ddbc653"
+  },
+  "000092_tsc_drafts.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000092_tsc_drafts.up.sql",
+    "sha256": "23de5ca7b03dcd7607c2638ea207446406ab645a89daa932c11e32402216db8f"
+  },
+  "000101_tsc_alternative_providers.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000101_tsc_alternative_providers.up.sql",
+    "sha256": "8f7cf70c61dbc4627413b9c814db22df8035768135c9116b15b851fff8392a43"
+  },
+  "000093_tsc_cloud_budget.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000093_tsc_cloud_budget.up.sql",
+    "sha256": "0c24bedc914d6bbe69e0e7bf983ca987378426ab37afa17d4bfb6d70618a2051"
+  },
+  "000098_tsc_format_purpose.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000098_tsc_format_purpose.up.sql",
+    "sha256": "12bbdd213145d23d3e1b9e47f3c3bd4d35f67c8a0ce750c706eddfcf95b2b5f3"
+  },
+  "000087_tender_capture.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000087_tender_capture.up.sql",
+    "sha256": "23ed67a0a4783d620fffafda1e8acc21bba60bd37ef4ac576d7840eae6791c6b"
+  },
+  "000090_tender_schema.up.sql": {
+    "original": "backend/internal/modules/tender_fms/sql/migrations/000090_tender_schema.up.sql",
+    "sha256": "68f6c4298e65fd97cd3a95e6ffd729f33c8bc241faa91c9d6b148ec74e963637"
+  }
+}
