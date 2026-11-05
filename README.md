@@ -15,15 +15,12 @@ and [native platform structure](frontend/src/server/platform/README.md).
 See each project's README for setup and verification. Local `.env` files,
 credentials, database snapshots, build outputs and dependencies stay outside Git.
 
-Local Compose uses `EPCERP_AUTH_OWNER=nextjs` on both application services. Existing
-passwords and the PostgreSQL schema are preserved. See
-[`frontend/src/server/auth/README.md`](frontend/src/server/auth/README.md) for the
-migration boundary, compatibility, verification and explicit Go ownership rollback.
-Clients uses `EPCERP_CLIENTS_OWNER=nextjs` on both services. See the
-[Master Data guide](frontend/src/server/master/README.md) for its shared structure
-and the areas that remain Go-owned.
+Default Compose selects native ownership for all application modules and disables
+Go fallback. Existing passwords, encryption keys and the PostgreSQL database are
+preserved. Earlier module migration guides remain as historical references; the
+runtime migration record above describes the current deployment.
 
-For local native backend development, `backend/.env.local` selects the host
-PostgreSQL database at `127.0.0.1:5432/vtplerp`. Keep the password private.
-The Docker stack supplies its own database URL; loopback inside a container
-refers to that container, not the host.
+Native services use `EPCERP_DATABASE_URL` for the owned epcERP database. The local
+Docker database is exposed at `127.0.0.1:5439`; use the configured private
+credentials and preserve its volumes. Never point the migration CLI at another
+application's database. Loopback inside a container refers to that container.
