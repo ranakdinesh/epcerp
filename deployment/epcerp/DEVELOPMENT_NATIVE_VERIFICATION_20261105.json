@@ -1,0 +1,362 @@
+{
+  "source_application_commit": "72215c9788b40b79167c95bb4349ddff4e9cd939",
+  "schema_before_this_attempt": 101,
+  "initial_schema_before_release": 98,
+  "schema_after": 101,
+  "database_reset_or_restore": false,
+  "unchanged_existing_tables_after_migration": 192,
+  "startup_changed_tables": [
+    "auth.roles"
+  ],
+  "startup_role_change": "superadmin edit_version +2, one for each native frontend; all other role fields preserved",
+  "original_files_preserved": 40,
+  "s3_objects_preserved": 22,
+  "provider_calls": 0,
+  "mail_calls": 0,
+  "https_and_lan_preserved": true,
+  "all_go_services_stopped": true,
+  "private_backups_verified": true,
+  "http_checks": [
+    {
+      "path": "/api/health/ready",
+      "status": 200
+    },
+    {
+      "path": "/api/auth/user_profile/me",
+      "status": 200
+    },
+    {
+      "path": "/api/governance",
+      "status": 200
+    },
+    {
+      "path": "/api/administration/organisation/departments",
+      "status": 200
+    },
+    {
+      "path": "/api/administration/organisation/employees",
+      "status": 200
+    },
+    {
+      "path": "/api/administration/organisation/offboarding",
+      "status": 200
+    },
+    {
+      "path": "/api/work-calendar/holidays?year=2026",
+      "status": 200
+    },
+    {
+      "path": "/api/settings/clients",
+      "status": 200
+    },
+    {
+      "path": "/api/settings/client-references/cities",
+      "status": 200
+    },
+    {
+      "path": "/api/settings/suppliers",
+      "status": 200
+    },
+    {
+      "path": "/api/projects",
+      "status": 200
+    },
+    {
+      "path": "/api/purchase-fms",
+      "status": 200
+    },
+    {
+      "path": "/api/my-tasks?role=all&page_size=20",
+      "status": 200
+    },
+    {
+      "path": "/api/inbox",
+      "status": 200
+    },
+    {
+      "path": "/api/tender-fms/drafts",
+      "status": 200
+    },
+    {
+      "path": "/api/tender-fms/records",
+      "status": 200
+    },
+    {
+      "path": "/api/settings/tsc-formats",
+      "status": 200
+    },
+    {
+      "path": "/api/settings/tsc-formats",
+      "status": 200
+    },
+    {
+      "path": "/api/settings/tsc-formats/:id/preview.pdf",
+      "status": 200
+    },
+    {
+      "path": "/api/tender-fms/drafts/:id/tsc/:id",
+      "status": 200
+    }
+  ],
+  "images": {
+    "frontend": "sha256:67e4363ebc1ed0179a88aaca548f490f150ef43aa1f6e6881cd3c2b8376f93dd",
+    "frontend-lan": "sha256:67e4363ebc1ed0179a88aaca548f490f150ef43aa1f6e6881cd3c2b8376f93dd",
+    "document-processor": "sha256:b9ce895e51c06947b5881ce787455c52f40ce0336ffcd998a1b4a827d84d916c"
+  },
+  "verified_utc": "2026-11-05T07:12:50.120685+00:00",
+  "security_writes": "GET request quotas and document download audit only",
+  "preflight": "/home/vtplerp/epcerp-releases/dev-20261102-1-amd64/native-preflight-20261105T065948Z",
+  "cross_attempt_existing_tables_compared": 185,
+  "cross_attempt_changed_tables": [
+    "auth.users",
+    "auth.roles",
+    "auth.login_attempts"
+  ],
+  "all_user_business_fields_password_hashes_and_security_versions_preserved": true,
+  "user_count": 6,
+  "expected_user_metadata_changes": [
+    {
+      "is_bootstrap_admin": true,
+      "fields": [
+        "updated_at",
+        "edit_version"
+      ],
+      "password_hash_changed": false,
+      "before_updated_at": "2026-11-05T05:11:59.290802+00:00",
+      "after_updated_at": "2026-11-05T07:08:00.022352+00:00",
+      "credential_version_changed": false
+    }
+  ],
+  "no_database_restore_reset_or_downgrade": true,
+  "all_named_data_storage_and_tls_volumes_preserved": true,
+  "retired_containers_removed": [
+    "api",
+    "document-worker",
+    "document-package-worker",
+    "tsc-worker",
+    "tsc-reranker",
+    "migrate"
+  ],
+  "office_cidr_access_policy_preserved": true,
+  "gateway_config_unchanged": true,
+  "processor_has_no_application_go_binaries": true,
+  "current_services": [
+    "clamav",
+    "db",
+    "document-processor",
+    "frontend",
+    "frontend-lan",
+    "gateway",
+    "schema",
+    "storage"
+  ],
+  "deployment_preflight": {
+    "schema_before": 98,
+    "schema_after": 101,
+    "unchanged_existing_tables": 185,
+    "http_checks": [
+      {
+        "path": "/api/health/ready",
+        "status": 200
+      },
+      {
+        "path": "/api/auth/user_profile/me",
+        "status": 200
+      },
+      {
+        "path": "/api/governance",
+        "status": 200
+      },
+      {
+        "path": "/api/administration/organisation/departments",
+        "status": 200
+      },
+      {
+        "path": "/api/administration/organisation/employees",
+        "status": 200
+      },
+      {
+        "path": "/api/administration/organisation/offboarding",
+        "status": 200
+      },
+      {
+        "path": "/api/work-calendar/holidays?year=2026",
+        "status": 200
+      },
+      {
+        "path": "/api/settings/clients",
+        "status": 200
+      },
+      {
+        "path": "/api/settings/client-references/cities",
+        "status": 200
+      },
+      {
+        "path": "/api/settings/suppliers",
+        "status": 200
+      },
+      {
+        "path": "/api/projects",
+        "status": 200
+      },
+      {
+        "path": "/api/purchase-fms",
+        "status": 200
+      },
+      {
+        "path": "/api/my-tasks?role=all&page_size=20",
+        "status": 200
+      },
+      {
+        "path": "/api/inbox",
+        "status": 200
+      },
+      {
+        "path": "/api/tender-fms/drafts",
+        "status": 200
+      },
+      {
+        "path": "/api/tender-fms/records",
+        "status": 200
+      },
+      {
+        "path": "/api/settings/tsc-formats",
+        "status": 200
+      },
+      {
+        "path": "/api/settings/tsc-formats",
+        "status": 200
+      },
+      {
+        "path": "/api/settings/tsc-formats/:id/preview.pdf",
+        "status": 200
+      },
+      {
+        "path": "/api/tender-fms/drafts/:id/tsc/:id",
+        "status": 200
+      }
+    ],
+    "provider_calls": 0,
+    "email_enabled": false,
+    "archive_sha256": "4c188beccb1432f4c2947a848b5081d8e7a8a2602e2df7f72b859aac28d69f38",
+    "qa_database": "epcerp_auth_qa_retire_server_20261105065949",
+    "images": {
+      "epcerp-frontend:retire-72215c9-amd64": "sha256:67e4363ebc1ed0179a88aaca548f490f150ef43aa1f6e6881cd3c2b8376f93dd",
+      "epcerp-document-processor:retire-72215c9": "sha256:b9ce895e51c06947b5881ce787455c52f40ce0336ffcd998a1b4a827d84d916c"
+    }
+  },
+  "rollback_preflight": {
+    "image": "epcerp-api:table-evidence-20261103-2-amd64",
+    "schema": 101,
+    "startup": true,
+    "checks": [
+      {
+        "path": "/api/v1/auth/me",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/projects",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/tender-fms",
+        "status": 200
+      }
+    ],
+    "cloud_email_disabled": true,
+    "schema_downgrade_required": false
+  },
+  "source_manifest": {
+    "feature_commit": "72215c9788b40b79167c95bb4349ddff4e9cd939",
+    "branch": "codex/development",
+    "overlay": {
+      "backend/internal/infrastructure/schema/migrate.go": "60d0fcc087a65ba3a2cc889c9d89f7195d49581d430384d073ade4c1b57a1f1d",
+      "backend/internal/modules/document_packages/adapters/outbound/archive_metadata_test.go": "75959d5a5f407a4b66803e349cfdba1a380b2a4d9f2e2ebef1ca70d49a4fae77",
+      "backend/internal/modules/document_packages/adapters/outbound/internal/db/queries.sql.go": "af736dd5ba9bab73f49b467b8aaf432563330acd74e8ff5f7d1c13656b389abc",
+      "backend/internal/modules/document_packages/adapters/outbound/sql/queries.sql": "a33a6229be4e06365cae1c5477d5a9e4ca9831dcac8ffb103bbfab9889ced26d",
+      "backend/internal/modules/document_packages/adapters/outbound/verification.go": "b16c4619de14a9be43457c8252246267d44e398bfb0336870a660d2f417cc854",
+      "backend/internal/modules/document_packages/application/service.go": "f7a5767dfac12b7a4110e9df41e0b8bd081c9705f867a28f400f33b7b2157c25",
+      "backend/internal/modules/tender_fms/sql/migrations/000100_tender_document_management.down.sql": "70db19b0676b3e74a6477e650a8e0ebd63fd9ea91ee72d11a57418be098dd1f9",
+      "backend/internal/modules/tender_fms/sql/migrations/000100_tender_document_management.up.sql": "5b3edcdf27aa866fb67944d50f9c26622a9b5274a14ccfb838ff340f291b8ded",
+      "backend/internal/modules/tender_fms/sql/migrations/000101_tsc_alternative_providers.down.sql": "314fbc3a82b72f9008ce53b26d6bfb494087e494744644fdfc7cd7f932b9a650",
+      "backend/internal/modules/tender_fms/sql/migrations/000101_tsc_alternative_providers.up.sql": "8f7cf70c61dbc4627413b9c814db22df8035768135c9116b15b851fff8392a43",
+      "backend/sqlc.yaml": "19af0441b326a2cc012f867d1c304edd1b1ab7dbf82f74cb78e4d718fc1f3a3a",
+      "backend/tools/tender-format-preview/pdf-text.mjs": "4d417b8367c00bc080d94af822a2f27288a9ec3a547abded1c113f3bf8d9e59f",
+      "backend/tools/tender-format-preview/worker.mjs": "db8023c313bd3c551154bbea6dadacfbb2b8588cd2ba3d5ff5949d7c8b2ad7c2",
+      "deployment/epcerp/README.md": "8a7241d0c3a78e9ac5b197f5ecd2118a1339db7c5c1b75bb21a4972f1e56fd2d",
+      "deployment/epcerp/activate-tsc-providers.py": "a07c14e70a3e23648167ee1186837aa81a91a88d35c9b8be61461ee09b09dcf6",
+      "deployment/epcerp/compose.yaml": "732a22fb0e92ecf94a330031b9526b79c9b637d5f22635a4886595913d17d68f",
+      "deployment/epcerp/providers.env.example": "1cff134c3f67ab8138a5c74ba2e9d23fad89c3744a54eda14c8f9e530393668e",
+      "deployment/epcerp/worker.Dockerfile": "41bc19a7bb0a6d4a1a877e02fee089a2a4f5409908c964b4d4f4dbef09748233",
+      "frontend/next.config.ts": "29a35ed6c318dd710fd8be7f6e383b9aa2d542890e28ccef82fa79744241bfb9",
+      "frontend/src/app/api/tender-fms/[[...path]]/route.ts": "d2df9d446e026b7a6f84dcc5d5c9e029c0c6ffe361bc1bbe1e59fc79732e7994",
+      "frontend/src/app/globals.css": "de40b50ca7f8083760c2a7b878c984af7a24ac5e111502814cc98a5ba874f3d2",
+      "frontend/src/components/processes/process-directory.ts": "b55d779679e46719e24fa6fb37e87bcf8c3d9370645e4ae1368a962fb9136bd8",
+      "frontend/src/components/tenders/cloud-tsc-workspace.tsx": "19768a2a638d7b4be443432fb95181d57197fddda29b09e8e2acaeb6fa2ad51b",
+      "frontend/src/components/tenders/tender-document-list.tsx": "db6ffd5ff399f8d97ee952515107138d65cfaabc315f32cbfcb0b5bb7db880f2",
+      "frontend/src/components/tenders/tender-reading-workspace.tsx": "083c8bb36279dc84be354860042c3e2b970bad652ae85a5cda85d5816dc5d4ec",
+      "frontend/src/components/tenders/tender-upload-selection.tsx": "d9bb4c9c4ab0e0b643e4cc5d52d756fb667f9ff31628ed92684969d31d6e81bb",
+      "frontend/src/components/tenders/tsc-hub.css": "bcb8dd9676c2f5406441ab93e1ba15f9e2cb797a9c7c65feaaf0f182150d7142",
+      "frontend/src/components/tenders/tsc-processing-model.ts": "2b83b464766da22814756a1335a6152ba69cf8b8e363f1e726204532a5b9eae1",
+      "frontend/src/components/tenders/tsc-word-import.tsx": "7c80774c352bbdfe166e9d381c080309b4b3151065b536ab6b0e8c4adf9ea5ae",
+      "frontend/src/server/tenders/documents.ts": "756cc4276664eef00c2ca9a62bfec47f31efb6f3b677e6d0692d5c51eebee17c",
+      "frontend/src/server/tenders/intake/documents.ts": "757b9d4b4f734342f14b0df9cfa39aa05273b04b09102c77d89a45280781b139",
+      "frontend/src/server/tenders/intake/drafts.ts": "caca9aa47bcbee47207e3052f737855334af49ad32617e53bfabda134462dd9b",
+      "frontend/src/server/tenders/intake/http.ts": "6bef71d557a150cbc5ddc68ccc4aedf10e01b1d51b695536fe7adc2565ed637e",
+      "frontend/src/server/tenders/intake/objects.ts": "52a86bacc5dd4a589aa9e98049541eef4821154b0875c3907af7fdf274395d4f",
+      "frontend/src/server/tenders/intake/receipts.ts": "95fbfb36d961fc1f45f3c8fd4bb4e9ac849457ba608ec366d927d80f27be4d29",
+      "frontend/src/server/tenders/tsc/billing.ts": "8e634e05124c2e077fe18a4ce48c3900faa4a8992371b56e1e3d7fd4979e19cd",
+      "frontend/src/server/tenders/tsc/export.ts": "3fb50c21351796404a7d2187a32e4c2373d60ce0d0d20d0784e4752ac710cc4e",
+      "frontend/src/server/tenders/tsc/http.ts": "d0e1b2175749acc740766bcaeefafc52e3e80281a5c89376069decf6c75bf6c3",
+      "frontend/src/server/tenders/tsc/import-service.ts": "3e8cb5497e8e8ae6f6e7a08d77f0893ab175e42657b77add74a72f0c39147aca",
+      "frontend/src/server/tenders/tsc/pricing.ts": "c796008a67f78317ddf60c05456d98005c3644a20d4912e4693a57ad54d721a1",
+      "frontend/src/server/tenders/tsc/progress.ts": "9d2604c4faeb90e45dadc55f6d79c135fad8df7f0601230155c90481fe8c58a4",
+      "frontend/src/server/tenders/tsc/providers.ts": "ce4ea559cec61f39a175ff4747f7fbbaa62e47c6b7857e563d37a444261cb843",
+      "frontend/src/server/tenders/tsc/quality.ts": "274a7fcf14e768a0fd5b075552d8d22020b1c9c17eafc3ddba345fd9f31ce01e",
+      "frontend/src/server/tenders/tsc/repository.ts": "54a3e19782e4bdb8ab2b4dc9828ec2180ee1529d4cdea9fc77559929bd79bbda",
+      "frontend/src/server/tenders/tsc/service.ts": "721ac6adb08918d3467e4f187a9ef501563c8ee818dfd1d671303fb482686807",
+      "frontend/src/server/tenders/tsc/source-checks.ts": "5ad9047a874c8ba054bf7e646c83e7bc503a1c7321549bd57fb99023bf87dc38",
+      "frontend/src/server/tenders/tsc/text-evidence.ts": "e8775b424f570f5b322ce6eb4483cfd06af3b7727ab39ef9016264e951518924",
+      "frontend/src/server/tenders/tsc/types.ts": "6772efd128ac00315a479a70ea09c4e03a5dd93eff6d0a85b17d029e2ffac736",
+      "frontend/src/server/tenders/tsc/validation.ts": "363748f9a3fe8d04b8e87281cf8f530f82515e0af6c1fe85ec56e50c25526010",
+      "frontend/src/server/tenders/tsc/word-import.ts": "550fe472b0249fa02a6ee75393487f5b647f758d1b90cf7c96e99c61095136a2",
+      "frontend/src/server/tenders/tsc/worker.ts": "302f71039d305d26f7bd7f1bb66a0c4997ead903d5e717895aa7ad1126573209",
+      "frontend/tests/server-tender-intake/intake.test.ts": "570cc07e909213a351f18b3662c540e0cdd67f988ffc91f244dd6707f2154262",
+      "frontend/tests/server-tender-intake/objects.test.ts": "bfa9f20a7147a05557a9c912172cd4c3f6c2db34465254397cad41a4888ccef1",
+      "frontend/tests/server-tsc/providers.test.ts": "2c2a63f6b74cb296d08c2cb5c27752545cadd22e022f953543c6eedd32c1c532",
+      "frontend/tests/server-tsc/quality.test.ts": "2b4c946e9d3ff40f9634c0133e6b567ccf60b828a2c6a96b1945f03cdc58665a",
+      "frontend/tests/server-tsc/source-checks.test.ts": "93f0f65fbc0ab807b8b1fdf69f8635656927cfb2c5e78619f72f814d28cee1f2",
+      "frontend/tests/server-tsc/word-import.test.ts": "59a9a8c460ccee7afc91e935ac9b49121928e345ccb2bda5f82b9d4d72d99578",
+      "frontend/tests/server-tsc/workflow.test.ts": "91cf90960ecf7cbc7f4fdd9c91ac9dc2f55358aef715811ae3767099bd9715d3",
+      "frontend/tests/tender-document-proxy.test.mjs": "faecb2b64f473e24d2150d0d78e9ae57babfd5894bf67f112944bff18f313cc6",
+      "frontend/tests/tsc-processing.test.mjs": "28437e56c4a37079eb2d33d97d036e5c5e15b3771ce3c4ce950352be21a1cdc0",
+      "frontend/tests/tsc-word-proxy.test.mjs": "7d9f244d2ac5600fa2b547570b751e74b8d47ed8204ef67aaa7475f1962046e9",
+      "frontend/tests/upload-proxy-body.test.mjs": "e1b34a752ef346bb82f31826ea2f070cc3d068f4a841df35e1be9733b427f230"
+    }
+  },
+  "amd64_image_verification": {
+    "architecture": "amd64",
+    "image": "epcerp-frontend:retire-72215c9-amd64",
+    "health": true,
+    "synthetic_login": true,
+    "read_paths": [
+      "/api/auth/user_profile/me",
+      "/api/governance",
+      "/api/administration/organisation/employees",
+      "/api/work-calendar/holidays?year=2026",
+      "/api/settings/clients",
+      "/api/settings/client-references/cities",
+      "/api/settings/suppliers",
+      "/api/projects",
+      "/api/purchase-fms",
+      "/api/my-tasks?role=all&page_size=20",
+      "/api/inbox",
+      "/api/tender-fms/drafts",
+      "/api/tender-fms/records",
+      "/api/settings/tsc-formats"
+    ],
+    "native_password_and_image_libraries": true,
+    "provider_calls": 0
+  },
+  "initial_attempt": "A loopback request correctly received 403 from the office-only LAN policy. Automatic application rollback completed without restoring/resetting the database. The LAN check was corrected to use the office IP and the retry passed."
+}
