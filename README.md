@@ -1,12 +1,16 @@
 # epcERP
 
-Independent Go business backend and Next.js application for EPC operations.
+Next.js application and Node services for EPC operations.
 
-- `backend/`: Go API, workers, owned PostgreSQL migrations and native tests.
-- `frontend/`: Next.js application with native authentication/authorization,
-  Clients within the shared Master Data module, and connections to remaining Go APIs.
-- `backend/sql/migrations/`: ordered Go-owned PostgreSQL migrations embedded in the migrator.
-- `deployment/epcerp/`: Go Docker stack and operator tooling.
+- `frontend/src/server/`: native application modules, authentication, authorization and background orchestration.
+- `frontend/migrations/`: owned PostgreSQL migration history; explicit Node migration CLI at `frontend/tools/migrate.mjs`.
+- `frontend/tools/document-processor/`: private offline document validation, conversion and extraction helpers.
+- `deployment/epcerp/`: local Docker stack and operator tooling.
+- `backend/`: archived Go implementation and compatibility test oracles; Go application services are disabled by default under the `legacy-go` Compose profile.
+
+The complete local application now runs without the Go API or Go workers. See
+[the runtime migration record](deployment/epcerp/GO_RETIREMENT_VERIFICATION.md)
+and [native platform structure](frontend/src/server/platform/README.md).
 
 See each project's README for setup and verification. Local `.env` files,
 credentials, database snapshots, build outputs and dependencies stay outside Git.
