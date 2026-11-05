@@ -35,3 +35,12 @@ used separate QA databases; no model requests or real messages were sent.
 Changes are prepared on `codex/development`. Main remains the reviewed release
 branch. Git history is retained for recovery; no history rewrite or force push
 is part of this cleanup. Existing development-server deployment remains intact.
+
+A clean committed checkout at `720a639e95ace563ad432634835a291a59408050`
+contains no backend directory or private env files and passed a fresh production
+build. Frontend/Node migrator and processor images were built from that checkout.
+The idle local Docker preview was aligned to those images with its entire
+existing runtime environment preserved. Readiness passed; schema stayed 101,
+password hashes and model-call count were unchanged, and no migration or provider
+request ran during that preview update. The remote development server was not
+changed again as part of this Git cleanup.
