@@ -1,9 +1,12 @@
 import { proxyAuthenticatedRequest } from "@/lib/auth/backend-proxy";
 
+import { hasSameOrigin } from "@/lib/auth/request-origin";
 const methods = new Set(["GET", "POST", "PATCH"]);
 const largeDrafts = new Set(["purchase-bo", "purchase-indents", "budget"]);
 const proxy = async (request: Request, context: { params: Promise<{ path?: string[] }> }) => {
   const params = await context.params;
+  const projectMaster = (params.path?.length ?? 0)<=1 || params.path?.length===2&&['manager','schedule-preview','metadata-history','metadata-options','manager-history'].includes(params.path[1]);
+  if (projectMaster && ['POST','PATCH'].includes(request.method) && !hasSameOrigin(request)) return Response.json({detail:"Same-origin request required"},{status:403});
   const quotationUpload = request.method === "POST" && params.path?.length === 6 && params.path[1] === "purchase-bo" && params.path[3] === "group-quotations" && params.path[5] === "attachments";
   const technicalUpload = request.method === "POST" && params.path?.length === 7 && params.path[1] === "purchase-workflow" && params.path[3] === "technical" && params.path[4] === "uploads";
   const orderUpload=request.method==="POST"&&params.path?.length===6&&params.path[1]==="purchase-workflow"&&params.path[3]==="purchase-orders"&&params.path[4]==="uploads";

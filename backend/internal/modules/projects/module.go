@@ -3,6 +3,8 @@ package projects
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,7 +35,14 @@ type Dependencies struct {
 
 type Module struct{}
 
-func New(dependencies Dependencies) *Module {
+func New(dependencies Dependencies) (*Module, error) {
+	owner := os.Getenv("EPCERP_PROJECTS_OWNER")
+	if owner != "" && owner != "go" && owner != "nextjs" {
+		return nil, fmt.Errorf("invalid EPCERP_PROJECTS_OWNER")
+	}
+	if owner == "nextjs" {
+		return &Module{}, nil
+	}
 	unit := outbound.NewUnitOfWork(
 		dependencies.Database,
 		dependencies.Clients,
@@ -44,7 +53,7 @@ func New(dependencies Dependencies) *Module {
 	service := application.New(unit, outbound.NewAuthBridge(dependencies.Identity), outbound.SystemValues{})
 	inbound.Register(dependencies.Router, service)
 	inbound.RegisterMetadata(dependencies.Router, service.Metadata())
-	return &Module{}
+	return &Module{}, nil
 }
 
 func ContextReader(connection database.Connection) contracts.ContextReader {

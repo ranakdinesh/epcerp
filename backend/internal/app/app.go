@@ -142,14 +142,16 @@ func (a *App) bindModules(ctx context.Context) error {
 			return projectmodule.CalendarUpdater(connection, events.Writer(connection), reader)
 		},
 	})
-	projectmodule.New(projectmodule.Dependencies{
+	if _, err = projectmodule.New(projectmodule.Dependencies{
 		Router: a.Router, Database: a.Database, Identity: auth.Resolver,
 		Clients: mastermodule.ClientDirectory, Assignments: auth.Assignments, Events: events.Writer, Calendar: calendarmodule.Reader,
 		Purchasing: func(connection database.Connection) purchasecontracts.WorkspaceOwnership {
 			return purchasemodule.WorkspaceOwnership(connection, auth.Assignments(connection), events.Writer(connection))
 		},
 		ReadableAssignments: accessmodule.ReadableProjects,
-	})
+	}); err != nil {
+		return err
+	}
 	_, err = storagemodule.New(a.Router, a.Database, auth.Resolver)
 	return err
 }
