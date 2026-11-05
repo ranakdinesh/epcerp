@@ -16,7 +16,7 @@ image identities are in the [verification record](DEVELOPMENT_NATIVE_VERIFICATIO
 The AMD64 frontend was built from the verified standalone output with AMD64
 runtime dependencies. Native password hashing, image conversion, login and 14
 application routes passed an isolated AMD64 container check before transfer.
-The signed document processor is the same verified AMD64 Node image. The release
+The private document processor is the same verified AMD64 Node image. The release
 archive SHA-256 was checked on the server before images were loaded.
 
 ## Data preservation and checks
