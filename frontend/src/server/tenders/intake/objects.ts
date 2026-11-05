@@ -30,7 +30,7 @@ export async function writeObject(key: string, request: Request, size: number, h
                 break;
             received += value.length;
             if (received > size)
-                throw new AppError(422, 'Uploaded size does not match declaration');
+                throw new AppError(422, `Upload exceeded the selected file size (expected ${size} bytes). Select the original file and retry.`);
             digest.update(value);
             pending = Buffer.concat([pending, Buffer.from(value)]);
             while (pending.length >= chunkSize) {
@@ -40,8 +40,10 @@ export async function writeObject(key: string, request: Request, size: number, h
                 pending = pending.subarray(chunkSize);
             }
         }
-        if (received !== size || digest.digest('hex') !== hash)
-            throw new AppError(422, 'Uploaded checksum or size does not match declaration');
+        if (received !== size)
+            throw new AppError(422, `Upload incomplete: received ${received} of ${size} bytes. Retry the upload with the same file.`);
+        if (digest.digest('hex') !== hash)
+            throw new AppError(422, 'Upload integrity check failed: the received file contents differ from the selected file. Select the original file and retry.');
         if (pending.length) {
             const frame = seal(pending), length = Buffer.alloc(4);
             length.writeUInt32BE(frame.length);

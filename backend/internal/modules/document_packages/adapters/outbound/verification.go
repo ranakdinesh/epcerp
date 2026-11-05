@@ -206,6 +206,17 @@ func safePath(p string) (string, error) {
 	}
 	return strings.ToLower(norm.NFC.String(path.Clean(trimmed))), nil
 }
+
+// Finder adds AppleDouble/resource-fork entries to ZIPs. These are packaging
+// metadata, never document sources, even when their names end in .pdf.
+func archiveMetadata(name string) bool {
+	for _, part := range strings.Split(strings.ToLower(name), "/") {
+		if part == "__macosx" || part == ".ds_store" || strings.HasPrefix(part, "._") {
+			return true
+		}
+	}
+	return false
+}
 func (v Verifier) Verify(ctx context.Context, in domain.Verification, emit func(domain.Member) error) error {
 	return v.VerifyManifest(ctx, in, emit, func(domain.Disposition) error { return nil })
 }
@@ -331,7 +342,7 @@ func (v Verifier) VerifyManifest(ctx context.Context, in domain.Verification, em
 			if e != nil {
 				return domain.Fail(422, "invalid_archive", "ZIP directory is damaged")
 			}
-			if len(z.File) == 0 || len(z.File) > 200 {
+			if len(z.File) == 0 || len(z.File) > 1000 {
 				return domain.Fail(413, "member_limit", "ZIP has too many entries or is empty")
 			}
 			for _, entry := range z.File {
@@ -352,6 +363,12 @@ func (v Verifier) VerifyManifest(ctx context.Context, in domain.Verification, em
 				paths[n] = true
 				if entry.Flags&1 != 0 || (!entry.Mode().IsRegular() && !entry.Mode().IsDir()) || (entry.Method != zip.Store && entry.Method != zip.Deflate) {
 					return domain.Fail(422, "unsafe_archive_entry", "Encrypted archives, links and special entries are not supported")
+				}
+				if archiveMetadata(entry.Name) {
+					if e := note(f.ID, f.Filename+"/"+entry.Name, "ignored", "archive_metadata"); e != nil {
+						return e
+					}
+					continue
 				}
 				if entry.Mode().IsDir() {
 					if e := note(f.ID, f.Filename+"/"+entry.Name, "directory", ""); e != nil {

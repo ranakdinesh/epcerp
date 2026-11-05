@@ -102,6 +102,8 @@ sql:
       - internal/modules/tender_fms/sql/migrations/000097_tsc_formats.up.sql
       - internal/modules/tender_fms/sql/migrations/000098_tsc_format_purpose.up.sql
       - internal/modules/tender_fms/sql/migrations/000099_tsc_cloud_workspaces.up.sql
+      - internal/modules/tender_fms/sql/migrations/000100_tender_document_management.up.sql
+      - internal/modules/tender_fms/sql/migrations/000101_tsc_alternative_providers.up.sql
     queries: "internal/modules/health/adapters/outbound/sql/queries.sql"
     gen:
       go:

@@ -4,6 +4,7 @@ import { body } from '../../auth/validation';
 import { transaction } from '../../db';
 import { access } from './access';
 import * as drafts from './drafts';
+import * as documents from './documents';
 import * as receipts from './receipts';
 import * as formats from '../formats/service';
 import { word, pdf } from '../formats/document';
@@ -50,6 +51,21 @@ export async function handleIntake(request: Request): Promise<Response> {
             if (parts.length === 4 && parts[3] === 'batches' && method === 'POST') {
                 await drafts.attach(token, draft, await body(request, ['receipt_id'], 8192));
                 return new Response(null, { status: 204, headers });
+            }
+            if (parts.length === 5 && parts[3] === 'documents' && method === 'DELETE') {
+                await documents.remove(token, draft, parts[4], await body(request, ['expected_version'], 4096));
+                return new Response(null, {status:204,headers});
+            }
+            if (parts.length === 6 && parts[3] === 'documents' && parts[5] === 'original' && method === 'GET') {
+                try {
+                    const original = await documents.download(token, draft, parts[4]);
+                    return new Response(new Uint8Array(original.bytes), {headers:{...headers,'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(original.filename).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16))}`}});
+                } catch (error) {
+                    if (!(error instanceof AppError) || error.status !== 404) throw error;
+                    // Retained pre-migration reading IDs remain downloadable.
+                    const bytes = await drafts.artifact(token, draft, parts[4], 'original');
+                    return new Response(new Uint8Array(bytes as Buffer), {headers:{...headers,'Content-Type':'application/octet-stream','Content-Disposition':'attachment'}});
+                }
             }
             if (parts.length === 6 && parts[3] === 'documents' && method === 'GET') {
                 const kind = parts[5], data = await drafts.artifact(token, draft, parts[4], kind);

@@ -1,5 +1,5 @@
 import { AppError } from '../../errors';
-import type { Answer, Citation, Mode, Question, Snapshot, Source } from './types';
+import type { Answer, Citation, Mode, Question, Snapshot, Source, Provider } from './types';
 export const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export function invalid(message: string): never { throw new AppError(422, message); }
 export function object(value: unknown, fields: string[]): Record<string, unknown> { if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(k => !fields.includes(k)))
@@ -12,8 +12,8 @@ export function flag(value: unknown) { if (typeof value !== 'boolean')
     invalid('Provide a boolean value'); return value as boolean; }
 export function id(value: unknown) { const s = str(value, 36); if (!uuid.test(s))
     invalid('Invalid identifier'); return s; }
-export function mode(value: unknown): Mode { if (!['manual', 'gemini', 'openai'].includes(value as string))
-    invalid('Choose Gemini, OpenAI or manual writing'); return value as Mode; }
+export function mode(value: unknown): Mode { if (!['manual', 'gemini', 'openai', 'deepseek', 'groq'].includes(value as string))
+    invalid('Choose a configured provider or manual writing'); return value as Mode; }
 export function sourceSelection(values: unknown, sources: Source[], mode: Mode) { if (!Array.isArray(values) || values.length > 30 || values.some(v => typeof v !== 'string') || new Set(values).size !== values.length)
     invalid('Choose a valid source document list'); const selected = values.map(v => { const s = sources.find(s => s.id === v); if (!s)
     invalid('A selected document is no longer available'); return s!; }); if (mode !== 'manual') {
@@ -34,7 +34,7 @@ export function managerAnswer(value: unknown, snapshot: Snapshot): Answer { cons
     invalid('Invalid answer status'); const accepted = flag(r.accepted); if (accepted && !answer.trim())
     invalid('Write an answer before marking it reviewed'); return { question_id, answer, status: status as Answer['status'], citations: citations(r.citations, snapshot.sources), accepted, origin: 'manual' }; }
 // Model citations are syntax/source checked, never represented as independently verified quotations.
-export function providerAnswers(value: unknown, questions: Question[], sources: Source[], provider: 'gemini' | 'openai'): Answer[] { const r = object(value, ['answers']); if (!Array.isArray(r.answers) || r.answers.length > questions.length)
+export function providerAnswers(value: unknown, questions: Question[], sources: Source[], provider: Provider): Answer[] { const r = object(value, ['answers']); if (!Array.isArray(r.answers) || r.answers.length > questions.length)
     invalid('Unexpected model answer list'); const seen = new Set<string>(), out: Answer[] = []; for (const value of r.answers) {
     const a = object(value, ['question_id', 'answer', 'status', 'citations']), qid = str(a.question_id, 80);
     if (seen.has(qid) || !questions.some(q => q.id === qid))

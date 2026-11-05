@@ -15,5 +15,6 @@ RUN python3 -m venv /opt/pdf-tables && /opt/pdf-tables/bin/pip install --no-cach
 COPY tools/pdf-tables/extract.py /app/pdf_tables.py
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY --chown=10001:10001 tools/tender-format-preview/worker.mjs /app/tender-format-preview.mjs
+COPY --chown=10001:10001 tools/tender-format-preview/pdf-text.mjs /app/pdf-text.mjs
 USER 10001:10001
 CMD ["/usr/local/bin/node", "/app/tender-format-preview.mjs"]

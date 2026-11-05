@@ -147,9 +147,12 @@ func (q *Queries) AddMember(ctx context.Context, arg AddMemberParams) error {
 const claimPurgeObjects = `-- name: ClaimPurgeObjects :many
 WITH candidates AS (
  SELECT o.id FROM document_package_objects o JOIN document_package_receipts r ON r.id=o.receipt_id JOIN document_package_files f ON f.id=o.file_id
- WHERE o.purged_at IS NULL AND o.created_at<clock_timestamp()-interval '1 hour' AND (o.purge_lease_until IS NULL OR o.purge_lease_until<clock_timestamp())
- AND r.state<>'consumed' AND (r.lease_until IS NULL OR r.lease_until<clock_timestamp()) AND (f.lease_until IS NULL OR f.lease_until<clock_timestamp())
- AND (r.expires_at<clock_timestamp() OR f.object_key IS DISTINCT FROM o.id) ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT 20
+ WHERE o.purged_at IS NULL AND (o.purge_lease_until IS NULL OR o.purge_lease_until<clock_timestamp())
+ AND (r.lease_until IS NULL OR r.lease_until<clock_timestamp()) AND (f.lease_until IS NULL OR f.lease_until<clock_timestamp())
+ AND ((r.draft_id IS NOT NULL AND r.state IN('ready','consumed') AND f.kind='zip' AND f.object_key=o.id
+       AND EXISTS(SELECT 1 FROM document_package_members m WHERE m.receipt_id=r.id AND m.file_id=f.id AND m.validation_claim_id=r.claim_id))
+   OR (r.state<>'consumed' AND o.created_at<clock_timestamp()-interval '1 hour' AND (r.expires_at<clock_timestamp() OR f.object_key IS DISTINCT FROM o.id)))
+ ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT 20
 ) UPDATE document_package_objects o SET purge_claim_id= $1,purge_lease_until=clock_timestamp()+interval '10 minutes' FROM candidates c WHERE o.id=c.id RETURNING o.id, o.receipt_id, o.file_id, o.created_at, o.purged_at, o.purge_claim_id, o.purge_lease_until
 `
 
@@ -213,7 +216,7 @@ func (q *Queries) ClaimReceipt(ctx context.Context, claimID pgtype.UUID) (Docume
 }
 
 const completeUpload = `-- name: CompleteUpload :execrows
-UPDATE document_package_files SET state='received',claim_id=NULL,lease_until=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id= $1
+UPDATE document_package_files SET state='received',claim_id=NULL,lease_until=NULL,error_code=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id= $1
 WHERE id= $2 AND state='uploading' AND claim_id= $3 AND upload_key= $4 AND lease_until>clock_timestamp()
 `
 

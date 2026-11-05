@@ -1,20 +1,21 @@
 import 'server-only';
+import {previewImport,commitImport,uploadedDocument} from './import-service';
 import { AppError } from '../../errors';
-import { create, edit, exportSnapshot, get, history, list, options, originals, requestProposal, responseRaw, isLegacy } from './service';
+import { create, edit, exportSnapshot, get, history, list, options, originals, requestProposal, resume, responseRaw, isLegacy } from './service';
 import { uuid } from './validation';
 import { docx } from './export';
 export const ownsTSCPath = (path: string) => /^\/tender-fms\/drafts\/[^/]+\/tsc(?:\/|$)/.test(path);
 function json(value: unknown, status = 200) { return Response.json(value, { status, headers: { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } }); }
-async function body(request: Request) { const reader = request.body?.getReader(), chunks: Uint8Array[] = []; let size = 0; if (reader)
+async function body(request: Request, limit=32768) { const reader = request.body?.getReader(), chunks: Uint8Array[] = []; let size = 0; if (reader)
     try {
         while (true) {
             const { value, done } = await reader.read();
             if (done)
                 break;
             size += value.length;
-            if (size > 32768) {
+            if (size > limit) {
                 await reader.cancel();
-                throw new AppError(413, 'TSC request exceeds 32 KiB');
+                throw new AppError(413, 'TSC request exceeds its upload limit');
             }
             chunks.push(value);
         }
@@ -40,11 +41,14 @@ export async function handleTSC(request: Request): Promise<Response> {
             if (method === 'POST')
                 return json(await create(token, draft, request.headers.get('idempotency-key') ?? '', await body(request)), 201);
         }
+        if(job==='import'&&method==='POST'&&(tail.length===0||tail.length===1&&tail[0]==='commit'))return json(tail.length?await commitImport(token,draft,request.headers.get('idempotency-key')??'',await body(request,6*1024*1024)):await previewImport(token,draft,await body(request,6*1024*1024)),tail.length?201:200);
+        if(uuid.test(job??'')&&tail.length===1&&tail[0]==='uploaded-document'&&method==='GET'){const original=await uploadedDocument(token,draft,job);return new Response(new Uint8Array(original.data),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','Content-Disposition':`attachment; filename="uploaded-checklist.docx"; filename*=UTF-8''${encodeURIComponent(original.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}})}
         if (!uuid.test(job ?? ''))
             return json({ detail: 'Not found' }, 404);
         if(await isLegacy(token,draft,job))return (await import('./legacy')).handleLegacy(request,draft,job,tail,token);
         if (!tail.length && method === 'GET')
             return json(await get(token, draft, job));
+        if(tail[0]==='resume'&&method==='POST')return json(await resume(token,draft,job,request.headers.get('idempotency-key')??'',await body(request)),202);
         if (tail[0] === 'history' && method === 'GET')
             return json(await history(token, draft, job));
         if (tail[0] === 'answers' && tail[1]) {
@@ -62,7 +66,7 @@ export async function handleTSC(request: Request): Promise<Response> {
         }
         if (tail[0] === 'document' && method === 'GET') {
             const j = await exportSnapshot(token, draft, job);
-            return new Response(new Uint8Array(docx(j.snapshot, j.answers, j.cost.estimated_micro_inr, j.cost.unknown_requests, j.cost.unconfirmed_reserved_paise)), { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="TSC-draft.docx"', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+            return new Response(new Uint8Array(docx(j.snapshot, j.answers, j.cost.estimated_micro_inr, j.cost.unknown_requests, j.cost.unconfirmed_reserved_paise,j.processing.evidence)), { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="TSC-draft.docx"', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
         }
         return json({ detail: 'Not found' }, 404);
     }

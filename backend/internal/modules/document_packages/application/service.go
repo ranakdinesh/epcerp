@@ -404,8 +404,9 @@ func (s *Service) Authorize(ctx context.Context, token string) error {
 	return s.u.Within(ctx, func(ctx context.Context, r ports.Repository) error { return Live(ctx, r, actor, true) })
 }
 
-// Maintain removes only bounded, leased, expired/unreferenced technical objects;
-// consumed Tender evidence is excluded by the owning query and cannot be selected.
+// Maintain removes bounded, leased technical objects, including draft ZIPs only
+// after successful verification has persisted their separately encrypted members.
+// Original document members and legacy consumed Tender evidence remain retained.
 func (w *Worker) Maintain(ctx context.Context, objects ports.Objects) error {
 	var candidates []domain.ObjectRef
 	e := w.u.Within(ctx, func(ctx context.Context, r ports.Repository) error {

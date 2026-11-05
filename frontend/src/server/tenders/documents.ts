@@ -20,7 +20,9 @@ export async function authorizeWorker(db: DB, actor: string, draft: string) { co
 export const referenceDocument = (path: string) => /tender selection|tsc format|completed tsc/.test(path.toLowerCase().replace(/[_-]/g, ' '));
 export async function tenderSources(db: DB, draft: string, owner: string): Promise<Source[]> {
     const r = await db.query(`SELECT m.id,m.receipt_id,m.sha256,m.path,m.kind,m.byte_size,m.pages,r.claim_id FROM public.document_package_members m JOIN public.document_package_receipts r ON r.id=m.receipt_id
- WHERE r.draft_id=$1 AND r.owner_id=$2 AND r.state IN('ready','consumed') AND m.validation_claim_id=r.claim_id ORDER BY r.created_at,r.id,m.normalized_path,m.id`, [draft, owner]);
+ WHERE r.draft_id=$1 AND r.owner_id=$2 AND r.state IN('ready','consumed') AND m.validation_claim_id=r.claim_id
+ AND NOT EXISTS(SELECT 1 FROM tender.draft_document_removals x WHERE x.draft_id=r.draft_id AND x.member_id=m.id)
+ ORDER BY r.created_at,r.id,m.normalized_path,m.id`, [draft, owner]);
     return r.rows.map(s => ({ ...s, byte_size: Number(s.byte_size) }));
 }
 export function sourceFingerprint(sources: Source[]) { return digest(JSON.stringify(sources.map(s => ({ id: s.id, receipt_id: s.receipt_id, sha256: s.sha256, claim_id: s.claim_id })).sort((a, b) => a.id.localeCompare(b.id)))); }

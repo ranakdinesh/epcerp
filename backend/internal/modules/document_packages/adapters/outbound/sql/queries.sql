@@ -22,7 +22,7 @@ SELECT count(*) FROM document_package_files f JOIN document_package_receipts r O
 UPDATE document_package_files SET state='uploading',version=version+1,claim_id= @claim_id,object_key= @claim_id,lease_until=clock_timestamp()+interval '10 minutes',upload_key= @upload_key,upload_input_version=version,updated_at=clock_timestamp(),updated_by_id= @actor_id
 WHERE id= @id AND version= @version AND (state='declared' OR (state='uploading' AND lease_until<=clock_timestamp()));
 -- name: CompleteUpload :execrows
-UPDATE document_package_files SET state='received',claim_id=NULL,lease_until=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id= @actor_id
+UPDATE document_package_files SET state='received',claim_id=NULL,lease_until=NULL,error_code=NULL,version=version+1,updated_at=clock_timestamp(),updated_by_id= @actor_id
 WHERE id= @id AND state='uploading' AND claim_id= @claim_id AND upload_key= @upload_key AND lease_until>clock_timestamp();
 -- name: TouchReceipt :exec
 UPDATE document_package_receipts SET version=version+1,updated_at=clock_timestamp(),updated_by_id= @actor_id WHERE id= @id;
@@ -60,9 +60,12 @@ INSERT INTO document_package_objects(id,receipt_id,file_id)VALUES(@id,@receipt_i
 -- name: ClaimPurgeObjects :many
 WITH candidates AS (
  SELECT o.id FROM document_package_objects o JOIN document_package_receipts r ON r.id=o.receipt_id JOIN document_package_files f ON f.id=o.file_id
- WHERE o.purged_at IS NULL AND o.created_at<clock_timestamp()-interval '1 hour' AND (o.purge_lease_until IS NULL OR o.purge_lease_until<clock_timestamp())
- AND r.state<>'consumed' AND (r.lease_until IS NULL OR r.lease_until<clock_timestamp()) AND (f.lease_until IS NULL OR f.lease_until<clock_timestamp())
- AND (r.expires_at<clock_timestamp() OR f.object_key IS DISTINCT FROM o.id) ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT 20
+ WHERE o.purged_at IS NULL AND (o.purge_lease_until IS NULL OR o.purge_lease_until<clock_timestamp())
+ AND (r.lease_until IS NULL OR r.lease_until<clock_timestamp()) AND (f.lease_until IS NULL OR f.lease_until<clock_timestamp())
+ AND ((r.draft_id IS NOT NULL AND r.state IN('ready','consumed') AND f.kind='zip' AND f.object_key=o.id
+       AND EXISTS(SELECT 1 FROM document_package_members m WHERE m.receipt_id=r.id AND m.file_id=f.id AND m.validation_claim_id=r.claim_id))
+   OR (r.state<>'consumed' AND o.created_at<clock_timestamp()-interval '1 hour' AND (r.expires_at<clock_timestamp() OR f.object_key IS DISTINCT FROM o.id)))
+ ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT 20
 ) UPDATE document_package_objects o SET purge_claim_id= @claim_id,purge_lease_until=clock_timestamp()+interval '10 minutes' FROM candidates c WHERE o.id=c.id RETURNING o.*;
 -- name: FinishPurgeObject :execrows
 UPDATE document_package_objects SET purged_at=clock_timestamp(),purge_lease_until=NULL WHERE id= @id AND purge_claim_id= @claim_id AND purge_lease_until>clock_timestamp() AND purged_at IS NULL;

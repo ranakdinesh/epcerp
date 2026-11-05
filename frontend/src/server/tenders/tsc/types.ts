@@ -1,4 +1,4 @@
-export type Provider = 'gemini' | 'openai';
+export type Provider = 'gemini' | 'openai' | 'deepseek' | 'groq';
 export type Mode = Provider | 'manual';
 export type Question = {
     id: string;
@@ -28,7 +28,7 @@ export type Answer = {
     status: 'answered' | 'needs_review' | 'not_found' | 'conflicting';
     citations: Citation[];
     accepted: boolean;
-    origin: 'gemini' | 'openai' | 'manual';
+    origin: 'gemini' | 'openai' | 'deepseek' | 'groq' | 'manual' | 'source_check' | 'upload';
 };
 export type Snapshot = {
     schema: 'tsc-cloud-v2';
@@ -42,6 +42,12 @@ export type Snapshot = {
     sources: Source[];
     mode: Mode;
     auto_escalate: boolean;
+    stronger_model?: boolean;
+    quality_model?:string;
+    quality_input?:'pdf'|'indexed';
+    recover_overload?:boolean;
+    preparation_method?: 'upload';
+    imported_document?:{name:string;sha256:string;rows:number;matched:number};
     source_fingerprint: string;
 };
 export type Original = Source & {
@@ -55,6 +61,7 @@ export type Usage = {
     thought_tokens: number;
 };
 export type Price = {
+    input_mode?:'pdf'|'indexed';
     version: string;
     model: string;
     provider: Provider;
@@ -88,4 +95,11 @@ export type JobRow = {
     updated_at: Date;
     request_hash: string;
     operation_key: string;
+};
+
+export type Processing = {
+  phase: "queued" | "preparing_documents" | "waiting_for_model" | "saving_answers" | "retrying" | "complete" | "failed" | "partial" | "manual" | "imported";
+  elapsed_seconds: number; source_count: number; model_questions: number; manual_questions: number;
+  returned_answers: number; answered_questions: number; provider_status: number | null; error_code: string;
+  evidence?:{partial:boolean;total_pages:number;supplied_pages:number};
 };

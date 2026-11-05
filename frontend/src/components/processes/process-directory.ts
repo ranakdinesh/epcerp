@@ -6,7 +6,7 @@ export type ProcessDefinition = { screen: string; label: string; steps: readonly
 export const tenderProcess: ProcessDefinition = {
  screen: "tender-fms", label: "Tender FMS", steps: [
   { code: "TS-01", group: "Tender Selection", number: 1, label: "Read documents", available: true },
-  { code: "TS-TSC", group: "Tender Selection", number: 2, label: "Generate TSC", available: true },
+  { code: "TS-TSC", group: "Tender Selection", number: 2, label: "Prepare TSC", available: true },
   { code: "TS-02", group: "Tender Selection", number: 3, label: "Approval for Bidding the Tender", available: false },
   { code: "LG-01", group: "Lead Generation", number: 4, label: "Share tender and basic details", available: false },
   { code: "LG-02", group: "Lead Generation", number: 5, label: "Approval for Bidding", available: false },

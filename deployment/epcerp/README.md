@@ -742,3 +742,273 @@ for `gemini-3.1-flash-lite`. No generateContent request or document upload was u
 for verification. Images, schema 98, credentials/encryption keys, local-first
 extraction and the INR 100 conservative allowance cap were preserved. Refresh the
 TSC workspace and choose Gemini Flash-Lite under Draft preparation.
+
+### ZIP upload truncation correction (4 November 2026)
+
+Next.js Proxy defaults to buffering only 10 MiB of a request body. The native
+Tender upload route therefore received a truncated ZIP even though its own
+limit allowed 64 MiB. The local frontend logs confirmed this for batch
+`5ff86a85`: the size check failed before comparing SHA-256. File identity is
+computed from the current selection, including first uploads; it does not
+compare against previously uploaded documents.
+
+The proxy buffer now supports the advertised 64 MiB ZIP limit. Individual
+route limits and server SHA-256 verification remain enforced. Incomplete
+uploads report received/expected byte counts separately from changed file
+contents; the batch reservation copy explains same-file retry and the action
+reads “Retry upload” after failure. Failed uploads remove their partial object.
+
+Feature checks: the real Next.js body-cloning implementation preserves byte
+counts and SHA-256 above 10 MiB and at exactly 64 MiB. Encrypted object tests
+cover truncation, changed content, oversized input, partial-object cleanup and
+successful same-object retry. The 233 frontend tests pass; TypeScript passes;
+lint has no errors (four pre-existing warnings). No schema migration is needed;
+local schema remains 99. All fetched remote branch tips were already ancestors
+of development base `b92448a`. Browser checks and actual running image identities
+are recorded separately in the private local verification manifest.
+
+Browser verification on isolated HTTP port 59094 passed at 1440px and 390px:
+18 MiB ZIP transfer, explicit 10 MiB truncation error, same-batch retry,
+selection unlocking and byte-identical original download. A separate exact
+64 MiB raw upload/download passed through the actual authenticated Next route.
+The Browser plugin was unavailable, so Playwright was used. No page errors or
+framework overlays occurred; isolated shell profile/inbox/purchasing requests
+returned expected 503s because the Go backend was deliberately unavailable.
+Safety scanning was queued, not exercised by this transfer regression. The
+combined local preview on 9092 separately passed nine-service health,
+request-origin/session guards, actual image proxy configuration and schema
+checks. Synthetic tests made no provider calls or private-document uploads.
+
+### Extracted Tender document management (4 November 2026, migration 100)
+
+Finder ZIP metadata (`__MACOSX`, AppleDouble `._*`, and `.DS_Store`) is now
+recorded as ignored after archive path/type checks; it cannot become TSC input.
+Real documents retain signature, malware, page/expansion and integrity checks.
+A successfully verified draft ZIP is deleted by leased worker cleanup only after
+its individually encrypted documents have been persisted. Failed archives stay
+available for retry. Archive upload metadata and the extraction manifest remain
+as history; the ZIP download returns 410 after extraction.
+
+Step 1 lists each verified document with filename, archive path, type, size,
+page count, download and delete controls. Deleting a document records an
+immutable removal, updates the tender version and excludes it from future TSC
+selection. Existing TSC snapshots and their evidence remain retained. Ownership,
+write permissions and same-origin protections apply; stale versions and deletion
+during an active model task are rejected. Repeated deletion is safe. Step 2
+shows pending/failed verification and the blocked file instead of only an empty
+source list. Failed batches offer Retry verification without re-uploading.
+
+Verification: Go package/schema/history tests; 15 native intake/object tests,
+234 frontend tests plus the new deletion route test; TypeScript and production
+image builds passed. Lint has zero errors and four existing warnings. Playwright
+at 1440px/390px exercised real ClamAV/PDF verification, ignored metadata, physical
+ZIP cleanup, byte-identical individual downloads, failed-archive retention,
+keep/delete confirmation, remaining-only TSC selection and a saved manual TSC.
+Browser plugin unavailable. Isolated profile/inbox requests used an unavailable
+Go backend and returned expected 503s; target workflow requests passed. No paid
+provider request or private-document cloud upload was made.
+
+Local integration used development base `d7bb2d5` with every fetched remote tip
+already included. The local cutover stopped application writers, verified a
+private database dump and encrypted-document/object-storage volume archives,
+then migrated 99 to 100 and started matching API, frontend and worker images.
+Credentials, keys, volumes and provider controls were preserved. Actual image
+identities, source hashes and separate feature/combined smoke checks are in the
+private ZIP-management verification manifest. The existing `master tender`
+batch was re-queued only for its known metadata failure: 12 PDFs verified,
+12 metadata entries ignored, ZIP deleted; TSC generation was not requested.
+
+### TSC failure visibility and request latency (4 November 2026)
+
+The observed `master tender` attempt returned Gemini HTTP 503 UNAVAILABLE
+(high demand) and no model answers. It was editable (`ready`) after failure;
+that storage state is no longer presented as successful generation. Saved
+TSCs now show Generation failed, the provider HTTP status, elapsed time and
+returned/answered/manual-question counts. Question placeholders say No answer
+received or Waiting for Gemini; returned answers and manager review are shown
+separately. A failed empty generation cannot be downloaded as a completed Word
+checklist. Prepare a retry restores its selections and requires fresh document
+and allowance confirmation; it does not dispatch a provider request.
+
+Small PDF packages now use Gemini inline PDF input, capped conservatively at
+48 MiB of encoded PDF data; larger packages retain file references with at most
+three concurrent upload/preparation operations. The observed 12-file package
+fits the direct-input path. File cleanup is also bounded to three operations,
+and saved results are published before cleanup finishes. Started uploads settle
+before cleanup even if another upload fails, preventing leaked file references.
+No automatic paid generation retry or model change was introduced. Gemini
+service availability and answer quality still require an actual successful
+provider response. Inline input is documented at
+https://ai.google.dev/gemini-api/docs/generate-content/document-processing.
+
+Feature checks: 237 frontend tests, 22 isolated TSC/provider tests, TypeScript,
+production build and lint (zero errors, four existing warnings). Tests cover
+inline bytes, bounded fallback upload/cleanup, no 503 retry, preserving answers
+before slow cleanup, failure status and blocking blank failed exports. Browser
+QA uses an isolated synthetic database with real failed-state reads and
+simulated waiting/completion/provider-availability states; it verifies desktop,
+mobile and fresh retry confirmation without sending any model request. Local
+preview schema remains 100 and existing provider approval/budget controls stay
+unchanged. The original failed response remains preserved; it was not retried
+as part of this correction.
+
+### Alternative TSC providers and bounded recovery (4 November 2026, migration 101)
+
+Step 2 now supports Groq (`openai/gpt-oss-120b`) and DeepSeek
+(`deepseek-flash`) alongside Gemini and OpenAI. These alternatives use a signed
+private PDF reader: native page text first, English/Hindi OCR for sparse pages,
+and an encrypted immutable cache keyed by source hash and reader version.
+Original PDFs stay local for these providers; selected page text is sent only
+after the existing original-document/allowance confirmation. Large inputs use
+question-ranked excerpts with visible partial coverage; “not found” on partial
+input and quotations absent from supplied page text require review. Groq splits
+the checklist into batches of 24 questions. Received batches are saved while
+remaining questions run, so an interrupted request retains its answers.
+
+An optional, default-off recovery checkbox permits one same-provider retry
+following an explicit HTTP 429 or 503 rejection. Each attempt has a separate
+retained response and passes the existing allowance/permission/source fences.
+Unknown network outcomes and interrupted requests are never automatically
+resent. Changing the recovery option clears document consent. Gemini also has
+a separately selectable quality model; its larger reservation is shown and
+blocked upfront when the remaining tender allowance is insufficient. Provider
+quotas still apply, including to free accounts; no free/unlimited service is
+promised. Saved estimates use conservative published paid rates.
+
+Groq and DeepSeek are disabled until an operator supplies their own API key.
+Create an account at https://console.groq.com/keys or
+https://platform.deepseek.com/api_keys, then edit the owner-only ignored
+`deployment/epcerp/.env.providers` using `providers.env.example` as the template.
+Do not paste credentials into chat or commit this file. Run
+`python3 deployment/epcerp/activate-tsc-providers.py` from the repository after
+local integration verification. The helper preserves existing keys/approval,
+requires clean schema 101 and the currently running verified frontend image,
+refuses active TSC work, and restarts only the frontend. It sends no model call.
+Subsequent Compose operations must include `--env-file deployment/epcerp/.env.providers`
+after the existing env files to retain these keys.
+
+Feature verification: 27 isolated native TSC/provider tests and 237 frontend
+tests passed; TypeScript and production builds passed. Lint has zero errors and
+four pre-existing warnings. Tests use injected model replies, including explicit
+503 recovery, unknown-outcome refusal, alternative-provider usage accounting,
+evidence/citation handling and original-response retention. A real synthetic
+PDF passed the signed local reader and encrypted cache into a Groq-format
+request, producing 64 saved model-answer slots and six manual questions from
+injected replies. Separate native/scanned fixtures verified real extraction,
+OCR and rejection of unsigned requests. These checks do not establish live
+provider answer quality or latency. Neither alternative account/key exists yet;
+no paid model call or private-document cloud upload was made for verification.
+
+Local verification used development base `227ee18` with all fetched origin tips
+already ancestors. Writers were stopped, database and both storage archives were
+read back and checksummed, schema 100 migrated cleanly to 101, and the matching
+API/frontend/document/legacy worker stack passed its nine service health checks.
+The login page returned 200 and unauthenticated Tender APIs returned 401.
+Operational model-call count remained one before and after cutover: no new call
+was dispatched. Desktop/mobile browser QA verified saved answers, page coverage,
+missing-key disabling, provider selection and consent reset. Provider
+availability was simulated only for selection checks; no generation POST was
+submitted. Image IDs, full base/ref commits, changed-source hashes and private
+backup location are recorded in the local alternative-provider verification
+manifest under `/private/tmp`; feature fixtures and combined-stack smoke checks
+are separate.
+
+### Free-tier TSC quality benchmark (5 November 2026, schema 101)
+
+The development configuration keeps the existing Gemini API project on its free
+tier. No billing activation or prepaid credit was purchased. Its selected quality
+model is `gemini-3-flash-preview`, using indexed source pages, a single batch of
+up to 64 questions, exact `countTokens` preflight and a 240,000 input-token guard.
+The model and input method are frozen into each workspace snapshot. Published
+paid rates remain conservative allowance estimates, not evidence of an invoice.
+The INR 100 limit applies cumulatively to each tender; the existing separate
+daily operational limit is unchanged. A structured Google quota/503 rejection
+before generation releases its hold; ambiguous outcomes retain their hold and
+are never automatically resent. Original response rows remain immutable.
+
+Quality extraction prioritises NIT, special conditions, specifications, payment
+terms and amendments, then retrieves question-specific evidence. Exact source
+quotations are checked locally, unique reference mistakes can be repaired in the
+working draft, and partial coverage is visible. Additional local clause checks
+separate SD/PG validity, general/LED payments, startup exemption/reduced deposits,
+OEM documents and GST qualification. Conflicting delivery deadlines remain
+flagged. These checks never accept answers on a manager's behalf or overwrite
+an already accepted answer. Contract PVC does not establish annual enhancement
+of work-experience credentials; single-packet bidding does not establish reverse
+auction applicability.
+
+Successful batches are retained on failure. A separately confirmed resume action
+can request only unfilled questions after a conclusive 429/503, with version,
+source, owner, budget and idempotency checks. Unknown outcomes cannot be resumed.
+The Word export now uses portrait A4 section tables, repeating column headers,
+compact file/page references and explicit management-review fields.
+
+The retained live benchmark `60792caa-1b54-49b1-b2c5-3b0c05d0b558` has 64 nonempty
+model responses and six management questions. Local source validation was saved
+as version 7 with a separate audit event; raw model replies were preserved.
+Its conservative estimate is INR 9.47. It used excerpts from 85 of 389 PDF pages,
+and 31 document answers still require source review (including one conflict).
+Other tested free-tier model requests received quota/service errors. This is
+an improved draft, not proof of Gemini Chat parity or reliable free-tier latency.
+The ten-page export was rendered and every page inspected.
+
+Feature checks: 238 frontend tests and 42 isolated native TSC/provider/source
+checks; TypeScript and production Docker builds; lint has zero errors (existing
+warnings remain). Synthetic desktop/mobile browser checks cover quality selection,
+consent reset, allowance messaging, partial results and resume payloads, without
+sending model requests. The real local reader passed native/scanned extraction,
+OCR and unsigned/cross-route signature rejection in a network-isolated container.
+Combined-stack smoke evidence, image IDs, development base/ref commits, schema
+version and source hashes are recorded separately in the private quality
+verification manifest under `/private/tmp/epcerp-tsc-quality-benchmark`.
+
+### Three ways to prepare a TSC (5 November 2026, schema 101)
+
+Step 2 is now **Prepare TSC**. Its three choices are manual writing, upload of a
+completed Word checklist, and in-app AI preparation. The default opens Word
+upload; AI source selection, provider controls and allowance details appear only
+when relevant. Saved checklists have answer/review/missing counts, searchable
+question navigation, a compact editor and collapsed original-response tools.
+Desktop, mobile and dark colours use the existing Citual/host theme tokens.
+
+Word import accepts standard `.docx` files up to 4 MiB containing question/answer
+tables. Parsing stays local: it does not execute document instructions, Word
+fields, macros, embedded files or external relationships. Archive/XML complexity
+and text lengths are bounded. A preview suggests section-aware question matches,
+leaves ambiguous/duplicate rows unresolved, supports applying a combined answer
+to multiple questions and shows questions still missing. Unmatched supplied
+answers require explicit skip confirmation. Source/format changes preserve the
+preview but require refreshing it before saving.
+
+A saved import is a ready manual workspace with explicit upload provenance.
+It requires normal TSC write permission, not cloud approval, OCR or source PDFs.
+Supplied answers remain unreviewed unless the uploader explicitly confirms bulk
+review; missing questions stay open. An atomic immutable encrypted audit event
+retains the original Word bytes and mapping. Export permission plus tender
+ownership protects original download. Replays use the original operation key;
+no model task, request reservation or provider call is created. Existing answer
+editing and review history remain available, and **Done · back to tenders**
+returns to the tender list. Import does not bypass later business approvals.
+No schema change is required; existing data, keys and cloud/budget controls are
+preserved.
+
+Feature verification: 239 frontend checks and 48 isolated native TSC checks,
+including real preview/save/replay/download/edit, one-to-many mapping, explicit
+review, tenant isolation and zero provider calls. TypeScript passes; ESLint has
+zero errors and four existing warnings. Synthetic browser checks cover the real
+Next route/database flow without source PDFs or cloud keys, plus desktop/mobile,
+dark mode, wrong file type, unsaved-preview protection, manual creation and
+unconfigured AI. The supplied Gemini Chat Word document was also parsed locally;
+uncertain shortened/combined questions remained reviewable rather than guessed.
+Final image IDs, base/ref commits, schema, source hashes and combined-stack smoke
+checks are recorded separately in the private Word-import verification manifest.
+
+Word-import local cutover verified on 2026-11-05 from `codex/development`
+(base `d46b35ae27a1c8a4e1d0d5e6ca259b027bb69e4e`, including all fetched origin tips).
+Schema remained `101` clean; all nine services healthy; login returned 200 and
+unauthenticated tender API returned 401. Final Docker browser verification passed
+with synthetic data, no console errors and zero model-generation requests.
+Operational TSC model-call count stayed 21 and the per-tender cap stayed ₹100.
+Pinned local images: `api sha256:058e722e05c5bede1f62b5dd1c19b8c3d4948d3533a62c2005960f86de3f6f49`, `frontend sha256:0f934e30f5217e0a6ff498ff2089b02d59b00859bde40abab33c2e5e064a05ee`, `document-worker sha256:96a9c46411456744ef3cd07aafcca68d6251372184536cbc6dbcf544650f428e`.
+Feature tests and combined-stack smoke checks above are distinct; no production
+deployment or merge to main was performed.
