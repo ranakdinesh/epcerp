@@ -8,7 +8,7 @@ import { PurchaseIndentTerms, vendorIndentDefaults } from "./purchase-indent-ter
 import { VendorIndentRegister, type DocumentWorkspace, type DocumentCommand } from "./purchase-indent-documents";
 import { PurchaseIndentGroups, type GroupWorkspace, type GroupCommand } from "./purchase-indent-groups";
 import { RecordDrawer } from "@/components/ui/record-drawer";
-import { displayServerErrors } from "@/components/ui/server-field-errors";
+import { displayServerErrors, serverErrorMessage } from "@/components/ui/server-field-errors";
 
 import {useRouter,useSearchParams} from "next/navigation";
 import { useEffect, useState } from "react";
@@ -155,7 +155,11 @@ export function PurchaseIndentWorkspace({
     try {
       const response=await fetch(documentUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...command,group_version:workspace?.record?.version??0,bo_version:boVersion})});
       const data=await response.json();
-      if(!response.ok){if(form&&displayServerErrors(form,data))return false;throw new Error(typeof data.detail==="string"?data.detail:"Unable to save indent log.");}
+      if (!response.ok) {
+        if (displayServerErrors(form, data)) return false;
+        setNotice(serverErrorMessage(data, "Unable to save the vendor indent."));
+        return false;
+      }
       setDocuments(data);
       window.dispatchEvent(new CustomEvent("purchase-progress-saved", {detail:project}));
       const updated=await fetch(groupUrl);const groupsData=await updated.json();
@@ -170,7 +174,7 @@ export function PurchaseIndentWorkspace({
 
       window.dispatchEvent(new Event("indent-dispatch-changed"));
       return true;
-    } catch(error){setNotice(error instanceof Error?error.message:"Unable to save indent log.");return false;}
+    } catch(error){setNotice(error instanceof Error?error.message:"Unable to save the vendor indent.");return false;}
     finally{setBusy(false);}
   }
   const created = workspace?.record?.state === "created";
