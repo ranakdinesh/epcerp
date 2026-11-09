@@ -77,3 +77,30 @@ and enabled deployment-service restart passed. API/worker image revision 2
 includes a bounded research response lifetime around the 75-second provider
 limit. Next unfinished task: held-out benchmarking and an authorized user’s live
 Gemini review; do not infer universal extraction accuracy.
+
+## Development deployment — 6 November 2026
+
+The current native Next.js/Node working snapshot was deployed at clean schema 102.
+The migration rehearsal and live upgrade preserved 192 existing tables; verified
+database and business-file backups are retained privately. The new and recovery
+images passed rehearsal readiness. Source, checks and limits are recorded in
+`deployment/epcerp/DEVELOPMENT_UPDATE_20261106.md`. This records operational
+delivery of the current UI/schema; company qualification accuracy, live-provider
+quality and end-to-end bidding acceptance remain separate unfinished validation.
+
+## Tender bid workflow and handoff (9 November 2026)
+
+The native workflow now has screens and routes for document intake, bidding
+approval, pre-bid queries, working BOQ, vendor quotation selection, costing,
+submission, and award. Migration 103 adds the four bid workflow tables.
+Award uses the authenticated project and purchasing permissions, requires a
+recorded submission and an exact active client match, and transfers tender
+items into a draft purchase BOQ. Procurement completes catalogue and date
+review in its existing workspace. The transaction links the award to the
+created project so repeat requests reuse that project.
+
+Synthetic database verification covers pre-bid entry, L1 selection, costing,
+submission, concurrent award requests, and the transferred draft BOQ. TSC
+provider simulations cover fresh generation, interruption, and retained
+response evidence. Next unfinished task is tender-to-procurement business
+acceptance with representative user roles and tender data.

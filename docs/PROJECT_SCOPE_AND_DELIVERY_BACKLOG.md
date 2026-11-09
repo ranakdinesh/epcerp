@@ -80,3 +80,27 @@ fallback/partial-result warnings, not automatic commercial acceptance.
 
 See TSC_TABLE_PRESERVATION_SLICE.md. Originals fallback is PDF-only and does not
 fetch external references or resolve source precedence automatically.
+
+## Development deployment — 6 November 2026
+
+- [x] Package the combined current native working snapshot and correct deployment
+  blockers while preserving concurrent source changes.
+- [x] Pass native/frontend/provider-isolated checks, production build and browser
+  smoke tests. Rehearse 101→102 and recovery on a private server database copy.
+- [x] Take verified DB/business-file backups, migrate and update both development
+  frontends while preserving private controls and existing LAN/HTTPS routes.
+- [ ] Complete representative company-qualification and bidding workflow business
+  acceptance, plus an explicitly authorized live provider quality evaluation.
+
+See `deployment/epcerp/DEVELOPMENT_UPDATE_20261106.md` for the actual snapshot and
+checks; deployment does not mark every pending business workflow complete.
+- [x] Correct the retired-API boot-hook reference, then verify the enabled native
+  deployment service restart, provider settings and both access routes.
+
+## Tender bid workflow (9 November 2026)
+
+- [x] Implement the bid workflow screens, routes, and migration 103.
+- [x] Verify the native tender-to-project handoff with synthetic records,
+  including concurrent award requests and a reviewable purchase BOQ.
+- [ ] Complete catalogue matching and procurement acceptance on a representative
+  awarded tender, and validate role assignments with operational users.
