@@ -8,7 +8,7 @@ import { source } from '../purchasing/task-source';
 import { query,overdue } from './validation';
 export async function page(token:string,params:URLSearchParams,now=new Date()){
     return transaction(async db=>{
-        const actor=await requireAnyPermission(db,token,['work.tasks.view'],true);
+        const actor=await requireAnyPermission(db,token,['work.tasks.view'],'business');
         if(!actor.allows('work.tasks.read'))throw new AppError(403,'Current personal task permissions required');
         const q=query(params),execute=actor.allows('projects.purchase_workflow.execute'),resolve=actor.allows('projects.purchase_workflow.resolve');
         const rows=[],context=new Map<string,Awaited<ReturnType<typeof source>>>();let total=0;

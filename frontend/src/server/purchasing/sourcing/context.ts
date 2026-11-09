@@ -16,7 +16,7 @@ import { invalid, trim } from '../core/validation';
 import { missing } from './policy';
 import { scopePrice, total, priceOffer } from './values';
 import type { Source, Capabilities, Supplier, Proof, Offer } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_sourcing.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_sourcing.read'], 'business');
 export async function scoped(db: DB, a: Actor, p: string, code: string, write: boolean) { const parent = await project(db, p, true), w = await workspace(db, p); try {
     const v = await scope(db, a, parent, w, code, write);
     return !write || v.can_write;

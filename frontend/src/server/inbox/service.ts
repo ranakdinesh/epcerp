@@ -4,7 +4,7 @@ import { requireAnyPermission } from '../auth/access';
 import { query, noticeID, receiptVersion, InboxError, invalid } from './validation';
 import { ownNotice, history, notice, exactColumns, timeSQL, timestamp, receiptEvent } from './repository';
 async function access(db: Parameters<typeof requireAnyPermission>[0], token: string, write = false) {
-    const actor = await requireAnyPermission(db,token,['communication.inbox.read'],true);
+    const actor = await requireAnyPermission(db,token,['communication.inbox.read'],'business');
     if (write && !actor.allows('communication.inbox.write')) throw new InboxError(403,'Personal inbox permission denied');
     return actor;
 }

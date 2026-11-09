@@ -21,7 +21,7 @@ export async function handleProfile(r: Request) {
     try {
         const p = new URL(r.url).pathname.replace(/^\/api\/v1\/auth\/user_profile\/?/, '').split('/').filter(Boolean), token = r.headers.get('authorization')?.replace(/^Bearer /i, '') ?? '', write = r.method !== 'GET';
         return await transaction(async (db) => {
-            const a = await requireAnyPermission(db, token, [write ? 'account.profile.write' : 'account.profile.read'], true), target = p[0] === 'me' ? a.id : uuid(p[0]);
+            const a = await requireAnyPermission(db, token, [write ? 'account.profile.write' : 'account.profile.read'], write ? true : 'business'), target = p[0] === 'me' ? a.id : uuid(p[0]);
             if (write && p[0] !== 'me')
                 throw new AppError(403, 'Permission denied');
             let u = (await db.query('SELECT id,username,first_name,last_name,mobile FROM auth.users WHERE id=$1 AND is_active', [target])).rows[0];

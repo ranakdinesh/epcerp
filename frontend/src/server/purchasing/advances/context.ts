@@ -10,7 +10,7 @@ import { acceptedFact } from '../acceptance/service';
 import { VerificationRepository } from '../../master/verification/repository';
 import { evaluate } from '../../master/verification/domain';
 import type { Source, Capabilities } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_advances.read', 'accounts.purchase_advances.view'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_advances.read', 'accounts.purchase_advances.view'], 'business');
 export async function access(db: DB, a: Actor, p: string, id: string): Promise<Capabilities> { const parent = await project(db, p, true), out: Capabilities = { read: false, write: false, work: false, review: false, disburse: false, scoped: false }; if (a.allows('projects.purchase_advances.read')) {
     out.scoped = await scoped(db, a, p, 'projects.purchase_advances.read', false);
     const task = await stepAccess(db, a, p, id, 11);

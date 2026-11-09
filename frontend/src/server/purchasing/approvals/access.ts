@@ -5,7 +5,7 @@ import { projectAccess } from '../core/project-access';
 import { workspace } from '../workspace/repository';
 import { AppError } from '../../errors';
 import type { Capabilities } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.group_comparisons.view', 'accounts.quotation_approvals.view', 'projects.master.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.group_comparisons.view', 'accounts.quotation_approvals.view', 'projects.master.read'], 'business');
 export async function actions(db: DB, a: Actor, target: string): Promise<{
     caps: Capabilities;
     project: Project;

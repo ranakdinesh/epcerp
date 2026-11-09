@@ -9,7 +9,7 @@ import { lineSource } from '../indents/source';
 import { invalid } from '../core/validation';
 import type { Capabilities, Source, Member } from './types';
 import { missing } from './policy';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_workflow.view', 'projects.purchase_workflow.execute', 'projects.purchase_workflow.resolve'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_workflow.view', 'projects.purchase_workflow.execute', 'projects.purchase_workflow.resolve'], 'business');
 export async function actions(db: DB, a: Actor, p: string): Promise<Capabilities> {
     const parent = await project(db, p, true), w = await workspace(db, p);
     const check = async (code: string, write: boolean) => { if (!a.allows(code))

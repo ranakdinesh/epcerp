@@ -12,8 +12,13 @@ function capabilities(user: User) {
     return { id: user.id, active: user.is_active, superuser: user.is_superuser,
         allows: (permission: string) => allows(user, permission) };
 }
-export async function requireAnyPermission(db: DB, token: string, permissions: string[], write = false) {
-    if (write)
+// Business transactions may write their own module, but must not mutate Auth.
+// Shared guards preserve authorization until commit without serializing modules.
+// Auth/account administration must continue to use the exclusive `true` mode.
+export async function requireAnyPermission(db: DB, token: string, permissions: string[], write: boolean | 'business' = false) {
+    if (write === 'business')
+        await db.query("SELECT pg_advisory_xact_lock_shared(hashtextextended($1::text,0))", ['auth.administration']);
+    else if (write)
         await lock(db, "auth.administration");
     const user = await resolve(db, token);
     if (!permissions.some(permission => allows(user, permission)))

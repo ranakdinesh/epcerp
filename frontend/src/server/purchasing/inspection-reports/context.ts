@@ -7,7 +7,7 @@ import { stageAccess } from '../core/stage-access';
 import { clearedFact } from '../inspections/service';
 import { invalid } from '../core/validation';
 import type { Source } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_inspection_reports.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_inspection_reports.read'], 'business');
 export const access = (db: DB, a: Actor, p: string, id: string) => stageAccess(db, a, p, id, 'projects.purchase_inspection_reports', 13);
 export async function source(db: DB, p: string, id: string): Promise<Source> { const { record, current } = await inspect(db, p, id), out: Source = { project_id: p, package_id: id, inspection_id: '', inspection_version: 0, inspection_revision: 0, actual_date: '', order_id: '', order_version: 0, number: '', supplier_name: '', description: '', quantity: '', uom: '', qap_reference: '', available: current.project_available && current.eligible, blockers: [...current.blockers] }; for (const step of record.steps)
     if (step.number === 13 && step.state === 'blocked')

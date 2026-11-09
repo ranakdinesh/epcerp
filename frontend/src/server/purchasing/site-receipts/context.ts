@@ -8,7 +8,7 @@ import { dispatchedFact } from '../dispatch/service';
 import { blankSource as dispatchBlank } from '../dispatch/context';
 import { invalid } from '../core/validation';
 import type { Source } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_site_receipts.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_site_receipts.read'], 'business');
 export const access = (db: DB, a: Actor, p: string, id: string) => stageAccess(db, a, p, id, 'projects.purchase_site_receipts', 17);
 export const blankSource = (p: string, id: string): Source => ({ ...dispatchBlank(p, id), dispatch_id: '', dispatch_version: 0, dispatch_revision: 0, dispatch_date: '', lr_number: '', transporter_name: '' });
 export async function source(db: DB, p: string, id: string): Promise<Source> { const { record, current } = await inspect(db, p, id), out: Source = { ...blankSource(p, id), available: current.project_available && current.eligible, blockers: [...current.blockers] }; for (const step of record.steps)

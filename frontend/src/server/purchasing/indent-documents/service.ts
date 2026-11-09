@@ -116,4 +116,4 @@ export async function execute(token: string, target: string, bo: string, raw: Re
         return workspaceBound(db, a, p, bo, write);
     });
 }
-export async function notifications(token: string) { return transaction(async (db) => { const a = await requireAnyPermission(db, token, ['projects.master.read', 'projects.purchase_indent_documents.read'], true); return repo.notices(db, a.id); }); }
+export async function notifications(token: string) { return transaction(async (db) => { const a = await requireAnyPermission(db, token, ['projects.master.read', 'projects.purchase_indent_documents.read'], 'business'); return repo.notices(db, a.id); }); }

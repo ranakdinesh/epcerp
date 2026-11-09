@@ -9,7 +9,7 @@ import { acceptedFact } from '../acceptance/service';
 import { clearance } from '../technical/service';
 import { invalid } from '../core/validation';
 import type { Source } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_inspection.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_inspection.read'], 'business');
 export const access = (db: DB, a: Actor, p: string, id: string) => stageAccess(db, a, p, id, 'projects.purchase_inspection', 12);
 const blank = (p: string, id: string): Source => ({ project_id: p, package_id: id, order_id: '', order_version: 0, number: '', date: '', supplier_id: '', supplier_name: '', description: '', quantity: '', uom: '', acceptance_id: '', acceptance_version: 0, technical_id: '', technical_version: 0, technical_revision: 0, qap_reference: '', qap_date: '', qap_file_id: '', signed_approval_file_id: '', available: false, blockers: [] });
 const block = (s: Source, message: string) => { s.available = false; s.blockers.push(message); return s; };

@@ -8,7 +8,7 @@ import { released } from '../sourcing/reader';
 import { projectReady } from '../approvals/service';
 import { indiaDate } from '../../personal-tasks/validation';
 import type { Source, Capabilities } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_technical.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_technical.read'], 'business');
 export async function access(db: DB, a: Actor, p: string, id: string): Promise<Capabilities> { await project(db, p, true); const caps: Capabilities = { read: false, write: false, approve: false, scoped: false, work: {} }; if (!a.allows('projects.purchase_technical.read'))
     return caps; caps.scoped = await scoped(db, a, p, 'projects.purchase_technical.read', false); caps.read = caps.scoped; for (const n of [6, 7, 8]) {
     const value = await stepAccess(db, a, p, id, n);

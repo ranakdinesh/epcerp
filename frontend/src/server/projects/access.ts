@@ -4,7 +4,7 @@ import { requireAnyPermission } from '../auth/access';
 import { ProjectError } from './validation';
 import type { Project } from './repository';
 export type Actor=Awaited<ReturnType<typeof access>>;
-export async function access(db:DB,token:string,extra:string[]=[]){const a=await requireAnyPermission(db,token,['projects.master.read'],true);if(extra.some(p=>!a.allows(p)))throw new ProjectError(403,'project access denied');await db.query('SELECT pg_advisory_xact_lock_shared(70623124)');return a;}
+export async function access(db:DB,token:string,extra:string[]=[]){const a=await requireAnyPermission(db,token,['projects.master.read'],'business');if(extra.some(p=>!a.allows(p)))throw new ProjectError(403,'project access denied');await db.query('SELECT pg_advisory_xact_lock_shared(70623124)');return a;}
 export const portfolio=(a:Actor)=>['projects.portfolio.read','projects.portfolio.write','projects.manager_assignments.write'].some(p=>a.allows(p));
 export const correct=(a:Actor,p:Project)=>a.allows('projects.master.write')&&(a.id===p.project_manager_id||a.allows('projects.portfolio.write'));
 export async function assigned(db:DB,a:Actor){

@@ -8,7 +8,7 @@ import { deliveredFact } from '../site-receipts/service';
 import { blankSource as upstreamBlank } from '../site-receipts/context';
 import { invalid } from '../core/validation';
 import type { Source } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_grns.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_grns.read'], 'business');
 export const access = (db: DB, a: Actor, p: string, id: string) => stageAccess(db, a, p, id, 'projects.purchase_grns', 18);
 export const blankSource = (p: string, id: string): Source => ({ ...upstreamBlank(p, id), receipt_id: '', receipt_version: 0, receipt_revision: 0, arrival_date: '', receiving_officer: '', packages_received: 0, packages_condition: '', transit_damage_notes: '', gate_entry_ref: '' });
 export async function source(db: DB, p: string, id: string): Promise<Source> { const { record, current } = await inspect(db, p, id), out: Source = { ...blankSource(p, id), available: current.project_available && current.eligible, blockers: [...current.blockers] }; for (const step of record.steps)

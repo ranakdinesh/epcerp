@@ -11,7 +11,7 @@ import { confirmedFact } from '../engineer-confirmations/service';
 import { blankSource as upstreamBlank } from '../engineer-confirmations/context';
 import { invalid } from '../core/validation';
 import type { Source } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['accounts.purchase_acceptance.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['accounts.purchase_acceptance.read'], 'business');
 export async function access(db: DB, a: Actor, p: string, id: string) { const parent = await project(db, p, true), out = { read: false, write: false, work: false, scoped: false }; if (!a.allows('accounts.purchase_acceptance.read') || !a.allows('accounts.purchase_acceptance.view'))
     return out; const scope = async (code: string, write: boolean) => { try {
     const grant = await projectAccess(db, a, parent, code, write);

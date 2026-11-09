@@ -6,7 +6,7 @@ import { inspect, stepAccess } from '../workflow/reader';
 import { scoped } from '../sourcing/context';
 import { released } from '../orders/reader';
 import type { Source, Capabilities } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_acceptance.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_acceptance.read'], 'business');
 export async function access(db: DB, a: Actor, p: string, id: string): Promise<Capabilities> { await project(db, p, true); if (!a.allows('projects.purchase_acceptance.read'))
     return { read: false, write: false, scoped: false, work: false }; const scope = await scoped(db, a, p, 'projects.purchase_acceptance.read', false), task = await stepAccess(db, a, p, id, 10), read = scope || task.read; return { read, write: read && a.allows('projects.purchase_acceptance.write'), scoped: scope, work: task.work }; }
 export async function source(db: DB, p: string, id: string): Promise<Source> { const { record, current } = await inspect(db, p, id), out: Source = { project_id: p, package_id: id, available: current.project_available && current.eligible, blockers: [...current.blockers], order: null }; for (const s of record.steps)

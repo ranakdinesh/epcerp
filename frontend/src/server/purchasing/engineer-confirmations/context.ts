@@ -8,7 +8,7 @@ import { issuedFact } from '../grns/service';
 import { blankSource as upstreamBlank } from '../grns/context';
 import { invalid } from '../core/validation';
 import type { Source } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_engineer_confirmations.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.purchase_engineer_confirmations.read'], 'business');
 export const access = (db: DB, a: Actor, p: string, id: string) => stageAccess(db, a, p, id, 'projects.purchase_engineer_confirmations', 19);
 export const blankSource = (p: string, id: string): Source => ({ ...upstreamBlank(p, id), grn_id: '', grn_version: 0, grn_revision: 0, grn_number: '', grn_date: '', received_qty: '', accepted_qty: '', rejected_qty: '', warranty_ref: '', warranty_valid_until: '' });
 export async function source(db: DB, p: string, id: string): Promise<Source> { const { record, current } = await inspect(db, p, id), out: Source = { ...blankSource(p, id), available: current.project_available && current.eligible, blockers: [...current.blockers] }; for (const step of record.steps)

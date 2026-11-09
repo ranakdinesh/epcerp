@@ -6,7 +6,7 @@ import * as bo from '../../purchasing/bo/repository';
 import { invalid, missing } from './validation';
 import { scoped } from '../team/validation';
 import type { Owner, Item } from './types';
-export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.budgets.read'], true);
+export const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.budgets.read'], 'business');
 export type Actor = Awaited<ReturnType<typeof actor>>;
 export async function context(db: DB, target: string, lock = false) {
     const p = await project(db, target, lock), row = (await db.query('SELECT currency,contract_value::text FROM projects WHERE id=$1', [p.id])).rows[0], client = (await db.query('SELECT is_active FROM clients WHERE id=$1', [p.client_id])).rows[0];

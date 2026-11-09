@@ -4,7 +4,7 @@ import { requireAnyPermission } from '../../auth/access';
 import { PurchaseError, invalid, uuid } from './validation';
 export type Actor = Awaited<ReturnType<typeof actor>>;
 export async function actor(db: DB, token: string, permissions: string[] = []) {
-    const user = await requireAnyPermission(db, token, ['projects.purchase_workflow.view'], true);
+    const user = await requireAnyPermission(db, token, ['projects.purchase_workflow.view'], 'business');
     if (!user.allows('projects.purchase_workflow.read') || permissions.some(code => !user.allows(code)))
         throw forbidden();
     return user;
