@@ -104,3 +104,9 @@ submission, concurrent award requests, and the transferred draft BOQ. TSC
 provider simulations cover fresh generation, interruption, and retained
 response evidence. Next unfinished task is tender-to-procurement business
 acceptance with representative user roles and tender data.
+
+The development server runs application revision `b79adc0` at clean schema 103.
+The rehearsal and live migration preserved all 199 existing tables. The database
+archive and both business file backups verified, and the deployment service
+restart retained working office HTTP, public HTTPS and provider configuration.
+The server rollout record is `/home/vtplerp/deployment-20261109/verification.json`.

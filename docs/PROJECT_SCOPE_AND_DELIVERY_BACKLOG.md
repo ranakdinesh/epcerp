@@ -102,5 +102,7 @@ checks; deployment does not mark every pending business workflow complete.
 - [x] Implement the bid workflow screens, routes, and migration 103.
 - [x] Verify the native tender-to-project handoff with synthetic records,
   including concurrent award requests and a reviewable purchase BOQ.
+- [x] Deploy the verified revision to development at schema 103 and check
+  backup integrity, provider configuration, access routes and service restart.
 - [ ] Complete catalogue matching and procurement acceptance on a representative
   awarded tender, and validate role assignments with operational users.
