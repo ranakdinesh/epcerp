@@ -50,7 +50,25 @@ export async function create(token: string, draft: string, key: string, value: u
           const c=await costs(db,draft),available=c.limit_paise-c.unconfirmed_reserved_paise-c.legacy_reserved_paise-Math.ceil(c.estimated_micro_inr/10000),rate=price(requested,strongerModel),required=reservePaise(requested==='gemini'&&strongerModel?{...rate,max_input_tokens:0}:rate);
           if(required>available)throw new AppError(409,`This model requires up to ₹${(required/100).toFixed(2)}, but ₹${(Math.max(0,available)/100).toFixed(2)} remains in the tender allowance. Choose a lower-cost provider or reconcile earlier unconfirmed usage.`);
         }
-        const snapshot: Snapshot = { schema: 'tsc-cloud-v2', draft_id: draft, draft_version: version, name: d.name, format_id: formatID, format_version: formatVersion, format_name: format.name, questions, sources, mode: requested, auto_escalate: requested === 'gemini' && escalate, stronger_model:strongerModel,...(requested==='gemini'&&(strongerModel||escalate)?{quality_model:price('gemini',true).model,quality_input:process.env.EPCERP_TSC_GEMINI_QUALITY_INPUT==='pdf'?'pdf' as const:'indexed' as const}:{}),recover_overload:requested!=='manual'&&recoverOverload, source_fingerprint: sourceFingerprint(sources) }, input = encrypt(snapshot), answers = questions.map(blank), result = encrypt(answers), jobID = randomUUID();
+        const fingerprint = sourceFingerprint(sources);
+        let answers = questions.map(blank);
+        if (requested === 'manual') {
+            const prior = (await db.query<JobRow>(
+                "SELECT * FROM tender.tsc_workspaces WHERE draft_id=$1 AND draft_version=$2 AND state='ready' ORDER BY created_at DESC LIMIT 1",
+                [draft, version]
+            )).rows[0];
+            if (prior) {
+                const { snapshot: previous, answers: saved } = decodeJob(prior);
+                if (previous.format_id === formatID && previous.format_version === formatVersion && previous.source_fingerprint === fingerprint) {
+                    const byQuestion = new Map(saved.map(answer => [answer.question_id, answer]));
+                    answers = questions.map(question => {
+                        const answer = byQuestion.get(question.id);
+                        return answer?.answer.trim() ? { ...answer, accepted: false } : blank(question);
+                    });
+                }
+            }
+        }
+        const snapshot: Snapshot = { schema: 'tsc-cloud-v2', draft_id: draft, draft_version: version, name: d.name, format_id: formatID, format_version: formatVersion, format_name: format.name, questions, sources, mode: requested, auto_escalate: requested === 'gemini' && escalate, stronger_model:strongerModel,...(requested==='gemini'&&(strongerModel||escalate)?{quality_model:price('gemini',true).model,quality_input:process.env.EPCERP_TSC_GEMINI_QUALITY_INPUT==='pdf'?'pdf' as const:'indexed' as const}:{}),recover_overload:requested!=='manual'&&recoverOverload, source_fingerprint: fingerprint }, input = encrypt(snapshot), result = encrypt(answers), jobID = randomUUID();
         const row = (await db.query<JobRow>(`INSERT INTO tender.tsc_workspaces(id,draft_id,draft_version,actor_id,operation_key,request_hash,mode,state,snapshot_cipher,snapshot_hash,answers_cipher,answers_hash)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)RETURNING *`, [jobID, draft, version, actor.id, key, requestHash, requested, requested === 'manual' ? 'ready' : 'queued', input.cipher, input.hash, result.cipher, result.hash])).rows[0];
         if (requested !== 'manual')
             await db.query('INSERT INTO tender.tsc_workspace_tasks(id,job_id,draft_id,actor_id,operation_key,request_hash,provider,stronger)VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [randomUUID(), jobID, draft, actor.id, randomUUID(), requestHash, requested,strongerModel]);
@@ -67,9 +85,8 @@ async function jobView(db: Parameters<typeof costs>[0], row: JobRow, version: nu
 export function get(token: string, draft: string, job: string) { return transaction(async (db) => { const { draft: d } = await authorizeTender(db, token, draft); return jobView(db, await getJob(db, draft, job), d.version); }); }
 export function list(token: string, draft: string) { return transaction(async (db) => { await authorizeTender(db, token, draft); return (await db.query("SELECT * FROM(SELECT id,mode,state,version,draft_version,created_at,error_code,EXISTS(SELECT 1 FROM tender.tsc_workspace_events e WHERE e.job_id=tender.tsc_workspaces.id AND e.action='word_imported') AS imported,'nextjs'::text AS engine FROM tender.tsc_workspaces WHERE draft_id=$1 UNION ALL SELECT id,mode,state,version,draft_version,created_at,error_code,false AS imported,'go'::text AS engine FROM tender.tsc_jobs WHERE draft_id=$1)jobs ORDER BY created_at DESC LIMIT 50", [draft])).rows.map(r => ({ ...r, preparation_method:r.imported?'upload':undefined,version: Number(r.version), draft_version: Number(r.draft_version) })); }); }
 export function edit(token: string, draft: string, job: string, question: string, value: unknown) {
-    const r = object(value, ['expected_version', 'answer', 'reason']), version = integer(r.expected_version, 1), reason = str(r.reason, 1000);
-    if (reason.trim().length < 3)
-        invalid('Provide a correction reason');
+    const r = object(value, ['expected_version', 'answer', 'reason']), version = integer(r.expected_version, 1);
+    const reasonRaw = typeof r.reason === 'string' ? str(r.reason, 1000).trim() : '';
     return transaction(async (db) => {
         const { actor, draft: d } = await authorizeTender(db, token, draft, 'write'), row = await getJob(db, draft, job, true), { snapshot, answers } = decodeJob(row);
         if (row.state !== 'ready' || Number(row.draft_version) !== d.version || Number(row.version) !== version)
@@ -83,6 +100,10 @@ export function edit(token: string, draft: string, job: string, question: string
         const old = answers[index];
         if (old.accepted && (old.answer !== next.answer || JSON.stringify(old.citations) !== JSON.stringify(next.citations) || old.status !== next.status))
             throw new AppError(409, 'Reopen the reviewed answer before changing its wording');
+        if (old.accepted && reasonRaw.length < 3) {
+            invalid('Provide a correction reason to reopen this reviewed answer');
+        }
+        const reason = reasonRaw || (old.accepted ? 'Reopen for correction' : 'Working answer recorded');
         if (old.answer === next.answer && old.status === next.status && JSON.stringify(old.citations) === JSON.stringify(next.citations))
             next.origin = old.origin;
         answers[index] = next;

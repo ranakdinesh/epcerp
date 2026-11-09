@@ -12,18 +12,25 @@ export function ProcessNavigation({ process, selected, mapSelected, projectId, d
 }) {
   const [query, setQuery] = useState("");
   const [completion,setCompletion]=useState<{project?:string;steps:number[]}>({steps:[]});
-  const completed=completion.project===projectId?completion.steps:[];
+  const completed=completion.project===(projectId??draftId)?completion.steps:[];
   useEffect(()=>{
-    if(process.screen!=="purchase-fms"||!projectId)return;
-    let controller:AbortController;
-    const refresh=()=>{controller?.abort();controller=new AbortController();const active=controller;fetch(`/api/purchase-fms/projects/${encodeURIComponent(projectId)}`,{cache:"no-store",signal:active.signal}).then(async r=>{if(!r.ok)throw Error();return r.json()}).then(d=>{if(!active.signal.aborted)setCompletion({project:projectId,steps:d.project.completed_steps??[]})}).catch(()=>{if(!active.signal.aborted)setCompletion({project:projectId,steps:[]})});};
-    refresh();window.addEventListener("purchase-progress-saved",refresh);window.addEventListener("focus",refresh);
-    return()=>{controller?.abort();window.removeEventListener("purchase-progress-saved",refresh);window.removeEventListener("focus",refresh)};
-  },[process.screen,projectId]);
+    if(process.screen==="purchase-fms"&&projectId){
+      let controller:AbortController;
+      const refresh=()=>{controller?.abort();controller=new AbortController();const active=controller;fetch(`/api/purchase-fms/projects/${encodeURIComponent(projectId)}`,{cache:"no-store",signal:active.signal}).then(async r=>{if(!r.ok)throw Error();return r.json()}).then(d=>{if(!active.signal.aborted)setCompletion({project:projectId,steps:d.project.completed_steps??[]})}).catch(()=>{if(!active.signal.aborted)setCompletion({project:projectId,steps:[]})});};
+      refresh();window.addEventListener("purchase-progress-saved",refresh);window.addEventListener("focus",refresh);
+      return()=>{controller?.abort();window.removeEventListener("purchase-progress-saved",refresh);window.removeEventListener("focus",refresh)};
+    }
+    if(process.screen==="tender-fms"&&draftId){
+      let controller:AbortController;
+      const refresh=()=>{controller?.abort();controller=new AbortController();const active=controller;fetch(`/api/tender-fms/drafts/${encodeURIComponent(draftId)}/flow-status`,{cache:"no-store",signal:active.signal}).then(async r=>{if(!r.ok)throw Error();return r.json()}).then(d=>{if(!active.signal.aborted)setCompletion({project:draftId,steps:d.completed_steps??[]})}).catch(()=>{if(!active.signal.aborted)setCompletion({project:draftId,steps:[]})});};
+      refresh();window.addEventListener("tender-progress-saved",refresh);window.addEventListener("focus",refresh);
+      return()=>{controller?.abort();window.removeEventListener("tender-progress-saved",refresh);window.removeEventListener("focus",refresh)};
+    }
+  },[process.screen,projectId,draftId]);
   const steps = filterProcessSteps(process, query);
   const groups = [...new Set(steps.map(step => step.group))];
   return <>
-    <Link href={process.screen === "purchase-fms" ? "/dashboard?screen=purchase-fms" : "/dashboard"} title={process.screen === "purchase-fms" ? "Back to purchase dashboard" : "Back to workspace"} aria-label={process.screen === "purchase-fms" ? "Back to purchase dashboard" : "Back to workspace"} onClick={close}><ArrowLeftIcon aria-hidden="true" /><span>{process.screen === "purchase-fms" ? "Back to purchase dashboard" : "Back to workspace"}</span></Link>
+    <Link href={process.screen === "purchase-fms" ? "/dashboard?screen=purchase-fms" : process.screen === "tender-fms" ? (draftId ? "/dashboard?screen=tender-fms" : "/dashboard") : "/dashboard"} title={process.screen === "purchase-fms" ? "Back to purchase dashboard" : process.screen === "tender-fms" ? (draftId ? "Back to tenders" : "Back to workspace") : "Back to workspace"} aria-label={process.screen === "purchase-fms" ? "Back to purchase dashboard" : process.screen === "tender-fms" ? (draftId ? "Back to tenders" : "Back to workspace") : "Back to workspace"} onClick={close}><ArrowLeftIcon aria-hidden="true" /><span>{process.screen === "purchase-fms" ? "Back to purchase dashboard" : process.screen === "tender-fms" ? (draftId ? "Back to tenders" : "Back to workspace") : "Back to workspace"}</span></Link>
     <div className="go-process-heading"><strong>{process.label}</strong></div>
     <Link href={processMapHref(process,projectId)} title="Process map" aria-label="Process map" aria-current={mapSelected ? "page" : undefined} onClick={close}><MapIcon aria-hidden="true" /><span>Process map</span></Link>
     {process.screen==="purchase-fms"&&projectId&&<Link href={`/dashboard?screen=purchase-fms&project=${encodeURIComponent(projectId)}&work=packages`} title="Purchase work packages" aria-label="Purchase work packages" aria-current={workPackages?"page":undefined} onClick={close}><ClipboardDocumentListIcon aria-hidden="true"/><span>Purchase work packages</span></Link>}

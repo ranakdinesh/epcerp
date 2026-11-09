@@ -1,86 +1,907 @@
 "use client";
-import { fileSHA256 } from "@/lib/file-sha256";
 import { createRecordId } from "@/lib/record-id";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { EyeIcon, PlusIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import Link from "next/link";
+import {
+  EyeIcon,
+  PlusIcon,
+  ArrowPathIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  DocumentCheckIcon,
+} from "@heroicons/react/24/outline";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { DataGrid, type GridQuery } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
-import { ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedSelect } from "@/components/ui/validated-controls";
-import { packageFileError, type Receipt } from "./tender-capture-model";
+import {
+  ValidatedForm,
+  ValidatedInput,
+  ValidatedLabel,
+} from "@/components/ui/validated-controls";
 import { CloudTSCWorkspace } from "./cloud-tsc-workspace";
-import { TenderDocumentList, type TenderDocument } from "./tender-document-list";
-import { TenderUploadSelection } from "./tender-upload-selection";
+import { TenderDocumentIntake } from "./tender-document-intake";
+import type { TenderDocument } from "./tender-document-list";
+import { TenderBiddingApproval } from "./tender-bidding-approval";
+import { TenderPrebidQueries } from "./tender-prebid-queries";
+import { TenderBOQItems } from "./tender-boq-items";
+import { TenderVendorComparison } from "./tender-vendor-comparison";
+import { TenderBidCosting } from "./tender-bid-costing";
+import { TenderAwardHandoff } from "./tender-award-handoff";
 
-type Source = {id:string;member_id:string;path:string;filename:string;sha256:string;status:string;error:string;version:number;attempts:number;segments:number;expected_pages:number;expected_sheets:number;warnings:string[];updated_at:string};
-type Batch = {documents?:TenderDocument[];manifest:{path:string;state:string;code:string}[];id:string;revision:string;state:string;error:string;version:number;attempts:number;files:{id:string;name:string;kind?:string;archive_deleted_at?:string|null;state:string;error:string;sha256:string;version:number}[];sources:Source[]};
-type Draft = {engine?:string;id:string;name:string;version:number;created_at:string;updated_at:string;batches:Batch[]};
-const primary="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-50";
-const secondary="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-100 disabled:opacity-50";
-const icon="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-blue-700 hover:bg-blue-50";
-async function api<T>(path:string,init?:RequestInit):Promise<T>{const r=await fetch(`/api/tender-fms/${path}`,{cache:"no-store",...init});if(r.status===204)return undefined as T;const b=await r.json().catch(()=>{if(init?.signal?.aborted)throw init.signal.reason;return {detail:"Unable to complete request"};});if(!r.ok)throw new Error(b.detail||b.message||`Request failed (${r.status})`);return b as T;}
-const json=(body:unknown,key?:string):RequestInit=>({method:"POST",headers:{"Content-Type":"application/json",...(key?{"Idempotency-Key":key}:{})},body:JSON.stringify(body)});
-const failure=(e:unknown)=>e instanceof Error?e.message:"Unable to complete request";
-export function TenderReadingWorkspace({assigned,step,draftID,onSelectDraft,onSelectStep}:{assigned:ReactNode;step?:string;draftID?:string;onSelectDraft?:(id:string|null)=>void;onSelectStep?:(step:"TS-01"|"TS-TSC")=>void}){
- const user=useAuthenticatedUser(),has=(p:string)=>user.permissions.includes("system:admin")||user.permissions.includes(p);
- const canRead=has("tenders.register.read")&&has("tenders.processing.read"),canWrite=has("tenders.register.write")&&has("tenders.processing.write");
- const [rows,setRows]=useState<Draft[]>([]),[total,setTotal]=useState(0),[loading,setLoading]=useState(true),[error,setError]=useState(""),[add,setAdd]=useState(false),[selected,setSelected]=useState<Draft|null>(null),[page,setPage]=useState({page:1,size:20,search:"",sort:"created",direction:"desc"});
- const refresh=useCallback(async(signal?:AbortSignal)=>{try{const v=await api<{items:Draft[];total:number}>(`drafts?page=${page.page}&page_size=${page.size}&search=${encodeURIComponent(page.search)}&sort=${page.sort}&direction=${page.direction}`,{signal});setRows(v.items);setTotal(v.total);setError("");}catch(e){if(!signal?.aborted)setError(failure(e));}finally{if(!signal?.aborted)setLoading(false);}},[page]);
- useEffect(()=>{if(!canRead)return;const c=new AbortController();const initial=setTimeout(()=>void refresh(c.signal),0);return()=>{clearTimeout(initial);c.abort();};},[canRead,refresh]);
- const onPage=useCallback((q:GridQuery)=>setPage(p=>p.page===q.page&&p.size===q.size&&p.search===q.search&&p.sort===(q.sort||"created")&&p.direction===q.direction?p:{page:q.page,size:q.size,search:q.search,sort:q.sort||"created",direction:q.direction}),[]);
- const detailDirty=useRef(false),markDetailDirty=useCallback((value:boolean)=>{detailDirty.current=value},[]);
- const mayLeaveDetail=useCallback(()=>{if(detailDirty.current&&!window.confirm("Discard unsaved checklist changes?"))return false;markDetailDirty(false);return true},[markDetailDirty]);
- function closeDetail(){if(!mayLeaveDetail())return;setSelected(null);onSelectDraft?.(null);void refresh()}
- const stage=step==="TS-TSC"?"tsc":"documents";
- useEffect(()=>{if(!canRead||!draftID)return;const controller=new AbortController();api<Draft>(`drafts/${encodeURIComponent(draftID)}`,{signal:controller.signal}).then(d=>{if(!controller.signal.aborted)setSelected(d)}).catch(e=>{if(!controller.signal.aborted)setError(failure(e))});return()=>controller.abort()},[canRead,draftID]);
- function openDraft(d:Draft){setSelected(d);onSelectDraft?.(d.id)}
-  if(!canRead)return <p role="alert">Tender register and processing read permissions are required.</p>;
- return <section className="space-y-5"><header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold">Tender FMS</h1><p className="mt-1 text-sm text-slate-600">Step 1: upload and verify documents. Step 2: prepare and review the TSC.</p></div>{canWrite&&stage==="documents"?<button className={primary} onClick={()=>setAdd(true)}><PlusIcon className="h-5 w-5"/>Add tender draft</button>:null}</header>
- {error?<p role="alert">{error} <button className={secondary} onClick={()=>void refresh()}>Retry</button></p>:null}
- <p className="text-sm font-semibold">{stage==="tsc"?"Step 2 · Prepare TSC — select a tender":"Step 1 · Upload documents — select a tender"}</p><DataGrid stateKey="tender_drafts" label="Document reading drafts" rows={rows} loading={loading} searchable remote={{total,onChange:onPage}} columns={[{key:"name",label:"Tender name",value:d=>d.name,sortable:true},{key:"created",label:"Created",value:d=>d.created_at,sortable:true,render:d=>new Date(d.created_at).toLocaleString()},{key:"stage",label:"Stage",value:()=>"Document intake",sortable:false}]} actions={d=><button className={icon} title="Open documents" aria-label={`Open ${d.name}`} onClick={()=>openDraft(d)}><EyeIcon className="h-5 w-5"/></button>}/>
- <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold">Previously assigned tenders</summary><div className="mt-4">{assigned}</div></details>
- {add?<RecordDrawer title="Add tender draft" onClose={()=>setAdd(false)}><CreateDraft saved={d=>{setAdd(false);openDraft(d);void refresh();}}/></RecordDrawer>:null}
- {selected?<RecordDrawer extraWide title={selected.name} onClose={closeDetail}><DraftDetail key={`${selected.id}:${stage}`} draft={selected} canWrite={canWrite} initialStage={stage} onSelectStep={onSelectStep} onDone={closeDetail} onDirty={markDetailDirty} onBeforeLeave={mayLeaveDetail}/></RecordDrawer>:null}
- </section>;
+type Stage =
+  | "documents"
+  | "tsc"
+  | "bidding"
+  | "queries"
+  | "boq"
+  | "quotes"
+  | "costing"
+  | "award";
+
+function stageForStep(step?: string): Stage {
+  if (step === "TS-02") return "bidding";
+  if (step === "TS-TSC") return "tsc";
+  if (step === "LG-03" || step === "LG-04") return "queries";
+  if (step === "CV-01" || step === "CV-02") return "boq";
+  if (step === "CV-03" || step === "CV-04" || step === "CV-05") return "quotes";
+  if (step === "CV-07") return "costing";
+  if (step === "CV-08" || step === "AWARD") return "award";
+  return "documents";
 }
-function CreateDraft({saved}:{saved:(d:Draft)=>void}){
- const [name,setName]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false),[locked,setLocked]=useState(false);const operation=useRef<string|null>(null),submitted=useRef<string|null>(null);
- return <ValidatedForm className="space-y-4" onSubmit={async e=>{e.preventDefault();if(busy)return;setBusy(true);setError("");try{operation.current??=createRecordId();submitted.current??=name.trim();setLocked(true);saved(await api<Draft>("drafts",{...json({name:submitted.current},operation.current),signal:AbortSignal.timeout(30000)}));}catch(e){setError(e instanceof Error&&e.name==="TimeoutError"?"The server did not confirm creation within 30 seconds. Keep this panel open and retry the same request to avoid duplicates.":failure(e));}finally{setBusy(false);}}}><ValidatedLabel required htmlFor="draft-name">Tender name</ValidatedLabel><ValidatedInput id="draft-name" name="name" required minLength={2} maxLength={255} value={name} disabled={busy||locked} onChange={e=>setName(e.target.value)} className="min-h-11 w-full rounded-xl border p-3"/><p className="text-sm text-slate-600">Create the draft, then add documents individually, in batches or as a ZIP.</p>{error?<p role="alert" className="text-sm text-red-700">{error}</p>:null}<button className={primary} disabled={busy}>{busy?"Creating...":locked?"Retry same request":"Create draft"}</button></ValidatedForm>;
+
+function stepForStage(stage: Stage): string {
+  switch (stage) {
+    case "documents": return "TS-01";
+    case "tsc": return "TS-TSC";
+    case "bidding": return "TS-02";
+    case "queries": return "LG-03";
+    case "boq": return "CV-01";
+    case "quotes": return "CV-03";
+    case "costing": return "CV-07";
+    case "award": return "CV-08";
+  }
 }
-function DraftDetail({draft,canWrite,initialStage,onSelectStep,onDone,onDirty,onBeforeLeave}:{draft:Draft;canWrite:boolean;initialStage:"documents"|"tsc";onDone?:()=>void;onDirty?:(value:boolean)=>void;onBeforeLeave?:()=>boolean;onSelectStep?:(step:"TS-01"|"TS-TSC")=>void}){
- const [data,setData]=useState(draft),[error,setError]=useState(""),[artifact,setArtifact]=useState<{title:string;text:string}|null>(null),[busy,setBusy]=useState(false);
- const [stage,setStage]=useState(initialStage),[native,setNative]=useState(draft.engine==="nextjs");
- useEffect(()=>{const c=new AbortController();api<{engine?:string}>(`drafts/${draft.id}/tsc/options`,{signal:c.signal}).then(o=>setNative(o.engine==="nextjs")).catch(()=>{});return()=>c.abort()},[draft.id]);
- function changeStage(value:"documents"|"tsc"){if(value!==stage&&onBeforeLeave&&!onBeforeLeave())return;setStage(value);onSelectStep?.(value==="tsc"?"TS-TSC":"TS-01")}
- const refresh=useCallback(async(signal?:AbortSignal)=>{try{const d=await api<Draft>(`drafts/${draft.id}`,{signal});setData(d);if(d.engine==="nextjs")setNative(true);setError("");}catch(e){if(!signal?.aborted)setError(failure(e));}},[draft.id]);
- useEffect(()=>{const c=new AbortController();let alive=true;let timer:ReturnType<typeof setTimeout>;async function poll(){await refresh(c.signal);if(alive)timer=setTimeout(()=>void poll(),3000);}timer=setTimeout(()=>void poll(),0);return()=>{alive=false;c.abort();clearTimeout(timer);};},[refresh]);
- const sources=data.batches.flatMap(b=>b.sources.map(s=>({...s,occurrence_id:s.member_id,revision:b.revision}))),read=sources.filter(s=>s.status==="ready").length;
- async function view(s:Source,kind="text"){setBusy(true);try{const r=await fetch(`/api/tender-fms/drafts/${draft.id}/documents/${s.id}/${kind}`,{cache:"no-store"});if(!r.ok)throw new Error("Cannot open extracted text; check access and reading status.");setArtifact({title:kind==="history"?`${s.path} - reading history`:s.path,text:await r.text()});}catch(e){setError(failure(e));}finally{setBusy(false);}}
- return <div className="space-y-5"><nav aria-label="Tender steps" className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-slate-700"><button type="button" className={stage==="documents"?primary:secondary} aria-current={stage==="documents"?"step":undefined} onClick={()=>changeStage("documents")}>1. Upload documents</button><button type="button" className={stage==="tsc"?primary:secondary} aria-current={stage==="tsc"?"step":undefined} onClick={()=>changeStage("tsc")}>2. Prepare TSC</button></nav>{stage==="documents"?<><p className="text-sm">{native?`${data.batches.filter(b=>b.state==="consumed"||b.state==="ready").length} of ${data.batches.length} upload batches verified.`:`${read} of ${sources.length} source occurrences processed.`}</p><p className="text-sm text-slate-600">{native?"Upload verification runs in the background. Once verified, select original PDFs in Step 2. Cloud TSC does not wait for local OCR or local language models.":"Reading continues when this screen closes. Failed or incomplete batches and reading warnings remain review gaps."}</p>{error?<p role="alert" className="text-sm text-red-700">{error}</p>:null}
- {canWrite?<UploadBatch draft={data} changed={()=>void refresh()}/>:null}
- {native?<TenderDocumentList draftID={data.id} version={data.version} documents={data.batches.flatMap(b=>b.documents??[])} canWrite={canWrite} changed={refresh}/>:null}
- <div className="space-y-2">{data.batches.map(b=><div key={b.id} className="rounded-xl border border-slate-200 p-3 text-sm"><p className="font-semibold">Batch {b.revision.slice(0,8)}: {b.state==="consumed"?(native?"Verified and attached":"Reading jobs published"):b.state.replaceAll("_"," ")}</p><ul>{b.files.map(f=><li key={f.id}>{f.name} ({native&&f.kind==="zip"&&(b.state==="ready"||b.state==="consumed")?(f.archive_deleted_at?"extracted · ZIP deleted":"extracted · deleting ZIP"):f.state}){!(native&&f.kind==="zip"&&(b.state==="ready"||b.state==="consumed"))&&f.state!=="declared"&&f.state!=="uploading"?<a className="ml-2 underline text-blue-700" href={`/api/tender-fms/receipts/${b.id}/files/${f.id}`} download={f.name}>Download original</a>:null}</li>)}</ul>{b.error?<p role="alert" className="text-red-700">{b.error.replaceAll("_"," ")}. {b.state==="verifying"?"A bounded retry is scheduled.":"This batch is blocked. Check the file details below; its original upload is retained so verification can be retried."}</p>:null}{b.state==="ready"?<p>{native?"Verified documents are ready for TSC source selection.":"Awaiting queue publication. If this persists, ask the administrator to check worker availability and uploader permissions."}</p>:null}<p>Verification attempts: {b.attempts}/3</p>{canWrite&&b.state==="failed"&&b.attempts<3?<button type="button" className={secondary} disabled={busy} onClick={async()=>{setBusy(true);try{await api(`receipts/${b.id}/seal`,json({expected_version:b.version},createRecordId()));await refresh();}catch(e){setError(failure(e));}finally{setBusy(false);}}}>Retry verification</button>:null}{b.manifest?.length?<details><summary>File / archive manifest ({b.manifest.length} recorded transitions)</summary><ul className="mt-2 space-y-1 break-all">{b.manifest.map((m,i)=><li key={i}>{m.path}: {m.state}{m.code?` (${m.code})`:""}</li>)}</ul></details>:null}</div>)}</div>
- {!native?<DataGrid stateKey="tender_sources" label="Source reading coverage" rows={sources.map(s=>({...s,id:s.occurrence_id}))} searchable columns={[{key:"path",label:"Source / ZIP path",value:s=>`Batch ${s.revision.slice(0,8)}: ${s.path}`},{key:"status",label:"Reading",value:s=>s.status},{key:"coverage",label:"Coverage",value:s=>`${s.segments} segments${s.expected_pages?` / ${s.expected_pages} expected pages`:s.expected_sheets?` / ${s.expected_sheets} expected sheets`:""}`},{key:"attempts",label:"Attempts",value:s=>s.attempts},{key:"updated",label:"Last progress",value:s=>s.updated_at,render:s=>new Date(s.updated_at).toLocaleString()}]} actions={row=>{const s=sources.find(s=>s.member_id===row.occurrence_id)!;return <><button className={icon} disabled={busy||s.status!=="ready"} title="Read extracted text" aria-label={`Read ${s.path}`} onClick={()=>void view(s)}><EyeIcon className="h-5 w-5"/></button><button className={secondary} onClick={()=>void view(s,"history")}>History</button><a className={secondary} href={`/api/tender-fms/drafts/${draft.id}/documents/${s.id}/result`} target="_blank" rel="noreferrer">Evidence JSON</a><a className={secondary} href={`/api/tender-fms/drafts/${draft.id}/documents/${s.id}/original`} download={s.filename}>Original</a>{canWrite&&s.status==="failed"&&s.attempts<3?<button className={icon} aria-label={`Retry ${s.path}`} onClick={async()=>{try{await api(`drafts/${draft.id}/documents/${s.id}/retry`,json({expected_version:s.version}));await refresh();}catch(e){setError(failure(e));}}}><ArrowPathIcon className="h-5 w-5"/></button>:null}</>;}}/>:null}
- {!native?sources.filter(s=>s.error||s.warnings?.length).map(s=><p key={s.member_id} className="text-sm text-amber-800">{s.path}: {s.error||s.warnings.join("; ")}</p>):null}
- <div className="flex justify-end"><button type="button" className={primary} onClick={()=>changeStage("tsc")}>Continue to Step 2 · Prepare TSC</button></div></>:<CloudTSCWorkspace onDone={onDone} onDirty={onDirty} draftID={data.id} sourceVersion={data.version} readyForGeneration={data.batches.length>0&&data.batches.every(b=>b.state==="consumed"&&b.sources.length>0&&b.sources.every(s=>s.status==="ready"))}/>}
- {artifact?<RecordDrawer title={artifact.title} onClose={()=>setArtifact(null)}><pre className="whitespace-pre-wrap break-words text-sm">{artifact.text}</pre></RecordDrawer>:null}
- </div>;
+
+type Source = {
+  id: string;
+  member_id: string;
+  path: string;
+  filename: string;
+  sha256: string;
+  status: string;
+  error: string;
+  version: number;
+  attempts: number;
+  segments: number;
+  expected_pages: number;
+  expected_sheets: number;
+  warnings: string[];
+  updated_at: string;
+};
+type Batch = {
+  documents?: TenderDocument[];
+  manifest: { path: string; state: string; code: string }[];
+  id: string;
+  revision: string;
+  state: string;
+  error: string;
+  version: number;
+  attempts: number;
+  files: {
+    id: string;
+    name: string;
+    kind?: string;
+    archive_deleted_at?: string | null;
+    state: string;
+    error: string;
+    sha256: string;
+    version: number;
+  }[];
+  sources: Source[];
+};
+type Draft = {
+  engine?: string;
+  id: string;
+  name: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  batches: Batch[];
+  next_step?: string;
+  status_label?: string;
+  completed_steps?: number[];
+};
+
+function stepName(code: string): string {
+  switch (code) {
+    case "TS-01": return "1. Read documents";
+    case "TS-TSC": return "2. Prepare TSC";
+    case "TS-02": return "3. Approval for Bidding";
+    case "LG-03": return "6. Submit Pre-Bid Query";
+    case "LG-04": return "7. Query Decisions";
+    case "CV-01": return "8. BOQ & Specifications";
+    case "CV-02": return "9. Float RFQs to Vendors";
+    case "CV-03": return "10. Vendor Quotation Matrix";
+    case "CV-04": return "11. Quotation Verification";
+    case "CV-05": return "12. Negotiate & Select L-1";
+    case "CV-07": return "14. Final Working Costing";
+    case "CV-08": return "15. Portal Bid Submission";
+    case "AWARD": return "Award & Project Setup";
+    default: return code;
+  }
 }
-function UploadBatch({draft,changed}:{draft:Draft;changed:()=>void}){
- const [files,setFiles]=useState<File[]>([]),[receiptID,setReceiptID]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[fileError,setFileError]=useState(""),[progress,setProgress]=useState(""),[batchLocked,setBatchLocked]=useState(false);
- const plan=useRef<{key:string;seal:string;declarations:{client_file_key:string;filename:string;kind:string;size_bytes:number;sha256:string}[];uploads:Record<string,string>}|null>(null);
- async function upload(){if(busy)return;const invalid=packageFileError(files);setFileError(invalid);if(invalid)return;setError("");setBusy(true);try{
-  if(!plan.current){const declarations=[];for(const file of files){setProgress(`Checking ${file.name}`);const digest=await fileSHA256(file);declarations.push({client_file_key:createRecordId(),filename:file.name,kind:file.name.split(".").at(-1)!.toLowerCase(),size_bytes:file.size,sha256:digest});}plan.current={key:createRecordId(),seal:createRecordId(),declarations,uploads:{}};}
-  const p=plan.current;let receipt=receiptID?await api<Receipt>(`receipts/${receiptID}`):await api<Receipt>("receipts",json({files:p.declarations},p.key));setReceiptID(receipt.id);
-  if(receiptID && files.some(file=>!receipt.files.some(saved=>saved.filename===file.name)))throw new Error("This existing batch has a fixed file list. Select its original files; upload additional documents as a new batch afterwards.");
-  setBatchLocked(true);
-  await api(`drafts/${draft.id}/batches`,json({receipt_id:receipt.id}));changed();
-  if(receipt.state==="receiving"){for(const f of receipt.files){if(f.state==="received"||f.state==="ready")continue;const file=files.find(v=>v.name===f.filename);if(!file)throw new Error(`Reselect the original file ${f.filename}.`);setProgress(`Uploading ${file.name}`);p.uploads[f.file_id]??=createRecordId();receipt=await api<Receipt>(`receipts/${receipt.id}/files/${f.file_id}`,{method:"PUT",headers:{"Content-Type":"application/octet-stream","Idempotency-Key":p.uploads[f.file_id],"X-Upload-Version":String(f.version)},body:file});}}
-  if(receipt.state==="receiving"||receipt.state==="failed"){await api(`receipts/${receipt.id}/seal`,json({expected_version:receipt.version},p.seal));}
-  setProgress("Uploaded. Extracting and verifying documents. The ZIP will be deleted after successful extraction.");setFiles([]);setReceiptID("");setBatchLocked(false);plan.current=null;changed();
- }catch(e){setProgress("");setError(failure(e));changed();}finally{setBusy(false);}}
- return <div className="space-y-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700"><TenderUploadSelection files={files} changed={selected=>{setFiles(selected);setError("");setProgress("");plan.current=null;setBatchLocked(false);}} error={fileError} setError={setFileError} disabled={busy} locked={batchLocked}/>
- <p className="text-sm text-slate-600 dark:text-slate-300">Select Upload when the list is ready. You can add and upload more documents afterwards; verification continues in the background.</p>
- {draft.batches.some(b=>b.state==="receiving"||b.state==="failed")?<div className="text-sm"><ValidatedLabel htmlFor="resume-batch">Continue an existing batch</ValidatedLabel><ValidatedSelect id="resume-batch" className="ml-2 min-h-11 max-w-full rounded-xl border p-2" disabled={busy} value={receiptID} onChange={e=>{setReceiptID(e.target.value);plan.current=null;setBatchLocked(false);setError("");}}><option value="">New upload batch</option>{draft.batches.filter(b=>b.state==="receiving"||b.state==="failed").map(b=><option key={b.id} value={b.id}>Batch {b.revision.slice(0,8)} ({b.state})</option>)}</ValidatedSelect></div>:null}
- {error?<p role="alert" className="text-sm text-red-700">{error}</p>:null}<button type="button" className={primary} disabled={busy} onClick={()=>void upload()}>{busy?"Uploading...":error&&batchLocked?"Retry upload":"Upload"}</button>{progress?<p role="status" className="text-sm">{progress}</p>:null}</div>;
+
+const primary =
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:opacity-50";
+const secondary =
+  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700";
+const icon =
+  "inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl text-blue-700 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-slate-800";
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const r = await fetch(`/api/tender-fms/${path}`, { cache: "no-store", ...init });
+  if (r.status === 204) return undefined as T;
+  const b = await r.json().catch(() => {
+    if (init?.signal?.aborted) throw init.signal.reason;
+    return { detail: "Unable to complete request" };
+  });
+  if (!r.ok) throw new Error(b.detail || b.message || `Request failed (${r.status})`);
+  return b as T;
+}
+
+const json = (body: unknown, key?: string): RequestInit => ({
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    ...(key ? { "Idempotency-Key": key } : {}),
+  },
+  body: JSON.stringify(body),
+});
+
+const failure = (e: unknown) =>
+  e instanceof Error ? e.message : "Unable to complete request";
+
+export function TenderReadingWorkspace({
+  assigned,
+  step,
+  draftID,
+  onSelectDraft,
+  onSelectStep,
+}: {
+  assigned: ReactNode;
+  step?: string;
+  draftID?: string;
+  onSelectDraft?: (id: string | null, targetStep?: string) => void;
+  onSelectStep?: (step: string) => void;
+}) {
+  const user = useAuthenticatedUser();
+  const has = (p: string) =>
+    user.permissions.includes("system:admin") || user.permissions.includes(p);
+  const canRead =
+    has("tenders.register.read") && has("tenders.processing.read");
+  const canWrite =
+    has("tenders.register.write") && has("tenders.processing.write");
+
+  const [rows, setRows] = useState<Draft[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [add, setAdd] = useState(false);
+  const [selected, setSelected] = useState<Draft | null>(null);
+  const [page, setPage] = useState({
+    page: 1,
+    size: 20,
+    search: "",
+    sort: "created",
+    direction: "desc",
+  });
+
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const v = await api<{ items: Draft[]; total: number }>(
+          `drafts?page=${page.page}&page_size=${page.size}&search=${encodeURIComponent(
+            page.search
+          )}&sort=${page.sort}&direction=${page.direction}`,
+          { signal }
+        );
+        setRows(v.items);
+        setTotal(v.total);
+        setError("");
+      } catch (e) {
+        if (!signal?.aborted) setError(failure(e));
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [page]
+  );
+
+  useEffect(() => {
+    if (!canRead) return;
+    const c = new AbortController();
+    const initial = setTimeout(() => void refresh(c.signal), 0);
+    return () => {
+      clearTimeout(initial);
+      c.abort();
+    };
+  }, [canRead, refresh]);
+
+  const onPage = useCallback(
+    (q: GridQuery) =>
+      setPage((p) =>
+        p.page === q.page &&
+        p.size === q.size &&
+        p.search === q.search &&
+        p.sort === (q.sort || "created") &&
+        p.direction === q.direction
+          ? p
+          : {
+              page: q.page,
+              size: q.size,
+              search: q.search,
+              sort: q.sort || "created",
+              direction: q.direction,
+            }
+      ),
+    []
+  );
+
+  const detailDirty = useRef(false);
+  const markDetailDirty = useCallback((value: boolean) => {
+    detailDirty.current = value;
+  }, []);
+
+  const mayLeaveDetail = useCallback(() => {
+    if (detailDirty.current && !window.confirm("Discard unsaved checklist changes?")) {
+      return false;
+    }
+    markDetailDirty(false);
+    return true;
+  }, [markDetailDirty]);
+
+  function closeDetail() {
+    if (!mayLeaveDetail()) return;
+    setSelected(null);
+    onSelectDraft?.(null);
+    void refresh();
+  }
+
+  const stage = stageForStep(step);
+
+  useEffect(() => {
+    if (!canRead || !draftID) {
+      if (!draftID) {
+        const clear = setTimeout(() => setSelected(null), 0);
+        return () => clearTimeout(clear);
+      }
+      return;
+    }
+    const controller = new AbortController();
+    api<Draft>(`drafts/${encodeURIComponent(draftID)}`, { signal: controller.signal })
+      .then((d) => {
+        if (!controller.signal.aborted) {
+          setSelected(d);
+          if (!step && d.next_step && d.next_step !== "TS-01") {
+            onSelectStep?.(d.next_step);
+          }
+        }
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(failure(e));
+      });
+    return () => controller.abort();
+  }, [canRead, draftID, step, onSelectStep]);
+
+  function openDraft(d: Draft, stepOverride?: string) {
+    const target = stepOverride || d.next_step || "TS-01";
+    setSelected(d);
+    onSelectDraft?.(d.id, target);
+  }
+
+  if (!canRead) {
+    return <p role="alert">Tender register and processing read permissions are required.</p>;
+  }
+
+  // --- Screen 2: Low-click Workspace View inside Tender FMS Process ---
+  if (draftID || selected) {
+    if (!selected) {
+      return (
+        <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900">
+          <ArrowPathIcon className="h-6 w-6 animate-spin text-blue-600" />
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Loading tender workspace…
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <DraftDetail
+        key={`${selected.id}:${stage}`}
+        draft={selected}
+        canWrite={canWrite}
+        initialStage={stage}
+        onSelectStep={onSelectStep}
+        onDone={closeDetail}
+        onDirty={markDetailDirty}
+        onBeforeLeave={mayLeaveDetail}
+      />
+    );
+  }
+
+  // --- Screen 1: Tender FMS Directory List (When no draft is selected) ---
+  return (
+    <section className="space-y-6">
+      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between dark:border-slate-800">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+              Project Delivery
+            </span>
+            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+              Tender Intake & Scrutiny
+            </span>
+          </div>
+          <h1 className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+            Tender FMS
+          </h1>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+            Step 1: Upload & verify documents. Step 2: Prepare & review Technical Scrutiny Checklist (TSC).
+          </p>
+        </div>
+
+        {canWrite && (
+          <button
+            type="button"
+            className={primary}
+            onClick={() => setAdd(true)}
+          >
+            <PlusIcon className="h-4 w-4" />
+            Add tender draft
+          </button>
+        )}
+      </header>
+
+      {error && (
+        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300">
+          <span>{error}</span>
+          <button
+            type="button"
+            className={secondary}
+            onClick={() => void refresh()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      <DataGrid
+        stateKey="tender_drafts"
+        label="Document reading drafts"
+        rows={rows}
+        loading={loading}
+        searchable
+        remote={{ total, onChange: onPage }}
+        onRowClick={(d) => openDraft(d, d.next_step)}
+        columns={[
+          {
+            key: "name",
+            label: "Tender Name",
+            value: (d) => d.name,
+            sortable: true,
+            render: (d) => (
+              <div>
+                <Link
+                  href={`/dashboard?screen=tender-fms&draft=${encodeURIComponent(d.id)}&step=${encodeURIComponent(d.next_step || "TS-01")}`}
+                  className="font-bold text-blue-700 hover:underline dark:text-blue-400"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openDraft(d, d.next_step);
+                  }}
+                >
+                  {d.name}
+                </Link>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {d.batches?.length || 0} batch{(d.batches?.length || 0) === 1 ? "" : "es"} ·{" "}
+                  {d.batches?.flatMap((b) => b.documents ?? []).length || 0} document(s)
+                </p>
+              </div>
+            ),
+          },
+          {
+            key: "stage",
+            label: "Current Stage",
+            value: (d) => d.status_label || "Step 1 · Read documents",
+            sortable: false,
+            render: (d) => (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+                {d.status_label || "Step 1 · Read documents"}
+              </span>
+            ),
+          },
+          {
+            key: "next",
+            label: "Active Action",
+            value: (d) => d.next_step || "TS-01",
+            sortable: false,
+            render: (d) => (
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                {stepName(d.next_step || "TS-01")}
+              </span>
+            ),
+          },
+          {
+            key: "created",
+            label: "Created Date",
+            value: (d) => d.created_at,
+            sortable: true,
+            render: (d) => (
+              <span className="text-xs text-slate-600 dark:text-slate-400">
+                {new Date(d.created_at).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            ),
+          },
+        ]}
+        actions={(d) => (
+          <Link
+            href={`/dashboard?screen=tender-fms&draft=${encodeURIComponent(d.id)}&step=${encodeURIComponent(d.next_step || "TS-01")}`}
+            className={primary + " gap-1 px-3 py-1.5 text-xs"}
+            title={`Open ${d.name} at ${stepName(d.next_step || "TS-01")}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              openDraft(d, d.next_step);
+            }}
+          >
+            Continue <ArrowRightIcon className="h-3.5 w-3.5" />
+          </Link>
+        )}
+      />
+
+      <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <summary className="cursor-pointer text-sm font-bold text-slate-800 hover:text-blue-700 dark:text-slate-200 dark:hover:text-blue-400">
+          Previously assigned tenders & register handoffs
+        </summary>
+        <div className="mt-4">{assigned}</div>
+      </details>
+
+      {add && (
+        <RecordDrawer
+          title="Add Tender Draft"
+          onClose={() => setAdd(false)}
+        >
+          <CreateDraft
+            saved={(d) => {
+              setAdd(false);
+              openDraft(d);
+              void refresh();
+            }}
+          />
+        </RecordDrawer>
+      )}
+    </section>
+  );
+}
+
+function CreateDraft({ saved }: { saved: (d: Draft) => void }) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const operation = useRef<string | null>(null);
+  const submitted = useRef<string | null>(null);
+
+  return (
+    <ValidatedForm
+      className="space-y-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        setBusy(true);
+        setError("");
+        try {
+          operation.current ??= createRecordId();
+          submitted.current ??= name.trim();
+          setLocked(true);
+          saved(
+            await api<Draft>("drafts", {
+              ...json({ name: submitted.current }, operation.current),
+              signal: AbortSignal.timeout(30000),
+            })
+          );
+        } catch (e) {
+          setError(
+            e instanceof Error && e.name === "TimeoutError"
+              ? "The server did not confirm creation within 30 seconds. Keep this panel open and retry to avoid duplicates."
+              : failure(e)
+          );
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <ValidatedLabel required htmlFor="draft-name" className="text-xs font-bold text-slate-700 dark:text-slate-300">
+        Tender Name
+        <ValidatedInput
+          id="draft-name"
+          name="name"
+          required
+          minLength={2}
+          maxLength={255}
+          value={name}
+          disabled={busy || locked}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. 50 MW Solar Power Plant Grid Interconnection Tender"
+          className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-800"
+        />
+      </ValidatedLabel>
+
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        After creation, you will upload tender documents, verify files, and initiate the TSC evaluation.
+      </p>
+
+      {error && (
+        <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      )}
+
+      <div className="flex justify-end pt-2">
+        <button className={primary} disabled={busy || !name.trim()}>
+          {busy ? "Creating…" : locked ? "Retry same request" : "Create draft"}
+        </button>
+      </div>
+    </ValidatedForm>
+  );
+}
+
+export const TENDER_STAGES: {
+  key: Stage;
+  code: string;
+  stepNumber: number;
+  title: string;
+  shortLabel: string;
+  description: string;
+}[] = [
+  {
+    key: "documents",
+    code: "TS-01",
+    stepNumber: 1,
+    title: "Read & Verify Source Documents",
+    shortLabel: "Upload Documents",
+    description: "Upload and verify source tender documents (NIT, technical specifications, drawings, and BOQ).",
+  },
+  {
+    key: "tsc",
+    code: "TS-TSC",
+    stepNumber: 2,
+    title: "Prepare Tender Summary & Checklist (TSC)",
+    shortLabel: "Prepare TSC",
+    description: "Select technical and commercial checklist formats, answer scrutiny questions, and generate AI proposals.",
+  },
+  {
+    key: "bidding",
+    code: "TS-02",
+    stepNumber: 3,
+    title: "Company Eligibility & Bidding Approval",
+    shortLabel: "Eligibility & Approval",
+    description: "Review automated qualification checks against company profile and record formal Go / No-Go decision.",
+  },
+  {
+    key: "queries",
+    code: "LG-03",
+    stepNumber: 4,
+    title: "Pre-Bid Queries & Addenda Tracking",
+    shortLabel: "Pre-Bid Queries",
+    description: "Prepare and submit technical, commercial, or BOQ clarification queries and log corrigenda.",
+  },
+  {
+    key: "boq",
+    code: "CV-01",
+    stepNumber: 5,
+    title: "Working BOQ Items & Approved Makes",
+    shortLabel: "BOQ & Make List",
+    description: "Extract and baseline bill-of-quantities line items, units, quantities, and client-approved makes.",
+  },
+  {
+    key: "quotes",
+    code: "CV-03",
+    stepNumber: 6,
+    title: "Vendor Quotations & L-1 Sourcing",
+    shortLabel: "Vendor Quotes & L-1",
+    description: "Capture vendor quotations, evaluate technical compliance and delivery schedules, and select L-1 rates.",
+  },
+  {
+    key: "costing",
+    code: "CV-07",
+    stepNumber: 7,
+    title: "Working Costing Sheet & Bid Budget",
+    shortLabel: "Working Budget",
+    description: "Consolidate equipment, civil/erection, freight, contingency, overheads, and target gross margin.",
+  },
+  {
+    key: "award",
+    code: "CV-08",
+    stepNumber: 8,
+    title: "Portal Submission & Project Award Handoff",
+    shortLabel: "Submission & Award",
+    description: "Record e-procurement submission and merge the won tender with Projects and Purchase FMS.",
+  },
+];
+
+function DraftDetail({
+  draft,
+  canWrite,
+  initialStage,
+  onSelectStep,
+  onDone,
+  onDirty,
+  onBeforeLeave,
+}: {
+  draft: Draft;
+  canWrite: boolean;
+  initialStage: Stage;
+  onDone?: () => void;
+  onDirty?: (value: boolean) => void;
+  onBeforeLeave?: () => boolean;
+  onSelectStep?: (step: string) => void;
+}) {
+  const [data, setData] = useState(draft);
+  const [error, setError] = useState("");
+  const [artifact, setArtifact] = useState<{ title: string; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState(initialStage);
+  const [native, setNative] = useState(draft.engine === "nextjs");
+
+  const [previousInitialStage, setPreviousInitialStage] = useState(initialStage);
+  if (initialStage !== previousInitialStage) {
+    setPreviousInitialStage(initialStage);
+    setStage(initialStage);
+  }
+
+  useEffect(() => {
+    const handleStepNav = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      changeStage(stageForStep(custom.detail));
+    };
+    window.addEventListener("tender-navigate-step", handleStepNav);
+    return () => window.removeEventListener("tender-navigate-step", handleStepNav);
+  }, []);
+
+  useEffect(() => {
+    const c = new AbortController();
+    api<{ engine?: string }>(`drafts/${draft.id}/tsc/options`, {
+      signal: c.signal,
+    })
+      .then((o) => setNative(o.engine === "nextjs"))
+      .catch(() => {});
+    return () => c.abort();
+  }, [draft.id]);
+
+  function changeStage(value: Stage) {
+    if (value !== stage && onBeforeLeave && !onBeforeLeave()) return;
+    setStage(value);
+    onSelectStep?.(stepForStage(value));
+  }
+
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const d = await api<Draft>(`drafts/${draft.id}`, { signal });
+        setData(d);
+        if (d.engine === "nextjs") setNative(true);
+        setError("");
+      } catch (e) {
+        if (!signal?.aborted) setError(failure(e));
+      }
+    },
+    [draft.id]
+  );
+
+  useEffect(() => {
+    const c = new AbortController();
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      await refresh(c.signal);
+      if (alive) timer = setTimeout(() => void poll(), 3000);
+    }
+    timer = setTimeout(() => void poll(), 0);
+    return () => {
+      alive = false;
+      c.abort();
+      clearTimeout(timer);
+    };
+  }, [refresh]);
+
+  const verifiedBatches = data.batches.filter(
+    (b) => b.state === "consumed" || b.state === "ready"
+  ).length;
+  const totalBatches = data.batches.length;
+
+  const currentIndex = TENDER_STAGES.findIndex((s) => s.key === stage);
+  const currentStageInfo = TENDER_STAGES[currentIndex] || TENDER_STAGES[0];
+  const prevStage = currentIndex > 0 ? TENDER_STAGES[currentIndex - 1] : null;
+  const nextStage = currentIndex < TENDER_STAGES.length - 1 ? TENDER_STAGES[currentIndex + 1] : null;
+
+  return (
+    <div className="space-y-6">
+      {/* Dedicated Step Header Card */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center gap-3">
+          {onDone && (
+            <button
+              type="button"
+              className={secondary + " gap-1.5 px-3 py-1.5 text-xs font-bold"}
+              onClick={onDone}
+              title="Return to tenders list"
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+              All tenders
+            </button>
+          )}
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-700 text-[11px] font-bold text-white">
+                {currentStageInfo.stepNumber}
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+                Tender FMS · Step {currentStageInfo.stepNumber} ({currentStageInfo.code})
+              </span>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                {native ? "Cloud Engine" : "Document Intake"}
+              </span>
+              {totalBatches > 0 && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                    verifiedBatches === totalBatches
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                  }`}
+                >
+                  <DocumentCheckIcon className="h-3.5 w-3.5" />
+                  {verifiedBatches}/{totalBatches} batches verified
+                </span>
+              )}
+            </div>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+              {data.name}
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {currentStageInfo.title} — {currentStageInfo.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+            Step {currentStageInfo.stepNumber} of 8
+          </span>
+        </div>
+      </div>
+
+      {/* Dedicated Workspace Screen for Active Step */}
+      {stage === "documents" ? (
+        <TenderDocumentIntake
+          draft={data}
+          canWrite={canWrite}
+          native={native}
+          onRefresh={refresh}
+          onViewArtifact={(title, text) => setArtifact({ title, text })}
+        />
+      ) : stage === "tsc" ? (
+        <CloudTSCWorkspace
+          onDone={onDone}
+          onDirty={onDirty}
+          onProceedToStep3={() => changeStage("bidding")}
+          draftID={data.id}
+          sourceVersion={data.version}
+          readyForGeneration={
+            data.batches.length > 0 &&
+            data.batches.every(
+              (b) =>
+                b.state === "consumed" &&
+                b.sources.length > 0 &&
+                b.sources.every((s) => s.status === "ready")
+            )
+          }
+        />
+      ) : stage === "bidding" ? (
+        <TenderBiddingApproval
+          draftId={data.id}
+          canWrite={canWrite}
+          onNavigateStep={(st) => changeStage(stageForStep(st))}
+          onDone={onDone}
+        />
+      ) : stage === "queries" ? (
+        <TenderPrebidQueries
+          draftId={data.id}
+          canWrite={canWrite}
+          onNavigateStep={(st) => changeStage(stageForStep(st))}
+        />
+      ) : stage === "boq" ? (
+        <TenderBOQItems
+          draftId={data.id}
+          canWrite={canWrite}
+          onNavigateStep={(st) => changeStage(stageForStep(st))}
+        />
+      ) : stage === "quotes" ? (
+        <TenderVendorComparison
+          draftId={data.id}
+          canWrite={canWrite}
+          onNavigateStep={(st) => changeStage(stageForStep(st))}
+        />
+      ) : stage === "costing" ? (
+        <TenderBidCosting
+          draftId={data.id}
+          canWrite={canWrite}
+          onNavigateStep={(st) => changeStage(stageForStep(st))}
+        />
+      ) : (
+        <TenderAwardHandoff
+          draftId={data.id}
+          canWrite={canWrite}
+        />
+      )}
+
+      {/* Bottom Step Progression Navigation Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div>
+          {prevStage ? (
+            <button
+              type="button"
+              className={secondary + " gap-2 px-4 py-2 text-xs font-semibold"}
+              onClick={() => changeStage(prevStage.key)}
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+              Previous: Step {prevStage.stepNumber} · {prevStage.shortLabel}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={secondary + " gap-2 px-4 py-2 text-xs font-semibold"}
+              onClick={onDone}
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+              Back to All Tenders
+            </button>
+          )}
+        </div>
+
+        <div>
+          {nextStage ? (
+            <button
+              type="button"
+              className={primary + " gap-2 px-5 py-2 text-xs font-bold"}
+              onClick={() => changeStage(nextStage.key)}
+            >
+              Continue to Step {nextStage.stepNumber} · {nextStage.shortLabel}
+              <ArrowRightIcon className="h-4 w-4" />
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              <CheckCircleIcon className="h-4 w-4" />
+              Process Flow Completed
+            </span>
+          )}
+        </div>
+      </div>
+
+      {artifact && (
+        <RecordDrawer
+          title={artifact.title}
+          onClose={() => setArtifact(null)}
+        >
+          <pre className="whitespace-pre-wrap break-words text-xs">{artifact.text}</pre>
+        </RecordDrawer>
+      )}
+    </div>
+  );
 }

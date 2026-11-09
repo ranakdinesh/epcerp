@@ -8,10 +8,13 @@ const { tenderProcess, projectProcess, processForScreen, availableProcessStep, p
 test('tender reference retains 27 ordered unique stages with document reading and TSC generation routable', () => {
  assert.deepEqual(tenderProcess.steps.map(s=>s.number), Array.from({length:27},(_,i)=>i+1));
  assert.equal(new Set(tenderProcess.steps.map(s=>s.code)).size,27);
- assert.deepEqual(tenderProcess.steps.filter(s=>s.available).map(s=>s.code),['TS-01','TS-TSC']);
- for (const step of tenderProcess.steps.slice(2)) assert.equal(processStepHref(tenderProcess,step),undefined);
+ assert.deepEqual(tenderProcess.steps.filter(s=>s.available).map(s=>s.code),['TS-01','TS-TSC','TS-02','LG-03','LG-04','CV-01','CV-02','CV-03','CV-04','CV-05','CV-07','CV-08']);
  assert.equal(processStepHref(tenderProcess,tenderProcess.steps[0]),'/dashboard?screen=tender-fms&step=TS-01');
  assert.equal(processStepHref(tenderProcess,tenderProcess.steps[1],undefined,'draft-id'),'/dashboard?screen=tender-fms&step=TS-TSC&draft=draft-id');
+ assert.equal(processStepHref(tenderProcess,tenderProcess.steps[2],undefined,'draft-id'),'/dashboard?screen=tender-fms&step=TS-02&draft=draft-id');
+ assert.equal(processStepHref(tenderProcess,tenderProcess.steps.find(s=>s.code==='LG-03'),undefined,'draft-id'),'/dashboard?screen=tender-fms&step=LG-03&draft=draft-id');
+ assert.equal(processStepHref(tenderProcess,tenderProcess.steps.find(s=>s.code==='CV-01'),undefined,'draft-id'),'/dashboard?screen=tender-fms&step=CV-01&draft=draft-id');
+ assert.equal(processStepHref(tenderProcess,tenderProcess.steps.find(s=>s.code==='CV-07'),undefined,'draft-id'),'/dashboard?screen=tender-fms&step=CV-07&draft=draft-id');
 });
 test('unavailable and invalid query selections resolve to real entry step', () => {
  for (const process of [tenderProcess,projectProcess]) {

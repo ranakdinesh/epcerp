@@ -1,88 +1,798 @@
 "use client";
-import {TSCWordImport} from "./tsc-word-import";
-import {PencilSquareIcon,ArrowUpTrayIcon,SparklesIcon,DocumentTextIcon}from "@heroicons/react/24/outline";
-import { useCallback, useEffect, useRef, useState } from "react";
+
+import {
+  DocumentTextIcon,
+  CheckCircleIcon,
+  ArrowRightIcon,
+  MagnifyingGlassIcon,
+  ArrowDownTrayIcon,
+  ClockIcon,
+  SparklesIcon,
+} from "@heroicons/react/24/outline";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { createRecordId } from "@/lib/record-id";
-import { providerName, generationLabel, processingTitle, processingFailure, questionProgress, type Processing } from "./tsc-processing-model";
 import { TSCWorkspace } from "./tsc-workspace";
-import { ValidatedInput, ValidatedLabel, ValidatedSelect, ValidatedTextarea } from "@/components/ui/validated-controls";
+import { ValidatedInput, ValidatedSelect, ValidatedTextarea } from "@/components/ui/validated-controls";
 import type { Answer, Question, Source, Snapshot } from "@/server/tenders/tsc/types";
-const button="ui-action";
-const primary="ui-action ui-action--primary";
-const control="min-h-11 w-full rounded-xl border border-slate-300 bg-white p-2 text-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100";
-const failure=(e:unknown)=>e instanceof Error?e.message:"Unable to complete TSC request";
-export const rupees=(micro:number)=>micro>0&&micro<10000?"less than ₹0.01":new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(micro/1_000_000);
-type Cost={estimated_micro_inr:number;unknown_requests:number;unconfirmed_reserved_paise:number;legacy_reserved_paise:number;limit_paise:number;requests:{id:string;job_id:string;response_id:string|null;http_status:number|null;model:string;state:string;estimated_micro_inr:number|null;usage?:{input_tokens?:number;output_tokens?:number};pricing:{usd_inr:number;fx_date:string;tier:string}}[]};
-type Options={engine?:string;upload_batches?:{id:string;state:string;error_code:string|null;blocked_path:string|null}[];formats:{id:string;version:number;name:string;question_count:number}[];sources:(Source&{reference_document:boolean})[];providers:{mode:string;available:boolean;model:string;reservation_paise:number;quality_model?:string|null;quality_reservation_paise?:number|null;quality_minimum_reservation_paise?:number|null;input_method?:string;name?:string}[];cost:Cost};
-type Summary={preparation_method?:string;id:string;state:string;mode:string;engine?:string;error_code?:string;created_at:string};
-type Job=Summary&{processing?:Processing;version:number;draft_version:number;stale:boolean;error_code:string;snapshot:Snapshot;answers:Answer[];cost:Cost;tasks:{id:string;state:string;question_id:string|null;error_code:string}[]};
-type Original={id:string;provider:string;model:string;created_at:string;answer:Answer};
-async function api<T>(path:string,init?:RequestInit):Promise<T>{const response=await fetch(`/api/tender-fms/${path}`,{cache:"no-store",...init}),data=await response.json().catch(()=>({detail:"Unreadable TSC response"}));if(!response.ok)throw Error(data.detail||"Unable to complete TSC request");return data;}
-const write=(value:unknown,key?:string,method="POST"):RequestInit=>({method,headers:{"Content-Type":"application/json",...(key?{"Idempotency-Key":key}:{})},body:JSON.stringify(value)});
-export function CloudTSCWorkspace(props:{draftID:string;sourceVersion:number;readyForGeneration?:boolean;onDone?:()=>void;onDirty?:(value:boolean)=>void}){
- const [options,setOptions]=useState<Options|null>(null),[error,setError]=useState("");
- const refresh=useCallback(async(signal?:AbortSignal)=>{try{setOptions(await api<Options>(`drafts/${props.draftID}/tsc/options`,{signal}));setError("");}catch(e){if(!signal?.aborted)setError(failure(e));}},[props.draftID]);
- useEffect(()=>{const c=new AbortController(),timer=setTimeout(()=>void refresh(c.signal),0),poll=setInterval(()=>void refresh(c.signal),12000);return()=>{clearTimeout(timer);clearInterval(poll);c.abort()}},[refresh,props.sourceVersion]);
- if(error&&!options)return <p role="alert">{error} <button className={button} onClick={()=>void refresh()}>Retry</button></p>;
- if(!options)return <p role="status">Loading TSC workspace…</p>;
- if(options.engine!=="nextjs")return <TSCWorkspace {...props}/>;
- return <>{error?<p role="alert" className="tsc-warning">{error} Your current checklist work is retained. <button className={button} onClick={()=>void refresh()}>Retry</button></p>:null}<NativeTSC key={props.draftID} {...props} options={options} refreshOptions={refresh} onDone={props.onDone} onDirty={props.onDirty}/></>;
+
+const button = "ui-action";
+const primary = "ui-action ui-action--primary";
+const failure = (e: unknown) => (e instanceof Error ? e.message : "Unable to complete TSC request");
+
+type Cost = {
+  estimated_micro_inr: number;
+  unknown_requests: number;
+  unconfirmed_reserved_paise: number;
+  legacy_reserved_paise: number;
+  limit_paise: number;
+  requests: {
+    id: string;
+    job_id: string;
+    response_id: string | null;
+    http_status: number | null;
+    model: string;
+    state: string;
+    estimated_micro_inr: number | null;
+    usage?: { input_tokens?: number; output_tokens?: number };
+    pricing: { usd_inr: number; fx_date: string; tier: string };
+  }[];
+};
+
+type Options = {
+  engine?: string;
+  upload_batches?: { id: string; state: string; error_code: string | null; blocked_path: string | null }[];
+  formats: { id: string; version: number; name: string; question_count: number }[];
+  sources: (Source & { reference_document: boolean })[];
+  providers: {
+    mode: string;
+    available: boolean;
+    model: string;
+    reservation_paise: number;
+    quality_model?: string | null;
+    quality_reservation_paise?: number | null;
+    quality_minimum_reservation_paise?: number | null;
+    input_method?: string;
+    name?: string;
+  }[];
+  cost: Cost;
+};
+
+type Summary = {
+  preparation_method?: string;
+  id: string;
+  state: string;
+  mode: string;
+  engine?: string;
+  error_code?: string;
+  created_at: string;
+};
+
+type Job = Summary & {
+  version: number;
+  draft_version: number;
+  stale: boolean;
+  error_code: string;
+  snapshot: Snapshot;
+  answers: Answer[];
+  cost: Cost;
+  tasks: { id: string; state: string; question_id: string | null; error_code: string }[];
+};
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`/api/tender-fms/${path}`, { cache: "no-store", ...init });
+  const data = await response.json().catch(() => ({ detail: "Unreadable TSC response" }));
+  if (!response.ok) throw Error(data.detail || "Unable to complete TSC request");
+  return data;
 }
-function CostSummary({cost,base}:{cost:Cost;base:string}){return <aside aria-label="Tender processing cost" className="space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-slate-900"><p className="font-bold">Estimated processing cost: {rupees(cost.estimated_micro_inr)}</p><p>All cloud requests for this tender. Based on reported token usage and the saved model rate and exchange rate. Excludes taxes, payment fees and account credits.</p>{cost.unknown_requests>0?<p>{cost.unknown_requests} request(s) have unconfirmed usage; ₹{(cost.unconfirmed_reserved_paise/100).toFixed(2)} held as allowance, excluded from the estimate.</p>:null}{cost.legacy_reserved_paise>0?<p>Previous workflow: ₹{(cost.legacy_reserved_paise/100).toFixed(2)} reserved; historical actual usage is unavailable.</p>:null}<p>Tender allowance: ₹{(cost.limit_paise/100).toFixed(2)}. Reservations are conservative limits, not charges.</p>{cost.requests.length?<details><summary className="cursor-pointer font-semibold">Usage and saved pricing ({cost.requests.length} calls)</summary><ul className="mt-2 space-y-2">{cost.requests.map(r=><li key={r.id}>{r.model}: {r.estimated_micro_inr==null?"usage unconfirmed":rupees(r.estimated_micro_inr)} · {r.state} · {r.usage?.input_tokens??"?"} input / {r.usage?.output_tokens??"?"} output tokens · ₹{r.pricing.usd_inr}/USD ({r.pricing.fx_date}; {r.pricing.tier} tier){r.response_id&&r.http_status?<> · <a className="text-blue-700 underline" href={`/api/tender-fms/${base}/${r.job_id}/responses/${r.response_id}`} download>Saved response JSON</a></>:null}</li>)}</ul></details>:null}</aside>}
-function NativeTSC({draftID,sourceVersion,options,refreshOptions,onDone,onDirty}:{draftID:string;sourceVersion:number;options:Options;refreshOptions:()=>Promise<void>;onDone?:()=>void;onDirty?:(value:boolean)=>void}){
- const user=useAuthenticatedUser(),has=(p:string)=>user.permissions.includes("system:admin")||user.permissions.includes(p),canWrite=has("tenders.tsc.write")&&has("tenders.register.write")&&has("tenders.processing.write"),canCloud=canWrite&&has("tenders.tsc.originals.write"),base=`drafts/${draftID}/tsc`;
- const [jobs,setJobs]=useState<Summary[]>([]),[selected,setSelected]=useState(""),[job,setJob]=useState<Job|null>(null),[mode,setMode]=useState(options.providers.find(p=>p.mode==="gemini"&&p.available)?.mode??"manual"),[formatID,setFormat]=useState(options.formats[0]?.id??""),[sources,setSources]=useState<string[]>([]),[strong,setStrong]=useState(false),[strongModel,setStrongModel]=useState(true),[recover,setRecover]=useState(false),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[question,setQuestion]=useState(""),[resumeConsent,setResumeConsent]=useState("");
- const [preparing,setPreparing]=useState(true),[method,setMethod]=useState<"manual"|"upload"|"llm">("upload"),[questionSearch,setQuestionSearch]=useState(""),[questionFilter,setQuestionFilter]=useState("all"),[importEpoch,setImportEpoch]=useState(0);
- const operation=useRef<{fingerprint:string;key:string}|null>(null),initialized=useRef(false),unsaved=useRef(false);
- const markDirty=(value:boolean)=>{unsaved.current=value;onDirty?.(value)};
- const canLeave=()=>{if(!unsaved.current)return true;if(!window.confirm("Discard unsaved checklist changes?"))return false;markDirty(false);return true};
- useEffect(()=>()=>onDirty?.(false),[onDirty]);
- useEffect(()=>{void refreshOptions()},[job?.version,refreshOptions]);
- const refresh=useCallback(async(signal?:AbortSignal)=>{try{const data=await api<{items:Summary[]}>(base,{signal});setJobs(data.items);if(!initialized.current){initialized.current=true;setSelected(data.items[0]?.id??"");}if(selected){const summary=data.items.find(j=>j.id===selected);if(summary?.engine!=="go")setJob(await api<Job>(`${base}/${selected}`,{signal}));else setJob(null);}setError("");}catch(e){if(!signal?.aborted)setError(failure(e));}},[base,selected]);
- useEffect(()=>{const c=new AbortController();let live=true,timer:ReturnType<typeof setTimeout>;async function poll(){await refresh(c.signal);if(live)timer=setTimeout(()=>void poll(),3000)}void poll();return()=>{live=false;c.abort();clearTimeout(timer)}},[refresh]);
- const availableAllowance=Math.max(0,options.cost.limit_paise-options.cost.unconfirmed_reserved_paise-options.cost.legacy_reserved_paise-Math.ceil(options.cost.estimated_micro_inr/10000));
- const selectedProvider=options.providers.find(p=>p.mode===mode),reservation=strongModel&&mode==="gemini"?selectedProvider?.quality_reservation_paise:selectedProvider?.reservation_paise,format=options.formats.find(f=>f.id===formatID),pending=jobs.some(j=>j.state==="queued"||j.state==="processing"),legacy=jobs.find(j=>j.id===selected)?.engine==="go",q=job?.snapshot.questions.find(q=>q.id===question)??job?.snapshot.questions[0],answer=job?.answers.find(a=>a.question_id===q?.id),stale=job?.stale||job?.draft_version!==sourceVersion;
- async function generate(){if(!format||busy||!canLeave())return;markDirty(false);setBusy(true);setError("");try{const request={expected_version:sourceVersion,format_id:format.id,format_version:format.version,mode,source_ids:mode==="manual"?[]:sources,auto_escalate:mode==="gemini"&&strong,stronger_model:mode==="gemini"&&strongModel,recover_overload:recover,original_documents_confirmed:confirmed},fingerprint=JSON.stringify(request);if(operation.current?.fingerprint!==fingerprint)operation.current={fingerprint,key:createRecordId()};const next=await api<Job>(base,write(request,operation.current.key));operation.current=null;initialized.current=true;setSelected(next.id);setJob(next);setQuestion("");setPreparing(false);await refreshOptions();}catch(e){setError(failure(e))}finally{setBusy(false)}}
- async function resumeMissing(){if(!job||busy)return;setBusy(true);setError("");try{const fingerprint=JSON.stringify({resume:job.id,version:job.version});if(operation.current?.fingerprint!==fingerprint)operation.current={fingerprint,key:createRecordId()};const next=await api<Job>(`${base}/${job.id}/resume`,write({expected_version:job.version,original_documents_confirmed:resumeConsent===`${job.id}:${job.version}`},operation.current.key));operation.current=null;setResumeConsent("");setJob(next);await refreshOptions()}catch(e){setError(failure(e))}finally{setBusy(false)}}
- return <section aria-label="Tender checklist workspace" className="tsc-hub"><header className="tsc-hub-heading"><div><span className="tsc-eyebrow">TENDER SELECTION CHECKLIST</span><h2>Prepare, review and move forward</h2><p>Write answers yourself, bring a completed Word checklist, or prepare it with AI.</p></div></header>
- {canWrite?<details open={preparing||!jobs.length} onToggle={e=>{if(jobs.length)setPreparing(e.currentTarget.open)}} className="tsc-prepare"><summary><span>Prepare a checklist</span><span className="tsc-hint">Manual, Word upload or AI</span></summary><div className="tsc-prepare-body">
- <fieldset className="tsc-methods"><legend>Choose how to prepare your TSC</legend>{([{id:'manual',title:'Write manually',description:'Start with a blank checklist and fill answers with your team.',icon:PencilSquareIcon,tag:'No AI required'},{id:'upload',title:'Upload completed Word',description:'Bring a checklist from Gemini Chat or another source.',icon:ArrowUpTrayIcon,tag:'Review and save'},{id:'llm',title:'Prepare with AI',description:'Use the app’s model to read your tender documents.',icon:SparklesIcon,tag:'Uses tender allowance'}]as const).map(m=><ValidatedLabel key={m.id} className="tsc-method" data-selected={method===m.id}><ValidatedInput type="radio" name="tsc-preparation-method" value={m.id} checked={method===m.id} onChange={()=>{if(!canLeave())return;markDirty(false);setMethod(m.id);setConfirmed(false);if(m.id==='manual')setMode('manual');if(m.id==='llm')setMode(options.providers.find(p=>p.mode==='gemini'&&p.available)?.mode??options.providers.find(p=>p.available)?.mode??'gemini')}}/><m.icon aria-hidden="true"/><strong>{m.title}</strong><span>{m.description}</span><small>{m.tag}</small></ValidatedLabel>)}</fieldset>
- <div className="tsc-preparation-heading"><div><span className="tsc-eyebrow">{method==='upload'?'IMPORT AND REVIEW':method==='manual'?'MANUAL CHECKLIST':'AI PREPARATION'}</span><h3>{method==='upload'?'Upload your completed TSC':method==='manual'?'Start a blank checklist':'Prepare answers from tender documents'}</h3></div><div className="tsc-format-picker"><ValidatedLabel htmlFor="cloud-tsc-format">Checklist format</ValidatedLabel><ValidatedSelect id="cloud-tsc-format" className={control} value={formatID} onChange={e=>{if(!canLeave())return;markDirty(false);setFormat(e.target.value)}}>{options.formats.map(f=><option key={f.id} value={f.id}>{f.name} · {f.question_count} questions</option>)}</ValidatedSelect></div></div>
- {method==='upload'&&format?<TSCWordImport key={`${format.id}:${importEpoch}`} base={base} sourceVersion={sourceVersion} format={format} onDirty={v=>{markDirty(v)}} onSaved={async id=>{initialized.current=true;setSelected(id);setJob(await api<Job>(`${base}/${id}`));setQuestion('');setPreparing(false);setJobs((await api<{items:Summary[]}>(base)).items);await refreshOptions()}}/>:method==='manual'?<div className="tsc-manual-start"><DocumentTextIcon aria-hidden="true"/><div><h4>Your team’s answers, saved in one place</h4><p>No source upload or model setup is required. Save each answer as you work, review it, and download the completed checklist.</p></div><button type="button" className={primary} disabled={busy||!format} onClick={()=>void generate()}>{busy?'Creating checklist…':'Start manual TSC'}</button></div>:<div className="tsc-ai-setup">
- <div><ValidatedLabel htmlFor="cloud-tsc-provider">AI provider and model</ValidatedLabel><ValidatedSelect id="cloud-tsc-provider" className={control} value={mode==='gemini'&&strongModel?'gemini-quality':mode} onChange={e=>{setMode(e.target.value==='gemini-quality'?'gemini':e.target.value);setStrongModel(e.target.value==='gemini-quality');setConfirmed(false)}}>{options.providers.map(p=><option key={p.mode} value={p.mode} disabled={!p.available||!canCloud}>{providerName(p.mode)} · {p.model}{p.available?'':' · not configured'}</option>)}{options.providers.find(p=>p.mode==='gemini')?.quality_model?<option value="gemini-quality" disabled={!options.providers.find(p=>p.mode==='gemini')?.available||!canCloud}>Gemini · {options.providers.find(p=>p.mode==='gemini')?.quality_model} · quality mode</option>:null}</ValidatedSelect></div>
- {!canCloud?<p className="tsc-warning">Sending documents to AI requires original-document processing permission. Manual and Word upload remain available.</p>:!selectedProvider?.available?<p className="tsc-warning">This AI provider is not configured. Choose another provider, upload Word, or write manually.</p>:null}
- <fieldset className="tsc-source-selection"><legend>Select source PDFs</legend><p className="tsc-hint">Use the original tender documents. Completed checklists are excluded as evidence.</p>{options.sources.length?options.sources.map(s=><ValidatedLabel key={s.id} className="tsc-source-choice"><ValidatedInput type="checkbox" checked={sources.includes(s.id)} disabled={s.reference_document||s.kind!=='pdf'} onChange={e=>{setSources(v=>e.target.checked?[...v,s.id]:v.filter(id=>id!==s.id));setConfirmed(false)}}/><span><strong>{s.path.split('/').at(-1)}</strong><small>{s.pages??0} pages · {(s.byte_size/1048576).toFixed(1)} MiB{s.reference_document?' · reference excluded':s.kind!=='pdf'?' · convert to PDF first':''}</small></span></ValidatedLabel>):<p>No verified PDFs yet. You can still upload a completed Word checklist or write manually.</p>}</fieldset>
- {(options.upload_batches??[]).filter(b=>!['ready','consumed'].includes(b.state)).map(b=><p key={b.id} role="status" className="tsc-warning">{b.state==='failed'?`Upload verification failed: ${(b.error_code??'verification_failed').replaceAll('_',' ')}. Return to Documents to retry.`:b.state==='verifying'?'Extracting and verifying your upload. PDFs will appear when ready.':'An upload is incomplete. Return to Documents to finish it.'}</p>)}
- <p className="tsc-allowance">₹{(availableAllowance/100).toFixed(2)} remaining of this tender’s ₹{(options.cost.limit_paise/100).toFixed(2)} allowance. {strongModel&&mode==='gemini'?'Quality mode counts the selected input before generation and stops if it cannot fit.':'The app reserves the request allowance before sending.'} Free-tier quotas still apply.</p>
- <details className="tsc-advanced"><summary>Reading and recovery options</summary><p className="tsc-hint">Quality mode uses indexed PDF text and OCR, checks quotations and shows coverage. Standard Gemini and OpenAI read original PDFs. DeepSeek and Groq use text and OCR. Estimates use published paid rates.</p>{mode==='gemini'&&!strongModel?<ValidatedLabel className="tsc-check"><ValidatedInput type="checkbox" checked={strong} onChange={e=>setStrong(e.target.checked)}/>Try one stronger pass for unresolved questions.</ValidatedLabel>:null}<ValidatedLabel className="tsc-check"><ValidatedInput type="checkbox" checked={recover} onChange={e=>{setRecover(e.target.checked);setConfirmed(false)}}/>Retry once after an explicit overload or rate-limit rejection. Uncertain outcomes are never resent.</ValidatedLabel></details>
- <ValidatedLabel className="tsc-check"><ValidatedInput type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>I confirm sending the selected original documents and using this tender’s allowance.</ValidatedLabel>
- {(strongModel&&mode==='gemini'?selectedProvider?.quality_minimum_reservation_paise??reservation??0:reservation??0)>availableAllowance?<p role="status" className="tsc-warning">The remaining allowance cannot cover this model’s response reservation.</p>:null}
- <button type="button" className={primary} disabled={busy||pending||!format||!sources.length||!confirmed||!canCloud||!selectedProvider?.available||(strongModel&&mode==='gemini'?selectedProvider?.quality_minimum_reservation_paise??reservation??0:reservation??0)>availableAllowance} onClick={()=>void generate()}>{busy?'Saving request…':'Prepare TSC with AI'}</button>
- </div>}
- </div></details>:null}
- {error?<p role="alert" className="text-sm text-red-700">{error} <button className={button} onClick={()=>void refresh()}>Refresh saved status</button></p>:null}
- <div className="tsc-saved-picker"><ValidatedLabel htmlFor="cloud-tsc-generation">Saved checklists</ValidatedLabel><ValidatedSelect id="cloud-tsc-generation" className={control} value={selected} onChange={e=>{if(!canLeave())return;markDirty(false);setImportEpoch(n=>n+1);setPreparing(false);setSelected(e.target.value);setJob(null);setQuestion("")}}><option value="">Select a draft</option>{jobs.map(j=><option key={j.id} value={j.id}>{new Date(j.created_at).toLocaleString()} · {j.preparation_method==="upload"?"Word upload":providerName(j.mode)} · {generationLabel(j)}{j.engine==="go"?" · previous workflow":""}</option>)}</ValidatedSelect></div>
- {legacy?<p className="rounded-xl border p-4 text-sm">This retained draft uses the previous workflow. <a className="text-blue-700 underline" href={`/api/tender-fms/${base}/${selected}/document`} download>Download its original TSC document</a>. Create a new draft above to use cloud/manual review.</p>:null}
- {job?<><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm">{job.snapshot.format_name} · {job.snapshot.preparation_method==="upload"?"Word upload":job.snapshot.quality_model??job.cost.requests[0]?.model??providerName(job.mode)} · {generationLabel(job)} · version {job.version} · {job.answers.filter(a=>a.accepted).length}/{job.answers.length} reviewed</p>{has("tenders.tsc.export")&&job.state==="ready"&&(!job.error_code||job.answers.some(a=>a.answer.trim()))?<a className={button+" inline-flex items-center"} href={`/api/tender-fms/${base}/${job.id}/document`} download>Download TSC Word</a>:null}{job.snapshot.preparation_method==="upload"&&has("tenders.tsc.export")?<a className={button} href={`/api/tender-fms/${base}/${job.id}/uploaded-document`} download>Original uploaded Word</a>:null}{onDone?<button type="button" className={button} onClick={()=>{if(canLeave())onDone()}}>Done · back to tenders</button>:null}</div><div className="tsc-metrics"><div><strong>{job.answers.filter(a=>a.answer.trim()).length}/{job.answers.length}</strong><span>Answers filled</span></div><div><strong>{job.answers.filter(a=>a.accepted).length}</strong><span>Reviewed</span></div><div><strong>{job.answers.filter(a=>a.answer.trim()&&!a.accepted).length}</strong><span>Awaiting review</span></div><div><strong>{job.answers.filter(a=>!a.answer.trim()).length}</strong><span>Still to complete</span></div></div>{job.processing?<section aria-label="Generation progress" role="status" className={`space-y-2 rounded-xl border p-4 ${job.error_code?"border-red-200 bg-red-50 text-red-950":"border-blue-200 bg-blue-50 text-blue-950"}`}><h3 className="font-bold">{processingTitle(job.processing,providerName(job.mode))}</h3><p className="text-sm">{job.snapshot.preparation_method==="upload"?`${job.snapshot.imported_document?.matched??0} answers imported from ${job.snapshot.imported_document?.name??"Word"}. Saved to this tender; no model request was needed.`:job.mode==="manual"?`${job.answers.filter(a=>a.answer.trim()).length}/${job.answers.length} fields filled`:`${Math.floor(job.processing.elapsed_seconds/60)}m ${job.processing.elapsed_seconds%60}s elapsed · ${job.processing.returned_answers}/${job.processing.model_questions} model answers received · ${job.processing.answered_questions} marked answered · ${job.processing.manual_questions} require manager judgement`}</p>{job.processing.evidence?<p className="text-sm">{job.processing.evidence.partial?`Used relevant excerpts from ${job.processing.evidence.supplied_pages} of ${job.processing.evidence.total_pages} PDF pages. Missing clauses require source review.`:`Read text from all ${job.processing.evidence.total_pages} PDF pages.`}</p>:null}{job.error_code?<><p className="text-sm">{processingFailure(job.error_code,providerName(job.mode))}{job.processing.provider_status?` Provider HTTP status: ${job.processing.provider_status}.`:""}</p><p className="text-sm">{job.snapshot.recover_overload?"The approved recovery attempt has stopped. No further retries will be sent.":"No automatic retry was authorized or sent."} Blank fields are unfilled placeholders, not completed model answers.</p>{canCloud&&!pending&&!stale&&['provider_unavailable','quota_or_rate_limit'].includes(job.error_code)&&job.answers.some(a=>a.answer.trim())&&job.snapshot.questions.some(q=>!q.manual_review&&job.answers.some(a=>a.question_id===q.id&&!a.answer.trim()&&!['not_found','conflicting'].includes(a.status)))?<div className="space-y-2"><ValidatedLabel className="flex items-start gap-2 text-sm"><ValidatedInput type="checkbox" checked={resumeConsent===`${job.id}:${job.version}`} onChange={e=>setResumeConsent(e.target.checked?`${job.id}:${job.version}`:"")}/>Send selected documents to resume only unfilled questions, within this tender’s allowance. Received answers will be preserved.</ValidatedLabel><button type="button" className={button} disabled={busy||resumeConsent!==`${job.id}:${job.version}`} onClick={()=>void resumeMissing()}>Resume unfilled questions</button></div>:null}{canCloud&&!pending&&!stale?<button type="button" className={button} onClick={()=>{if(!canLeave())return;setMethod("llm");setMode(job.mode);setFormat(job.snapshot.format_id);setSources(job.snapshot.sources.map(s=>s.id).filter(id=>options.sources.some(s=>s.id===id)));setStrong(job.snapshot.auto_escalate);setStrongModel(job.snapshot.stronger_model??false);setRecover(job.snapshot.recover_overload??false);setConfirmed(false);setPreparing(true);markDirty(false);}}>Prepare a retry</button>:null}</>:job.state==="queued"||job.state==="processing"?<p className="text-sm">Answers have not been completed yet. This status refreshes automatically; you can close this panel safely.</p>:null}</section>:null}{stale?<p role="alert">Tender sources changed. This saved version is retained; create a new TSC draft to use the current documents.</p>:null}
- {q&&answer?<div className="tsc-review-layout"><nav aria-label="TSC questions" className="tsc-question-nav"><div className="tsc-question-search"><ValidatedLabel htmlFor="tsc-question-search">Find a question</ValidatedLabel><ValidatedInput id="tsc-question-search" value={questionSearch} placeholder="Search checklist…" onChange={e=>setQuestionSearch(e.target.value)}/><ValidatedLabel htmlFor="tsc-question-filter">Show</ValidatedLabel><ValidatedSelect id="tsc-question-filter" value={questionFilter} onChange={e=>setQuestionFilter(e.target.value)}><option value="all">All questions</option><option value="unfilled">Still to complete</option><option value="review">Awaiting review</option><option value="reviewed">Reviewed</option></ValidatedSelect></div><ul>{job.snapshot.questions.filter(q=>{const a=job.answers.find(a=>a.question_id===q.id);return q.question.toLowerCase().includes(questionSearch.toLowerCase())&&(questionFilter==="all"||questionFilter==="unfilled"&&!a?.answer.trim()||questionFilter==="review"&&a?.answer.trim()&&!a.accepted||questionFilter==="reviewed"&&a?.accepted)}).map(question=><li key={question.id}><button className={`min-h-11 w-full rounded-lg px-3 py-2 text-left text-sm ${question.id===q.id?"bg-blue-100 text-blue-900":"hover:bg-slate-100 dark:hover:bg-slate-800"}`} aria-current={question.id===q.id?"true":undefined} onClick={()=>{if(question.id===q.id||!canLeave())return;markDirty(false);setQuestion(question.id)}}>{question.printed_number||question.id} · {question.question}<span className="block text-xs">{questionProgress(question,job.answers.find(a=>a.question_id===question.id),job.state==="queued"||job.state==="processing",!!job.error_code,providerName(job.mode))}</span></button></li>)}</ul></nav><AnswerEditor key={`${job.id}:${q.id}`} base={`${base}/${job.id}`} question={q} saved={answer} job={job} canWrite={canWrite&&!stale&&job.state==="ready"} canCloud={canCloud&&!stale} options={options} onDirty={v=>{markDirty(v)}} changed={async next=>{setJob(next);await refreshOptions()}} refresh={()=>refresh()} /></div>:null}<EditHistory base={`${base}/${job.id}`} version={job.version}/></>:null}
- {(options.cost.requests.length>0||method==="llm")?<details className="tsc-cost-details"><summary>AI usage and allowance · {rupees(options.cost.estimated_micro_inr)} estimated</summary><CostSummary cost={options.cost} base={base}/></details>:null}
- </section>;
+
+const write = (value: unknown, key?: string, method = "POST"): RequestInit => ({
+  method,
+  headers: { "Content-Type": "application/json", ...(key ? { "Idempotency-Key": key } : {}) },
+  body: JSON.stringify(value),
+});
+
+function formatSectionName(raw: string): string {
+  if (!raw) return "General Questions";
+  return raw
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
-function AnswerEditor({base,question,saved,job,canWrite,canCloud,options,onDirty,changed,refresh}:{base:string;question:Question;saved:Answer;job:Job;canWrite:boolean;canCloud:boolean;options:Options;onDirty:(v:boolean)=>void;changed:(j:Job)=>Promise<void>;refresh:()=>Promise<void>}){
- const [working,setWorking]=useState(saved),[reason,setReason]=useState(""),[originals,setOriginals]=useState<Original[]>([]),[dirty,setDirty]=useState(false),[revision,setRevision]=useState(job.version),[error,setError]=useState(""),[busy,setBusy]=useState(false),[provider,setProvider]=useState("gemini"),[stronger,setStronger]=useState(false),[confirmed,setConfirmed]=useState(false);
- const operation=useRef<{fingerprint:string;key:string}|null>(null),pending=job.tasks.some(t=>t.state==="queued"||t.state==="processing");
- useEffect(()=>{const c=new AbortController();api<Original[]>(`${base}/answers/${encodeURIComponent(question.id)}/originals`,{signal:c.signal}).then(setOriginals).catch(e=>{if(!c.signal.aborted)setError(failure(e))});return()=>c.abort()},[base,question.id,job.version]);
- // Polling never replaces unsaved manager text. A changed version requires explicit review.
- const stale=dirty&&revision!==job.version;
- const display=dirty?working:saved;
- useEffect(()=>{if(!dirty)return;const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue=""};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn)},[dirty]);
- function update(value:Partial<Answer>){onDirty(true);if(!dirty){setRevision(job.version);setWorking({...saved,...value})}else setWorking(w=>({...w,...value}));setDirty(true)}
- async function save(){setBusy(true);setError("");try{const next=await api<Job>(`${base}/answers/${encodeURIComponent(question.id)}`,write({expected_version:revision,reason,answer:working},undefined,"PATCH"));setDirty(false);onDirty(false);setReason("");setWorking(next.answers.find(a=>a.question_id===question.id)!);setRevision(next.version);await changed(next)}catch(e){setError(failure(e))}finally{setBusy(false)}}
- async function propose(){setBusy(true);setError("");try{const body={expected_version:job.version,provider,stronger,original_documents_confirmed:confirmed},fingerprint=JSON.stringify(body);if(operation.current?.fingerprint!==fingerprint)operation.current={fingerprint,key:createRecordId()};await api(`${base}/answers/${encodeURIComponent(question.id)}/research`,write(body,operation.current.key));operation.current=null;setConfirmed(false);await refresh()}catch(e){setError(failure(e))}finally{setBusy(false)}}
- return <article className="min-w-0 space-y-4"><header><p className="text-xs font-semibold text-slate-500">{question.section} · {question.printed_number}</p><h3 className="text-base font-bold">{question.question}</h3>{question.manual_review?<p className="mt-1 text-sm text-amber-800">Management judgement required. Check any imported answer against your company’s information.</p>:null}</header><div className="tsc-answer-panels"><div className="space-y-3 rounded-xl border p-4"><h4 className="font-bold">Working answer</h4><ValidatedLabel htmlFor="tsc-working-answer">Manager’s wording</ValidatedLabel><ValidatedTextarea id="tsc-working-answer" className={control+" min-h-40"} maxLength={8000} value={display.answer} disabled={!canWrite||saved.accepted||busy} onChange={e=>update({answer:e.target.value})}/><ValidatedLabel htmlFor="tsc-answer-status">Answer status</ValidatedLabel><ValidatedSelect id="tsc-answer-status" className={control} value={display.status} disabled={!canWrite||saved.accepted||busy} onChange={e=>update({status:e.target.value as Answer['status']})}>{["answered","needs_review","not_found","conflicting"].map(s=><option key={s} value={s}>{s.replaceAll("_"," ")}</option>)}</ValidatedSelect><References answer={display} sources={job.snapshot.sources}/>{display.citations.length&&!saved.accepted&&canWrite?<button className={button} onClick={()=>update({citations:[]})}>Clear document references</button>:null}<ValidatedLabel className="flex min-h-11 items-center gap-2 text-sm"><ValidatedInput type="checkbox" checked={display.accepted} disabled={!canWrite||busy} onChange={e=>update({accepted:e.target.checked})}/>Reviewed by manager</ValidatedLabel>{saved.accepted?<p className="text-xs">Uncheck Reviewed and save to reopen before changing wording.</p>:null}<ValidatedLabel htmlFor="tsc-correction-reason">Reason / review note</ValidatedLabel><ValidatedInput id="tsc-correction-reason" className={control} value={reason} maxLength={1000} disabled={!canWrite||busy} onChange={e=>setReason(e.target.value)}/>{stale?<p role="alert" className="text-sm text-amber-800">A newer saved version is available. Your text is retained. Review that version before saving.</p>:null}<div className="flex flex-wrap gap-2"><button className={primary} disabled={!canWrite||!dirty||busy||stale||reason.trim().length<3} onClick={()=>void save()}>Save answer</button>{dirty?<button className={button} onClick={()=>{setDirty(false);onDirty(false);setReason("");setRevision(job.version)}}>Discard unsaved edit</button>:null}{stale?<button className={button} onClick={()=>setRevision(job.version)}>Keep my text against latest version</button>:null}</div></div>
- <details className="tsc-original-responses"><summary>Original responses and AI tools</summary><div className="space-y-3"><h4 className="font-bold">Original model responses</h4><p className="text-xs">Read-only. Corrections and new proposals never replace these originals. Page references and quotations are model-reported; check the source PDF.</p>{originals.length?originals.map((o,i)=><details key={o.id} open={i===originals.length-1} className="rounded-lg border p-3"><summary className="cursor-pointer text-sm font-semibold">{o.model} · {new Date(o.created_at).toLocaleString()}</summary><p className="mt-3 whitespace-pre-wrap text-sm">{o.answer.answer||"No answer supplied"}</p><References answer={o.answer} sources={job.snapshot.sources}/><div className="mt-3 flex flex-wrap gap-2">{canWrite&&!saved.accepted?<button className={button} onClick={()=>update({...o.answer,accepted:false,origin:"manual"})}>Use wording in editor</button>:null}<a className={button+" inline-flex items-center"} href={`/api/tender-fms/${base}/responses/${o.id}`} download>Raw response JSON</a></div></details>):<p className="text-sm">{job.snapshot.preparation_method==="upload"?"This answer came from the uploaded Word document. The original file is retained with this checklist.":"No model response for this question. Manual answers do not require a model request."}</p>}
- {canCloud&&!question.manual_review&&job.snapshot.sources.length>0?<details><summary className="cursor-pointer text-sm font-semibold">Request another model proposal</summary><div className="mt-3 space-y-3"><ValidatedLabel htmlFor="tsc-proposal-provider">Provider</ValidatedLabel><ValidatedSelect id="tsc-proposal-provider" className={control} value={provider} onChange={e=>{setProvider(e.target.value);setConfirmed(false)}}>{options.providers.map(p=><option key={p.mode} value={p.mode} disabled={!p.available}>{providerName(p.mode)}{p.available?"":" · not configured"}</option>)}</ValidatedSelect>{provider==="gemini"?<ValidatedLabel className="flex min-h-11 items-center gap-2 text-sm"><ValidatedInput type="checkbox" checked={stronger} onChange={e=>setStronger(e.target.checked)}/>Use stronger Gemini model</ValidatedLabel>:null}<ValidatedLabel className="flex min-h-11 items-center gap-2 text-sm"><ValidatedInput type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>Send selected originals again, within the tender allowance.</ValidatedLabel><p className="text-xs">The proposal appears here and leaves your working answer unchanged.</p><button className={button} disabled={busy||pending||saved.accepted||!confirmed||!options.providers.find(p=>p.mode===provider)?.available} onClick={()=>void propose()}>Request proposal</button></div></details>:null}{pending?<p role="status" className="text-sm">A model request is pending. Responses appear here when processing finishes.</p>:null}</div></details></div>{error?<p role="alert" className="text-sm text-red-700">{error}</p>:null}</article>;
+
+export function CloudTSCWorkspace(props: {
+  draftID: string;
+  sourceVersion: number;
+  readyForGeneration?: boolean;
+  onDone?: () => void;
+  onDirty?: (value: boolean) => void;
+  onProceedToStep3?: () => void;
+}) {
+  const [options, setOptions] = useState<Options | null>(null);
+  const [error, setError] = useState("");
+
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setOptions(await api<Options>(`drafts/${props.draftID}/tsc/options`, { signal }));
+        setError("");
+      } catch (e) {
+        if (!signal?.aborted) setError(failure(e));
+      }
+    },
+    [props.draftID]
+  );
+
+  useEffect(() => {
+    const c = new AbortController();
+    const timer = setTimeout(() => void refresh(c.signal), 0);
+    const poll = setInterval(() => void refresh(c.signal), 12000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(poll);
+      c.abort();
+    };
+  }, [refresh, props.sourceVersion]);
+
+  if (error && !options) {
+    return (
+      <p role="alert">
+        {error} <button className={button} onClick={() => void refresh()}>Retry</button>
+      </p>
+    );
+  }
+  if (!options) return <p role="status">Loading TSC workspace…</p>;
+  if (options.engine !== "nextjs") return <TSCWorkspace {...props} />;
+
+  return (
+    <>
+      {error && (
+        <p role="alert" className="tsc-warning">
+          {error} Your current checklist work is retained.{" "}
+          <button className={button} onClick={() => void refresh()}>
+            Retry
+          </button>
+        </p>
+      )}
+      <NativeTSC
+        key={props.draftID}
+        {...props}
+        options={options}
+        refreshOptions={refresh}
+        onDone={props.onDone}
+        onDirty={props.onDirty}
+        onProceedToStep3={props.onProceedToStep3}
+      />
+    </>
+  );
 }
-function References({answer,sources}:{answer:Answer;sources:Source[]}){return answer.citations.length?<details className="mt-2 text-xs"><summary className="cursor-pointer">Document references ({answer.citations.length}) · check original</summary><ul className="mt-2 space-y-2">{answer.citations.map((c,i)=><li key={i} className="break-words">{sources.find(s=>s.id===c.document_id)?.path??c.document_id}, PDF page {c.page}: “{c.quote}”</li>)}</ul></details>:null}
-function EditHistory({base,version}:{base:string;version:number}){const [events,setEvents]=useState<{id:string;version:number;action:string;reason:string;created_at:string}[]>([]),[error,setError]=useState("");return <details className="rounded-xl border p-4" onToggle={e=>{if(e.currentTarget.open)api<typeof events>(`${base}/history`).then(setEvents).catch(e=>setError(failure(e)))}} key={version}><summary className="cursor-pointer font-semibold">Saved review history</summary>{error?<p role="alert">{error}</p>:null}<ol className="mt-3 space-y-2 text-sm">{events.map(e=><li key={e.id}>Version {e.version} · {e.action.replaceAll("_"," ")} · {new Date(e.created_at).toLocaleString()}<p>{e.reason}</p></li>)}</ol></details>}
+
+function NativeTSC({
+  draftID,
+  sourceVersion,
+  options,
+  refreshOptions,
+  onDirty,
+  onProceedToStep3,
+}: {
+  draftID: string;
+  sourceVersion: number;
+  options: Options;
+  refreshOptions: () => Promise<void>;
+  onDone?: () => void;
+  onDirty?: (value: boolean) => void;
+  onProceedToStep3?: () => void;
+}) {
+  const user = useAuthenticatedUser();
+  const has = (p: string) => user.permissions.includes("system:admin") || user.permissions.includes(p);
+  const canWrite = has("tenders.tsc.write") && has("tenders.register.write") && has("tenders.processing.write");
+  const canCloud = canWrite && has("tenders.tsc.originals.write");
+  const base = `drafts/${draftID}/tsc`;
+
+  const [jobs, setJobs] = useState<Summary[]>([]);
+  const [selected, setSelected] = useState("");
+  const [job, setJob] = useState<Job | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // Grid editing states
+  const [workingDrafts, setWorkingDrafts] = useState<Record<string, { answer: string; status: Answer["status"] }>>({});
+  const [rowStatus, setRowStatus] = useState<Record<string, "idle" | "saving" | "saved" | "error">>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sectionFilter, setSectionFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "unfilled" | "answered">("all");
+
+  const operation = useRef<{ fingerprint: string; key: string } | null>(null);
+  const initialized = useRef(false);
+  const latestVersionRef = useRef<number>(1);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const unsavedRef = useRef(false);
+
+  const markDirty = (value: boolean) => {
+    unsavedRef.current = value;
+    onDirty?.(value);
+  };
+
+  useEffect(() => () => onDirty?.(false), [onDirty]);
+  useEffect(() => {
+    void refreshOptions();
+  }, [job?.version, refreshOptions]);
+
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const data = await api<{ items: Summary[] }>(base, { signal });
+        setJobs(data.items);
+        const targetId = selected || data.items[0]?.id;
+        if (!initialized.current && data.items[0]?.id) {
+          initialized.current = true;
+          setSelected(data.items[0].id);
+        }
+        if (targetId) {
+          const summary = data.items.find((j) => j.id === targetId);
+          if (summary?.engine !== "go") {
+            const loadedJob = await api<Job>(`${base}/${targetId}`, { signal });
+            setJob(loadedJob);
+            latestVersionRef.current = loadedJob.version;
+          } else {
+            setJob(null);
+          }
+        }
+        setError("");
+      } catch (e) {
+        if (!signal?.aborted) setError(failure(e));
+      }
+    },
+    [base, selected]
+  );
+
+  useEffect(() => {
+    const c = new AbortController();
+    let live = true;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      await refresh(c.signal);
+      if (live) timer = setTimeout(() => void poll(), 3000);
+    }
+    void poll();
+    return () => {
+      live = false;
+      c.abort();
+      clearTimeout(timer);
+    };
+  }, [refresh]);
+
+  const format = options.formats[0];
+
+  // Initialize checklist if no job exists at all
+  async function generate() {
+    if (!format || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const request = {
+        expected_version: sourceVersion,
+        format_id: format.id,
+        format_version: format.version,
+        mode: "manual",
+        source_ids: [],
+        auto_escalate: false,
+        stronger_model: false,
+        recover_overload: false,
+        original_documents_confirmed: false,
+      };
+      const fingerprint = JSON.stringify(request);
+      if (operation.current?.fingerprint !== fingerprint) {
+        operation.current = { fingerprint, key: createRecordId() };
+      }
+      const next = await api<Job>(base, write(request, operation.current.key));
+      operation.current = null;
+      initialized.current = true;
+      setSelected(next.id);
+      setJob(next);
+      latestVersionRef.current = next.version;
+      setJobs((prev) => [next, ...prev]);
+      await refreshOptions();
+    } catch (e) {
+      setError(failure(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Populate working drafts directly whenever job is loaded/refreshed
+  useEffect(() => {
+    if (!job) return;
+    setWorkingDrafts((prev) => {
+      const next: Record<string, { answer: string; status: Answer["status"] }> = {};
+      for (const a of job.answers) {
+        // If user has actively unsaved changes for this specific question, keep them
+        if (unsavedRef.current && prev[a.question_id] && prev[a.question_id].answer !== (a.answer || "")) {
+          next[a.question_id] = prev[a.question_id];
+        } else {
+          next[a.question_id] = { answer: a.answer || "", status: a.status || "needs_review" };
+        }
+      }
+      return next;
+    });
+  }, [job?.id, job?.version]);
+
+  // Unique sections list
+  const sections = useMemo(() => {
+    if (!job?.snapshot.questions) return [];
+    return Array.from(new Set(job.snapshot.questions.map((q) => q.section)));
+  }, [job]);
+
+  // Filtered questions
+  const filteredQuestions = useMemo(() => {
+    if (!job?.snapshot.questions) return [];
+    return job.snapshot.questions.filter((q) => {
+      const current = workingDrafts[q.id]?.answer ?? "";
+      const matchesSearch =
+        q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.section.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (q.printed_number && q.printed_number.includes(searchQuery));
+      const matchesSection = sectionFilter === "all" || q.section === sectionFilter;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "unfilled" && !current.trim()) ||
+        (statusFilter === "answered" && Boolean(current.trim()));
+
+      return matchesSearch && matchesSection && matchesStatus;
+    });
+  }, [job, searchQuery, sectionFilter, statusFilter, workingDrafts]);
+
+  // Progress counts
+  const totalQuestions = job?.snapshot.questions.length ?? 0;
+  const answeredCount = useMemo(() => {
+    if (!job?.snapshot.questions) return 0;
+    return job.snapshot.questions.filter((q) => (workingDrafts[q.id]?.answer ?? "").trim().length > 0).length;
+  }, [job, workingDrafts]);
+
+  const progressPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+
+  // Handle local text change
+  function handleTextChange(qId: string, text: string) {
+    setWorkingDrafts((prev) => ({
+      ...prev,
+      [qId]: {
+        answer: text,
+        status: text.trim() ? "answered" : "needs_review",
+      },
+    }));
+    markDirty(true);
+  }
+
+  // Handle local status change
+  function handleStatusChange(qId: string, status: Answer["status"]) {
+    setWorkingDrafts((prev) => ({
+      ...prev,
+      [qId]: {
+        answer: prev[qId]?.answer ?? "",
+        status,
+      },
+    }));
+    markDirty(true);
+    saveQuestion(qId, status);
+  }
+
+  // Auto-save on blur or row change
+  function saveQuestion(qId: string, explicitStatus?: Answer["status"]) {
+    if (!canWrite || !job) return;
+    const current = workingDrafts[qId];
+    if (!current) return;
+
+    const original = job.answers.find((a) => a.question_id === qId);
+    const targetStatus = explicitStatus ?? current.status;
+
+    if (original && original.answer === current.answer && original.status === targetStatus) {
+      return;
+    }
+
+    setRowStatus((prev) => ({ ...prev, [qId]: "saving" }));
+
+    saveQueue.current = saveQueue.current.then(async () => {
+      try {
+        const payload = {
+          expected_version: latestVersionRef.current,
+          reason: "Working answer recorded",
+          answer: {
+            question_id: qId,
+            answer: current.answer,
+            status: targetStatus,
+            citations: original?.citations ?? [],
+            accepted: false,
+            origin: "manual",
+          },
+        };
+
+        const next = await api<Job>(
+          `${base}/answers/${encodeURIComponent(qId)}`,
+          write(payload, undefined, "PATCH")
+        );
+
+        latestVersionRef.current = next.version;
+        setJob(next);
+        setRowStatus((prev) => ({ ...prev, [qId]: "saved" }));
+        markDirty(false);
+      } catch (err) {
+        console.error("Auto-save failed for", qId, err);
+        setRowStatus((prev) => ({ ...prev, [qId]: "error" }));
+      }
+    });
+  }
+
+  async function handleProceed() {
+    await saveQueue.current;
+    if (onProceedToStep3) {
+      onProceedToStep3();
+    }
+  }
+
+  return (
+    <section aria-label="Tender Selection Checklist Grid" className="w-full space-y-6">
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300">
+          {error}{" "}
+          <button className={button + " ml-2 text-xs"} onClick={() => void refresh()}>
+            Refresh Status
+          </button>
+        </div>
+      )}
+
+      {!jobs.length && busy ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-900">
+          <DocumentTextIcon className="h-10 w-10 animate-pulse text-blue-600" />
+          <p className="mt-3 text-sm font-bold text-slate-800 dark:text-slate-200">
+            Initializing Tender Selection Questionnaire…
+          </p>
+          <span className="text-xs text-slate-500">Setting up technical criteria and particulars grid.</span>
+        </div>
+      ) : !jobs.length ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-900">
+          <DocumentTextIcon className="h-10 w-10 text-slate-400" />
+          <h3 className="mt-2 text-base font-bold text-slate-900 dark:text-white">
+            Tender Selection Questionnaire
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Click to start recording tender particulars, compliance, and scope details.
+          </p>
+          <button
+            type="button"
+            className={primary + " mt-4 px-6 py-2.5 text-xs font-bold"}
+            disabled={busy || !format || !canWrite}
+            onClick={() => void generate()}
+          >
+            {busy ? "Starting…" : "Start Questionnaire Grid"}
+          </button>
+        </div>
+      ) : null}
+
+      {job ? (
+        <>
+          {/* Header & Controls Card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+                    Tender Selection Checklist (TS-TSC)
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    {answeredCount}/{totalQuestions} Answered
+                  </span>
+                </div>
+                <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
+                  Technical Scrutiny Questionnaire
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {job.snapshot.format_name} · Click any row to answer; answers save automatically as you move row by row.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {has("tenders.tsc.export") && job.state === "ready" && job.answers.some((a) => a.answer.trim()) && (
+                  <a
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    href={`/api/tender-fms/${base}/${job.id}/document`}
+                    download
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    Download Word
+                  </a>
+                )}
+                {onProceedToStep3 && (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
+                    onClick={() => void handleProceed()}
+                  >
+                    Save & Continue to Step 3
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                <span className="font-medium">Completion Progress</span>
+                <span className="font-bold text-blue-700 dark:text-blue-400">{progressPercent}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-300 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <div className="relative min-w-60 flex-1">
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <ValidatedInput
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs text-slate-900 transition focus:border-blue-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  placeholder="Search questions or keywords…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              {sections.length > 1 && (
+                <div className="w-48">
+                  <ValidatedSelect
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 px-3 text-xs text-slate-900 transition focus:border-blue-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    value={sectionFilter}
+                    onChange={(e) => setSectionFilter(e.target.value)}
+                  >
+                    <option value="all">All Sections ({sections.length})</option>
+                    {sections.map((sec) => (
+                      <option key={sec} value={sec}>
+                        {formatSectionName(sec)}
+                      </option>
+                    ))}
+                  </ValidatedSelect>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-800">
+                <button
+                  type="button"
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    statusFilter === "all"
+                      ? "bg-white text-blue-700 shadow-sm dark:bg-slate-700 dark:text-blue-300"
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  }`}
+                  onClick={() => setStatusFilter("all")}
+                >
+                  All ({totalQuestions})
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    statusFilter === "unfilled"
+                      ? "bg-white text-blue-700 shadow-sm dark:bg-slate-700 dark:text-blue-300"
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  }`}
+                  onClick={() => setStatusFilter("unfilled")}
+                >
+                  Needs Answer ({totalQuestions - answeredCount})
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    statusFilter === "answered"
+                      ? "bg-white text-blue-700 shadow-sm dark:bg-slate-700 dark:text-blue-300"
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  }`}
+                  onClick={() => setStatusFilter("answered")}
+                >
+                  Answered ({answeredCount})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Centralized Questionnaire Grid Table */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="tsc-grid-table w-full table-fixed text-left text-xs border-collapse">
+                <colgroup>
+                  <col style={{ width: "56px" }} />
+                  <col style={{ width: "36%" }} />
+                  <col style={{ width: "50%" }} />
+                  <col style={{ width: "120px" }} />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80 font-bold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
+                    <th scope="col" className="px-4 py-3.5 text-center">
+                      #
+                    </th>
+                    <th scope="col" className="px-4 py-3.5">
+                      Tender Specification & Requirements
+                    </th>
+                    <th scope="col" className="px-4 py-3.5">
+                      Tender Working Answer
+                    </th>
+                    <th scope="col" className="px-4 py-3.5 text-right">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {filteredQuestions.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-slate-500">
+                        No questions match the current filter or search criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredQuestions.map((q, idx) => {
+                      const prevQ = idx > 0 ? filteredQuestions[idx - 1] : null;
+                      const showSectionDivider = sectionFilter === "all" && (!prevQ || prevQ.section !== q.section);
+                      const isRowActive = activeId === q.id;
+                      const answerDraft = workingDrafts[q.id]?.answer ?? "";
+                      const currentStatus = workingDrafts[q.id]?.status ?? "needs_review";
+                      const saveState = rowStatus[q.id] || "idle";
+
+                      // Calculate vertical expansion dynamically based on text length and line breaks
+                      const lineCount = (answerDraft.match(/\n/g) || []).length + 1;
+                      const estimatedLines = Math.max(lineCount, Math.ceil((answerDraft.length || 1) / 55));
+                      const dynamicRows = Math.min(10, Math.max(isRowActive ? 3 : 2, estimatedLines));
+
+                      return (
+                        <>
+                          {showSectionDivider && (
+                            <tr key={`sec-${q.section}`} className="border-y border-slate-200 bg-slate-100/80 dark:border-slate-800 dark:bg-slate-800/90 font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                              <td colSpan={4} className="px-4 py-2 text-[11px]">
+                                {formatSectionName(q.section)}
+                              </td>
+                            </tr>
+                          )}
+                          <tr
+                            key={q.id}
+                            className={`transition-colors ${
+                              isRowActive
+                                ? "bg-blue-50/40 ring-1 ring-inset ring-blue-500/30 dark:bg-blue-950/20"
+                                : "hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
+                            }`}
+                          >
+                            {/* # Number badge */}
+                            <td className="px-4 py-3 text-center align-top">
+                              <span
+                                className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold ${
+                                  isRowActive
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                }`}
+                              >
+                                {q.printed_number || idx + 1}
+                              </span>
+                            </td>
+
+                            {/* Left: Question title and category */}
+                            <td className="px-4 py-3 align-top">
+                              <p className="text-xs font-semibold text-slate-900 dark:text-white leading-relaxed">
+                                {q.question}
+                              </p>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                  {formatSectionName(q.section)}
+                                </span>
+                                {q.manual_review && (
+                                  <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300">
+                                    Management Judgement
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Right: Working Answer Textarea (Vertical auto-expand, NO horizontal scroll) */}
+                            <td className="px-4 py-3 align-top">
+                              <div className="relative">
+                                <ValidatedTextarea
+                                  rows={dynamicRows}
+                                  className={`tsc-grid-textarea w-full resize-y overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-words rounded-xl border p-2.5 text-xs text-slate-900 transition-all focus:bg-white focus:outline-none dark:text-white dark:bg-slate-800/90 ${
+                                    isRowActive
+                                      ? "border-blue-600 ring-2 ring-blue-100 dark:border-blue-500 dark:ring-blue-950"
+                                      : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                                  }`}
+                                  style={{
+                                    overflowX: "hidden",
+                                    resize: "vertical",
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                    overflowWrap: "break-word",
+                                  }}
+                                  placeholder="Enter answer or specification…"
+                                  value={answerDraft}
+                                  disabled={!canWrite}
+                                  onFocus={() => setActiveId(q.id)}
+                                  onChange={(e) => handleTextChange(q.id, e.target.value)}
+                                  onBlur={() => saveQuestion(q.id)}
+                                />
+                              </div>
+                            </td>
+
+                            {/* Far Right: Status selector & Auto-save confirmation */}
+                            <td className="px-4 py-3 align-top text-right">
+                              <div className="flex flex-col items-end gap-1.5">
+                                <ValidatedSelect
+                                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                  value={currentStatus}
+                                  disabled={!canWrite}
+                                  onChange={(e) => handleStatusChange(q.id, e.target.value as Answer["status"])}
+                                  onBlur={() => saveQuestion(q.id)}
+                                >
+                                  <option value="answered">Answered</option>
+                                  <option value="needs_review">Needs Review</option>
+                                  <option value="not_found">Not Found</option>
+                                  <option value="conflicting">Conflicting</option>
+                                </ValidatedSelect>
+
+                                {/* Auto-save indicator */}
+                                <div className="min-h-4">
+                                  {saveState === "saving" ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 animate-pulse">
+                                      <ClockIcon className="h-3.5 w-3.5" />
+                                      Saving…
+                                    </span>
+                                  ) : saveState === "saved" ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                      <CheckCircleIcon className="h-3.5 w-3.5" />
+                                      Saved
+                                    </span>
+                                  ) : saveState === "error" ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600">
+                                      Retry
+                                    </span>
+                                  ) : answerDraft.trim().length > 0 ? (
+                                    <span className="text-[10px] text-slate-400">Ready</span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom Summary Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/80">
+              <div className="flex items-center gap-4 text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-300">
+                  Total Questions: {totalQuestions}
+                </span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                  ✓ {answeredCount} Answered
+                </span>
+                <span className="text-slate-500">
+                  {totalQuestions - answeredCount} Remaining
+                </span>
+              </div>
+
+              {onProceedToStep3 && (
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
+                  onClick={() => void handleProceed()}
+                >
+                  Submit Questionnaire & Continue to Step 3
+                  <ArrowRightIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}

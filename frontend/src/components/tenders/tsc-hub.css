@@ -98,3 +98,6 @@
 .tsc-missing{border:1px solid var(--go-line);border-radius:8px;padding:12px 14px;margin-top:16px}.tsc-missing summary{font-size:13px;font-weight:650;cursor:pointer;min-height:44px}.tsc-missing ul{max-height:220px;overflow:auto;font-size:12px;color:var(--go-muted);margin-top:10px;padding-left:18px;list-style:disc}.tsc-missing li+li{margin-top:7px}
 
 .tsc-match-description{font-size:12px;line-height:1.6;color:var(--go-muted);margin-top:6px;overflow-wrap:anywhere}
+
+.tsc-grid-textarea{overflow-x:hidden!important;overflow-y:auto!important;resize:vertical!important;white-space:pre-wrap!important;word-break:break-word!important;overflow-wrap:break-word!important;line-height:1.55!important}
+.tsc-grid-table{table-layout:fixed;width:100%}

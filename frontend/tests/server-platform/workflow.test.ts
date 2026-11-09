@@ -11,6 +11,7 @@ import { handleCalendar } from '../../src/server/platform/calendar';
 import { inventory } from '../../src/server/platform/inventory';
 import { encrypt, decrypt } from '../../src/server/platform/storage';
 import { health } from '../../src/server/platform/health';
+import { handleTSC } from '../../src/server/tenders/tsc/http';
 import { handleLegacy } from '../../src/server/tenders/tsc/legacy';
 import { encrypt as seal } from '../../src/server/tenders/tsc/crypto';
 import { unzipSync, strFromU8 } from 'fflate';
@@ -32,6 +33,36 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
     try {
         await t.test('health checks the owned clean schema', async () => {
             assert.equal((await health(true)).status, 200);
+        });
+        await t.test('tender costing and award create one project and a reviewable BOQ', async () => {
+            const draft = randomUUID(), client = randomUUID(), clientName = 'QA' + client.replaceAll('-', '').slice(0, 12);
+            await sql.query(`INSERT INTO clients(id,client_code,legal_name,normalized_legal_name,display_name,parent_organization,client_type,industry,gstin,pan,cin,website,address_line_1,address_line_2,city,state,postal_code,country,legacy_source,legacy_source_id,is_active)
+                VALUES($1,$2,$2,$2,$2,'','','','','','','','','','','','','India','','',true)`, [client, clientName]);
+            await sql.query('INSERT INTO tender.document_drafts(id,name,owner_id,operation_key) VALUES($1,$2,$3,$4)', [draft, 'Synthetic award tender', admin, randomUUID()]);
+            const tender = (tail: string, method = 'GET', value?: unknown, status = 200) => call(handleTSC, `/tender-fms/drafts/${draft}/${tail}`, method, value, status);
+            await tender('flow-status');
+            await tender('prebid-queries', 'POST', { tender_specification: 'Test specification', query_description: 'Confirm equipment rating' }, 201);
+            const item = await tender('bid-items', 'POST', { description: 'Synthetic equipment', quantity: 2, unit: 'NOS' }, 201);
+            const quote = await tender('vendor-quotations', 'POST', { bid_item_id: item.id, vendor_name: 'Synthetic supplier', unit_rate: 100 }, 201);
+            await tender('vendor-quotations/select-l1', 'POST', { bid_item_id: item.id, quote_id: quote.id });
+            const award = { project_title: 'Synthetic award project', contract_reference: 'QA-LOA-1109', client_name: clientName };
+            await tender('bid-costing', 'POST', { material_cost: 200 });
+            await tender('award-project', 'POST', award, 422);
+            await tender('bid-costing', 'POST', { material_cost: 200, status: 'submitted', portal_reference: 'QA-BID' });
+            await tender('award-project', 'POST', { ...award, client_name: 'Missing client' }, 422);
+            const [first, replay] = await Promise.all([tender('award-project', 'POST', award, 201), tender('award-project', 'POST', award, 201)]);
+            assert.equal(first.project_id, replay.project_id);
+            assert.equal(first.project_number, replay.project_number);
+            const project = (await sql.query('SELECT client_id, project_manager_id, contract_value FROM projects WHERE id=$1', [first.project_id])).rows[0];
+            assert.equal(project.client_id, client);
+            assert.equal(project.project_manager_id, admin);
+            assert.equal(Number(project.contract_value), 237.6);
+            const boq = (await sql.query('SELECT b.state,l.quantity,l.item_snapshot FROM purchase_bo_lists b JOIN purchase_bo_lines l ON l.bo_id=b.id WHERE b.project_id=$1', [first.project_id])).rows;
+            assert.equal(boq.length, 1);
+            assert.equal(boq[0].state, 'draft');
+            assert.equal(Number(boq[0].quantity), 2);
+            assert.equal(boq[0].item_snapshot.description, 'Synthetic equipment');
+            await tender('bid-costing', 'POST', { material_cost: 100 }, 409);
         });
         await t.test('AES framing reads original Go nonce+cipher+tag and rejects corrupt data', () => {
             const key = createHash('sha256').update(process.env.VTPL_JWT_SECRET_KEY! + ':vtpl_secure_doc_salt').digest(), nonce = Buffer.alloc(12, 7), cipher = createCipheriv('aes-256-gcm', key, nonce), plain = Buffer.from('Old Go public tender Σ'), old = Buffer.concat([nonce, cipher.update(plain), cipher.final(), cipher.getAuthTag()]);

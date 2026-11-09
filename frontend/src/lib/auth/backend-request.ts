@@ -14,6 +14,7 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
       if(/^\/administration\/director(?:\/options)?$/.test(path))return (await import('@/server/platform/governance')).handleGovernance(new Request(url,init));
       if(/^\/work-calendar\/holidays(?:\/[^/]+)?$/.test(path))return (await import('@/server/platform/calendar')).handleCalendar(new Request(url,init));
       if(/^\/documents(?:\/|$)/.test(path))return (await import('@/server/platform/storage')).handleStorage(new Request(url,init));
+      if(/^\/settings\/company-profile(?:\/|$)/.test(path))return (await import('@/server/company/http')).handleCompany(new Request(url,init));
       const historical=await import('@/server/tenders/intake/historical');if(historical.ownsHistorical(path))return historical.handleHistorical(new Request(url,init));
     }
     if(process.env.EPCERP_PROJECT_BUDGETS_OWNER === "nextjs") {
@@ -40,7 +41,7 @@ export async function backendRequest(input: string | URL, init?: RequestInit): P
       const {handleInbox}=await import("@/server/inbox/http");
       return handleInbox(new Request(url,init));
     }
-    if(process.env.EPCERP_TSC_OWNER === "nextjs" && /^\/tender-fms\/drafts\/[^/]+\/tsc(?:\/|$)/.test(path)) {
+    if(process.env.EPCERP_TSC_OWNER === "nextjs" && /^\/tender-fms\/drafts\/[^/]+\/(?:tsc|flow-status|bidding-approval|prebid-queries|bid-items|vendor-quotations|bid-costing|award-project)(?:\/|$)/.test(path)) {
       const {handleTSC}=await import("@/server/tenders/tsc/http");
       return handleTSC(new Request(url,init));
     }

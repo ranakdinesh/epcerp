@@ -402,5 +402,13 @@
   "000090_tender_schema.up.sql": {
     "original": "backend/internal/modules/tender_fms/sql/migrations/000090_tender_schema.up.sql",
     "sha256": "68f6c4298e65fd97cd3a95e6ffd729f33c8bc241faa91c9d6b148ec74e963637"
+  },
+  "000102_company_eligibility_profile.up.sql": {
+    "original": "frontend/migrations/000102_company_eligibility_profile.up.sql",
+    "sha256": "52a4502bc17dd9c3b86ebe1fcb740f0dc228eddef3e4f4bd39a9606b14dc7ab6"
+  },
+  "000103_tender_bidding_and_costing.up.sql": {
+    "original": "frontend/migrations/000103_tender_bidding_and_costing.up.sql",
+    "sha256": "0d3dee4e524cc1328209cf2414d05669a547f7f15bfbf36ff6fb7c77d8d9f480"
   }
 }

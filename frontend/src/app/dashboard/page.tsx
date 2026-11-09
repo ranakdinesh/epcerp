@@ -33,20 +33,19 @@ const Offboarding = dynamic(()=>import("@/components/users/offboarding-managemen
 const Organisation = dynamic(()=>import("@/components/users/organisation-management").then(m=>m.OrganisationManagement),{loading});
 const Users = dynamic(() => import("@/components/users/user-management").then(m => m.UserManagement), { loading });
 const Inbox = dynamic(()=>import("@/components/communication/personal-inbox").then(m=>m.PersonalInbox),{loading});
-const Director = dynamic(()=>import("@/components/organisation-governance/director-designation").then(m=>m.DirectorDesignation),{loading});
 const Roles = dynamic(() => import("@/components/roles/role-management").then(m => m.RoleManagement), { loading });
+const CompanyProfile = dynamic(() => import("@/components/company/company-profile-management").then(m => m.CompanyProfileManagement), { loading });
 
 const navigation = [
- {screen:"tsc-formats",label:"TSC formats",group:"Global masters",permission:"settings.tsc_formats.view"},
- {screen:"my-team",label:"My team",group:"Communication",permission:"account.team.read"},
- {screen:"my-tasks",label:"My tasks",group:"Communication",permission:"work.tasks.view"},
- {screen:"purchase-advances",label:"Advance requests",group:"Accounts",permission:"accounts.purchase_advances.view"},
- {screen:"quotation-approvals",label:"Quotation approvals",group:"Accounts",permission:"accounts.quotation_approvals.view"},
- {screen:"inbox",label:"My inbox",group:"Communication",permission:"communication.inbox.read"},
- {screen:"director",label:"Director designation",group:"Administration",permission:"admin.governance.read"},
- {screen:"organisation",label:"Organisation",group:"Administration",permission:"admin.organisation.view"},
- {screen:"offboarding",label:"Handovers & deactivation",group:"Administration",permission:"account.offboarding.read"},
- {screen:"holidays",label:"Holiday calendar",group:"Global masters",permission:"settings.holidays.view"},
+  {screen:"tsc-formats",label:"TSC formats",group:"Global masters",permission:"settings.tsc_formats.view"},
+  {screen:"my-team",label:"My team",group:"Communication",permission:"account.team.read"},
+  {screen:"my-tasks",label:"My tasks",group:"Communication",permission:"work.tasks.view"},
+  {screen:"purchase-advances",label:"Advance requests",group:"Accounts",permission:"accounts.purchase_advances.view"},
+  {screen:"quotation-approvals",label:"Quotation approvals",group:"Accounts",permission:"accounts.quotation_approvals.view"},
+  {screen:"inbox",label:"My inbox",group:"Communication",permission:"communication.inbox.read"},
+  {screen:"organisation",label:"Organisation",group:"Administration",permission:"admin.organisation.view"},
+  {screen:"offboarding",label:"Handovers & deactivation",group:"Administration",permission:"account.offboarding.read"},
+  {screen:"holidays",label:"Holiday calendar",group:"Global masters",permission:"settings.holidays.view"},
   { screen: "purchase-fms", label: "Purchase FMS", group: "Project delivery", permission: "projects.purchase_workflow.view" },
   { screen: "tender-fms", label: "Tender FMS", group: "Project delivery", permission: "tenders.register.view" },
   { screen: "projects", label: "Projects", group: "Project delivery", permission: "projects.master.view" },
@@ -62,7 +61,7 @@ const navigation = [
   { screen: "users", label: "Users", group: "Administration", permission: "admin.users.view" },
   { screen: "roles", label: "Roles & permissions", group: "Administration", permission: "admin.roles.view" },
 ] as const;
-const icons = {"tsc-formats":FolderIcon,offboarding:UsersIcon,organisation:UsersIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, director:ShieldCheckIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
+const icons = {"tsc-formats":FolderIcon,offboarding:UsersIcon,organisation:BuildingOfficeIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
 function subscribePreference(cb: () => void) { window.addEventListener("epcerp-preference", cb); window.addEventListener("storage", cb); return () => { window.removeEventListener("epcerp-preference", cb); window.removeEventListener("storage", cb); }; }
 function preference(key: string) { try { return localStorage.getItem(key); } catch { return null; } }
 function savePreference(key: string, value: string) { try { localStorage.setItem(key, value); } catch {} window.dispatchEvent(new Event("epcerp-preference")); }
@@ -80,10 +79,10 @@ export default function DashboardPage() {
   const params = useSearchParams();
   const router = useRouter();
   const permissions = new Set(user.permissions);
-  const visible = navigation.filter(item => permissions.has("system:admin") || (permissions.has(item.permission) || (item.screen === "suppliers" && permissions.has("accounts.vendor_verification.view"))));
+  const visible = navigation.filter(item => permissions.has("system:admin") || (permissions.has(item.permission) || (item.screen === "suppliers" && permissions.has("accounts.vendor_verification.view")) || (item.screen === "organisation" && (permissions.has("settings.company.view") || permissions.has("settings.company.read") || permissions.has("admin.organisation.view")))));
   const selected = visible.find(item => item.screen === params.get("screen"));
   const screen = selected?.screen ?? "overview";
-  const process = screen === "purchase-fms" && !params.get("project") ? undefined : processForScreen(screen);
+  const process = (screen === "purchase-fms" && !params.get("project")) ? undefined : processForScreen(screen);
   const mapSelected = Boolean(process && (params.get("view") === "map"));
   const workPackages = process?.screen === "purchase-fms" && params.get("work") === "packages";
   const processStep = process ? availableProcessStep(process, params.get("step")) : undefined;
@@ -109,7 +108,7 @@ export default function DashboardPage() {
       <dialog ref={mobileNav} className="go-mobile-navigation" aria-label="Navigation" onClick={e => { if (e.target === e.currentTarget && e.clientX > e.currentTarget.getBoundingClientRect().right) mobileNav.current?.close(); }}><div className="go-dialog-header"><strong>{process?.label ?? "Workspace"}</strong><button type="button" aria-label="Close navigation" className="go-icon-button" onClick={() => mobileNav.current?.close()}><XMarkIcon /></button></div><nav aria-label={process ? `${process.label} mobile process navigation` : "Mobile navigation"} className="go-navigation">{navLinks(true)}</nav></dialog>
       {account && <PersonalAccountDialog key={account} mode={account} close={() => { setAccount(null); accountMenu.current?.querySelector("summary")?.focus(); }} />}
       <main id="workspace-content" className="go-content">
-        {process && <nav aria-label="Breadcrumb" className="go-process-breadcrumb"><Link href="/dashboard">Workspace</Link><span aria-hidden="true">/</span><span>{process.label}</span><span aria-hidden="true">/</span><span aria-current="page">{mapSelected ? "Process map" : workPackages ? "Purchase work packages" : processStep?.label}</span></nav>}
+        {process && <nav aria-label="Breadcrumb" className="go-process-breadcrumb"><Link href="/dashboard">Workspace</Link><span aria-hidden="true">/</span><Link href={process.screen === "purchase-fms" ? "/dashboard?screen=purchase-fms" : process.screen === "tender-fms" ? "/dashboard?screen=tender-fms" : `/dashboard?screen=${process.screen}`}>{process.label}</Link><span aria-hidden="true">/</span><span aria-current="page">{mapSelected ? "Process map" : workPackages ? "Purchase work packages" : processStep?.label}</span></nav>}
         {screen === "my-tasks" ? <PersonalTasks/> : screen === "purchase-advances" ? <AdvanceRequests/> : screen === "quotation-approvals" ? <QuotationRequests/> : screen === "purchase-fms" ? <PurchaseFMS allowedScreens={visible.map(item=>item.screen)} /> : process && mapSelected ? <ProcessMap key={process.screen} process={process} allowedScreens={visible.map(item=>item.screen)} /> : screen === "overview" ? (permissions.has("system:admin")||(permissions.has("projects.purchase_workflow.view")&&permissions.has("projects.purchase_workflow.read"))) ? <ProcurementDashboard/> : <>
           <div className="go-page-heading"><p className="go-eyebrow">Project execution workspace</p><h1>Work, decisions and follow-through.</h1></div>
           <section className="go-available" aria-labelledby="available-heading"><h2 id="available-heading">Available workspaces</h2>
@@ -117,19 +116,19 @@ export default function DashboardPage() {
           </section>
           {permissions.has("projects.budgets.view")&&<p className="text-sm text-slate-600">Open <Link href="/dashboard?screen=projects" className="text-blue-700 underline">Projects</Link> to review budgets within your assigned Finance responsibility. Supplier reviews appear in My tasks; submitted quotations appear in Quotation approvals.</p>}
         </> : screen === "projects" ? <Projects />
+          : screen === "organisation" ? <CompanyProfile />
           : screen === "tsc-formats" ? <TSCFormats />
           : screen === "clients" ? <Clients />
           : screen === "holidays" ? <HolidayCalendar/>
           : screen === "suppliers" ? <Suppliers />
-          : screen === "tender-fms" ? <TenderFMS step={processStep?.code} draftID={params.get("draft") ?? undefined} onSelectStep={step=>{const next=new URLSearchParams(params.toString());next.set("step",step);router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} onSelectDraft={id=>{const next=new URLSearchParams(params.toString());if(id)next.set("draft",id);else next.delete("draft");router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} />
+          : screen === "tender-fms" ? <TenderFMS step={processStep?.code} draftID={params.get("draft") ?? undefined} onSelectStep={step=>{const next=new URLSearchParams(params.toString());next.set("step",step);router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} onSelectDraft={(id,targetStep)=>{const next=new URLSearchParams(params.toString());if(id){next.set("draft",id);next.set("step",targetStep||"TS-01");}else{next.delete("draft");next.delete("step");}router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} />
           : screen === "items" ? <Items />
           : screen === "manufacturers" ? <Manufacturers />
           : screen === "categories" ? <Categories />
           : screen === "offboarding" ? <Offboarding />
-          : screen === "organisation" ? <Organisation />
           : screen === "my-team" ? <Organisation team />
           : screen === "users" ? <Users />
-          : screen === "inbox" ? <Inbox /> : screen === "director" ? <Director />
+          : screen === "inbox" ? <Inbox />
           : screen === "roles" ? <Roles />
           : screen === "client-types" || screen === "industries" || screen === "states" || screen === "cities" ? <References key={screen} kind={screen} /> : null}
       </main>
