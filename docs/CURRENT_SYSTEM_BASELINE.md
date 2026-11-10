@@ -110,3 +110,20 @@ The rehearsal and live migration preserved all 199 existing tables. The database
 archive and both business file backups verified, and the deployment service
 restart retained working office HTTP, public HTTPS and provider configuration.
 The server rollout record is `/home/vtplerp/deployment-20261109/verification.json`.
+
+## Tender intake and procurement administration (10 November 2026)
+
+The development server runs application revision `c8b0ac4` at clean schema 104.
+Tender draft rename and removal retain audit events. Administrator password
+resets require a reason and revoke existing sessions. Purchase FMS workspaces
+can start unassigned, and project creation records notices for active users
+with purchase assignment permission. Auth initializes the Procurement Manager
+role after registering its permissions.
+
+The AMD64 release and recovery images built successfully. Verification covered
+247 frontend tests, 48 simulated TSC tests and 18 native workflow and migration
+checks. The rehearsal and live migration preserved the rows in all 203 existing
+tables. The private database archive and business file backups passed checks,
+and both the office HTTP and public HTTPS readiness endpoints returned 200.
+The server rollout record is `/home/vtplerp/deployment-20261110/verification.json`.
+Representative user acceptance for the tender-to-procurement workflow remains open.
