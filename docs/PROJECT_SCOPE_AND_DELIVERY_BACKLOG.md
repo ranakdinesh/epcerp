@@ -117,6 +117,9 @@ checks; deployment does not mark every pending business workflow complete.
   and confirm configured email can still queue a welcome invitation.
 - [x] Verify new Purchase FMS workspaces can start unassigned and notify eligible
   procurement users.
+- [x] Surface Purchase FMS-enabled projects in the Projects register for
+  procurement portfolio assigners. Verify delegation and self-assignment
+  retain purchase ownership history.
 - [x] Rehearse migration 104, back up the development data and publish revision
   `c8b0ac4`. Check office HTTP and public HTTPS readiness.
 - [ ] Exercise the handoff and role assignments with operational users on a

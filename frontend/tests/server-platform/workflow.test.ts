@@ -95,8 +95,9 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.deepEqual(notices.map(row => row.recipient_id).sort(), [user, admin].sort());
             const unassigned = randomUUID();
             await transaction(async db => {
-                await db.query(`INSERT INTO projects(id,project_number,name,normalized_name,client_id,project_manager_id,created_by_id,updated_by_id)
-                    VALUES($1,'QA-UNASSIGNED','Synthetic unassigned purchase','synthetic unassigned purchase',$2,$3,$3,$3)`, [unassigned, client, admin]);
+                await db.query(`INSERT INTO projects(id,project_number,name,normalized_name,client_id,project_manager_id,created_by_id,updated_by_id,purchase_enabled)
+                    VALUES($1,'QA-UNASSIGNED','Synthetic unassigned purchase','synthetic unassigned purchase',$2,$3,$3,$3,true),
+                    ($4,'QA-PURCHASE-OFF','Synthetic purchase disabled','synthetic purchase disabled',$2,$3,$3,$3,false)`, [unassigned, client, admin, randomUUID()]);
                 await initializeProjectPurchase(db, unassigned, null, admin);
             });
             assert.equal((await sql.query('SELECT purchase_manager_id FROM purchase_fms_owner_history WHERE project_id=$1', [unassigned])).rows[0].purchase_manager_id, null);
@@ -229,7 +230,24 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.equal(signedIn.must_change_password, false);
             const purchase = await call(handlePurchasing, '/purchase-fms', 'GET', undefined, 200, signedIn.access_token);
             assert.equal(purchase.portfolio, true);
-            assert.ok(purchase.items.some((project: { project_number: string }) => project.project_number === 'QA-UNASSIGNED'));
+            assert.ok(purchase.items.some((project: { project_number: string }) => project.project_number === 'QA-PURCHASE-OFF'));
+            const register = await call(handlePurchasing, '/purchase-fms?enabled_only=true', 'GET', undefined, 200, signedIn.access_token);
+            const row = register.items.find((project: { project_number: string }) => project.project_number === 'QA-UNASSIGNED');
+            assert.equal(row.can_assign, true);
+            assert.equal(row.purchase_manager_id, null);
+            assert.equal(register.items.some((project: { project_number: string }) => project.project_number === 'QA-PURCHASE-OFF'), false);
+            const route = '/purchase-fms/projects/' + row.id;
+            const options = await call(handlePurchasing, route + '/assignment-options', 'GET', undefined, 200, signedIn.access_token);
+            assert.ok(options.some((option: { id: string }) => option.id === created.id));
+            const assignment = { expected_version: row.ownership_version, reason: 'Synthetic procurement register assignment' };
+            const delegated = await call(handlePurchasing, route + '/owner', 'PATCH', { ...assignment, purchase_manager_id: user }, 200, signedIn.access_token);
+            assert.equal(delegated.purchase_manager_id, user);
+            const self = await call(handlePurchasing, route + '/owner', 'PATCH',
+                { ...assignment, expected_version: delegated.version, purchase_manager_id: created.id }, 200, signedIn.access_token);
+            assert.equal(self.purchase_manager_id, created.id);
+            const audit = (await sql.query('SELECT purchase_manager_id,created_by_id FROM purchase_fms_owner_history WHERE project_id=$1 ORDER BY workspace_version', [row.id])).rows;
+            assert.deepEqual(audit.slice(-2), [{ purchase_manager_id: user, created_by_id: created.id },
+                { purchase_manager_id: created.id, created_by_id: created.id }]);
             const general = await call(handleProjects, '/projects', 'GET', undefined, 200, signedIn.access_token);
             assert.equal(general.total, 0);
         });

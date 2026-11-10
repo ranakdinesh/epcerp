@@ -1,6 +1,8 @@
 "use client";
 import {ProjectQuotationStatus} from "./project-quotation-status";
 import {ProjectProcurementOwnership} from "./project-procurement-ownership";
+import {ProjectPurchaseRegister} from "./project-purchase-register";
+import {canOpen, permitted} from "./workspace-permissions";
 import {ProjectBudgetPanel} from "./project-budget-panel";
 import {ProjectResponsibilities} from "./project-responsibilities";
 import {ProjectMetadataEditor} from "./project-metadata-editor";
@@ -35,6 +37,22 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return body as T;
 }
 export function ProjectOwnershipWorkspace() {
+  const { permissions } = useAuthenticatedUser();
+  const can = (code: string) => permitted(permissions, code);
+  const purchaseView = canOpen(permissions, "projects.purchase_workflow")
+    && can("projects.purchase_portfolio.write") && can("projects.purchase_assignments.write");
+  const generalPortfolio = ["projects.portfolio.read", "projects.portfolio.write", "projects.manager_assignments.write"].some(can);
+  const [view, setView] = useState(purchaseView && !generalPortfolio ? "purchase" : "general");
+
+  return <div className="space-y-4">
+    {purchaseView && <nav aria-label="Project register views" className="flex flex-wrap gap-2">
+      <button type="button" className={buttonClass} aria-pressed={view === "general"} onClick={() => setView("general")}>Project ownership</button>
+      <button type="button" className={buttonClass} aria-pressed={view === "purchase"} onClick={() => setView("purchase")}>Purchase FMS projects</button>
+    </nav>}
+    {purchaseView && view === "purchase" ? <ProjectPurchaseRegister /> : <ProjectRegister />}
+  </div>;
+}
+function ProjectRegister() {
   const user = useAuthenticatedUser();
   const allows = (code: string) => user.permissions.includes("system:admin") || user.permissions.includes(code);
   const canRead = allows("projects.master.read");

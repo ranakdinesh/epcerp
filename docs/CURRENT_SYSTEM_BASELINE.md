@@ -125,7 +125,11 @@ choose a personal password at first sign-in. Configured email delivery
 continues to support welcome invitations.
 Purchase FMS workspaces can start unassigned, and project creation records notices for active users
 with purchase assignment permission. Auth initializes the Procurement Manager
-role after registering its permissions.
+role after registering its permissions. The Projects register offers a
+Purchase FMS projects view for procurement portfolio assigners. It lists
+Purchase FMS-enabled projects, including unassigned projects, and uses the
+existing versioned assignment workflow and history. Procurement assigners
+without general portfolio access open this view by default.
 
 The AMD64 release and recovery images built successfully. Verification covered
 247 frontend tests, 48 simulated TSC tests and 18 native workflow and migration
