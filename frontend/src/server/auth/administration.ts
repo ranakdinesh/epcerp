@@ -3,7 +3,7 @@ import { rows, transaction, type DB } from "../db";
 import { AuthError, forbidden, invalid, publicUser, reason, strongPassword, username, uuid, type User } from "./domain";
 import { accountEvent, assignRoles, authorize, loadRoles, loadUser, revokeUser, setPassword } from "./repository";
 import { config, hashPassword } from "./security";
-import { cancelStaleMail, publicURL, queueCredentialMail, requireMail } from "./mail";
+import { cancelStaleMail, mailReady, publicURL, queueCredentialMail } from "./mail";
 import { stageEmail, sendVerification } from "./account";
 import registry from "./permissions.json";
 import presets from "./finance-presets.json";
@@ -23,7 +23,7 @@ export function users(token: string, query: URLSearchParams) {
     const ids = await rows<{ id: string }>(db, `SELECT u.id FROM auth.users u WHERE ${filter} ORDER BY u.username ${query.get("sort") === "username_desc" ? "DESC" : "ASC"} LIMIT $4 OFFSET $5`, [...args, size, (page-1)*size]);
     const items = [];
     for (const { id } of ids) items.push(publicUser((await loadUser(db, id))!));
-    return { items, page, page_size: size, total: Number(count.total), total_pages: Math.ceil(Number(count.total)/size) };
+    return { items, page, page_size: size, total: Number(count.total), total_pages: Math.ceil(Number(count.total)/size), onboarding_email_enabled: mailReady() };
   });
 }
 function integerQuery(query: URLSearchParams, name: string, fallback: number, min: number, max: number) {
@@ -40,21 +40,22 @@ export function user(token: string, id: string) {
     return publicUser(u);
   });
 }
-export type UserInput = { username: string; email: string; first_name: string; last_name: string; mobile: string; role_names: string[]; is_superuser: boolean };
+export type UserInput = { username: string; email: string; first_name: string; last_name: string; mobile: string; role_names: string[]; is_superuser: boolean; password?: string };
 export type UserUpdate = Partial<Pick<UserInput, "username" | "email" | "first_name" | "last_name" | "mobile" | "role_names">> & { expected_version?: number };
 function protectTarget(target: User | null, by: User): asserts target is User {
   if (!target) throw new AuthError(404, "User not found");
   if (target.is_superuser && !by.is_superuser) throw forbidden();
 }
-async function issueInitialCredential(db: DB, u: User, by: string) {
-  requireMail();
+async function issueInitialCredential(db: DB, u: User, by: string, manualPassword?: string) {
   if (!u.is_active) invalid("Inactive users cannot receive a temporary password.");
-  const raw = `Aa1!${randomBytes(24).toString("base64url")}`;
-  await setPassword(db, u.id, await hashPassword(raw), by, true);
-  const current = (await loadUser(db, u.id))!;
-  const subject = "Welcome to epcERP — your account is ready";
-  const message = `Hello ${u.username},\n\nYour Vishal Technopower epcERP account has been created.\n\nUsername: ${u.username}\nTemporary password: ${raw}\n\n${publicURL()}/login\n\nSign in within 24 hours. You must choose a new password before accessing your workspace. This temporary password replaces any earlier password.\n\nFor assistance, contact your administrator.\n\nRegards,\nVishal Technopower`;
-  await queueCredentialMail(db, { ID: randomUUID(), UserID: u.id, Recipient: u.email, Subject: subject, Message: message }, current.credential_version, current.temporary_password_expires_at!, by);
+  const password = manualPassword ?? `Aa1!${randomBytes(24).toString("base64url")}`;
+  await setPassword(db, u.id, await hashPassword(password), by, true);
+  if (manualPassword === undefined) {
+    const current = (await loadUser(db, u.id))!;
+    const subject = "Welcome to epcERP — your account is ready";
+    const message = `Hello ${u.username},\n\nYour Vishal Technopower epcERP account has been created.\n\nUsername: ${u.username}\nTemporary password: ${password}\n\n${publicURL()}/login\n\nSign in within 24 hours. You must choose a new password before accessing your workspace. This temporary password replaces any earlier password.\n\nFor assistance, contact your administrator.\n\nRegards,\nVishal Technopower`;
+    await queueCredentialMail(db, { ID: randomUUID(), UserID: u.id, Recipient: u.email, Subject: subject, Message: message }, current.credential_version, current.temporary_password_expires_at!, by);
+  }
   const action = "user_created";
   const changeReason = u.is_superuser ? "New superadmin account; full platform access" : "New employee account";
   await db.query(`INSERT INTO auth.auth_credential_changes(id,user_id,actor_id,action,reason,credential_version) SELECT $1,id,$3,$4,$5,credential_version FROM auth.users WHERE id=$2`, [randomUUID(), u.id, by, action, changeReason]);
@@ -63,7 +64,11 @@ async function issueInitialCredential(db: DB, u: User, by: string) {
 export function createUser(token: string, input: UserInput) {
   return transaction(async db => {
     const by = await authorize(db, token, "admin.users.write", true);
-    requireMail();
+    if (input.password === undefined) {
+      if (!mailReady()) invalid("Set and confirm a temporary password while email delivery is unavailable.");
+    } else if (!strongPassword(input.password)) {
+      invalid("Use 8 to 128 characters including uppercase, lowercase, number and symbol.");
+    }
     if (input.is_superuser) {
       if (!by.is_superuser) throw forbidden();
       const [count] = await rows<{ n: string }>(db, "SELECT count(*) AS n FROM auth.users WHERE is_superuser");
@@ -73,7 +78,7 @@ export function createUser(token: string, input: UserInput) {
     await db.query(`INSERT INTO auth.users(id,username,email,first_name,last_name,mobile,password_hash,is_active,is_superuser,created_by_id,updated_by_id)
       VALUES($1,$2,$3,$4,$5,$6,'pending-credential',true,$7,$8,$8)`, [id, input.username, input.email, input.first_name, input.last_name, input.mobile, input.is_superuser, by.id]);
     await assignRoles(db, id, input.role_names, by);
-    await issueInitialCredential(db, (await loadUser(db, id))!, by.id);
+    await issueInitialCredential(db, (await loadUser(db, id))!, by.id, input.password);
     return publicUser((await loadUser(db, id))!);
   });
 }

@@ -203,6 +203,48 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
                 id: string;
             }) => x.id === c.id));
         });
+        await t.test('user creation supports manual temporary access when email is disabled', async () => {
+            const account = { username: 'qa-onboarding', email: 'qa-onboarding@fixture.invalid', first_name: 'QA',
+                last_name: 'Onboarding', mobile: '9898980123', role_names: ['procurement.manager'] };
+            const temporary = 'Synthetic-Start8!', personal = 'Synthetic-Personal9!';
+            assert.equal((await call(handleAuth, '/users')).onboarding_email_enabled, false);
+            await call(handleAuth, '/users', 'POST', account, 422);
+            await call(handleAuth, '/users', 'POST', { ...account, password: temporary }, 422);
+            await call(handleAuth, '/users', 'POST', { ...account, password: temporary, confirmation: personal }, 422);
+            assert.equal((await sql.query('SELECT id FROM auth.users WHERE username=$1', [account.username])).rowCount, 0);
+            const created = await call(handleAuth, '/users', 'POST', { ...account, password: temporary, confirmation: temporary }, 201);
+            assert.equal(created.must_change_password, true);
+            assert.deepEqual(created.roles, ['procurement.manager']);
+            assert.equal((await sql.query('SELECT id FROM auth.auth_credential_emails WHERE user_id=$1', [created.id])).rowCount, 0);
+            const credential = (await sql.query('SELECT action,actor_id FROM auth.auth_credential_changes WHERE user_id=$1', [created.id])).rows;
+            assert.deepEqual(credential, [{ action: 'user_created', actor_id: admin }]);
+            const first = await login(account.username, temporary);
+            assert.equal(first.must_change_password, true);
+            await call(handleAuth, '/users', 'GET', undefined, 403, first.access_token);
+            await call(handleAuth, '/auth/me/password', 'POST', { current_password: temporary, password: personal }, 204, first.access_token);
+            await assert.rejects(login(account.username, temporary));
+            assert.equal((await login(account.username, personal)).must_change_password, false);
+        });
+        await t.test('configured email onboarding still queues an invitation', async () => {
+            const configuration = { EPCERP_EMAIL_DELIVERY_ENABLED: 'true', EPCERP_BREVO_API_KEY: 'synthetic-test-key',
+                EPCERP_EMAIL_SENDER_EMAIL: 'sender@fixture.invalid' };
+            const previous = Object.fromEntries(Object.keys(configuration).map(name => [name, process.env[name]]));
+            Object.assign(process.env, configuration);
+            try {
+                assert.equal((await call(handleAuth, '/users')).onboarding_email_enabled, true);
+                const created = await call(handleAuth, '/users', 'POST', {
+                    username: 'qa-email-onboarding', email: 'qa-email-onboarding@fixture.invalid', first_name: 'QA',
+                    last_name: 'Email', mobile: '9898980124', role_names: ['procurement.manager']
+                }, 201);
+                const mail = (await sql.query('SELECT state FROM auth.auth_credential_emails WHERE user_id=$1', [created.id])).rows;
+                assert.deepEqual(mail, [{ state: 'pending' }]);
+            } finally {
+                for (const [name, value] of Object.entries(previous)) {
+                    if (value === undefined) delete process.env[name];
+                    else process.env[name] = value;
+                }
+            }
+        });
         await t.test('Superadmin sets a confirmed password immediately with an audit entry and no mail', async () => {
             const path = '/users/' + user + '/password';
             const next = 'Synthetic-Reset2!';
