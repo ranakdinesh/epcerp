@@ -85,9 +85,10 @@ export async function handleAuth(request: Request): Promise<Response> {
       }
       if (action === "password" && method === "POST") {
         const p = await body(request,["reason","password","username","confirmation"]);
-        const pwd = p.password === undefined ? undefined : text(p,"password",8,128);
+        const pwd = text(p,"password",8,128);
+        if (pwd !== text(p,"confirmation",8,128)) invalid("New password and confirmation do not match.");
         const uname = typeof p.username === "string" && p.username.trim() !== "" ? text(p,"username",3,64) : undefined;
-        const changeReason = reason(p.reason);
+        const changeReason = p.reason === undefined ? "Password set by Superadmin" : reason(p.reason);
         await admin.resetCredential(token,id,changeReason,pwd,uname);
         return response();
       }

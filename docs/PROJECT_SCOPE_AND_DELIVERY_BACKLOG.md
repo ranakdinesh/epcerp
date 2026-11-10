@@ -110,8 +110,8 @@ checks; deployment does not mark every pending business workflow complete.
 ## Tender intake and procurement administration (10 November 2026)
 
 - [x] Verify tender draft rename and audited removal with synthetic records.
-- [x] Verify administrator password resets revoke existing sessions and retain
-  the reset reason in the credential audit.
+- [x] Verify that Superadmins can set a confirmed password immediately, with
+  session revocation and an audit entry. Reject requests for email-only resets.
 - [x] Verify new Purchase FMS workspaces can start unassigned and notify eligible
   procurement users.
 - [x] Rehearse migration 104, back up the development data and publish revision

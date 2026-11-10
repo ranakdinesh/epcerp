@@ -203,15 +203,30 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
                 id: string;
             }) => x.id === c.id));
         });
-        await t.test('an admin password reset revokes the existing login and records its reason', async () => {
+        await t.test('Superadmin sets a confirmed password immediately with an audit entry and no mail', async () => {
             const path = '/users/' + user + '/password';
             const next = 'Synthetic-Reset2!';
-            await call(handleAuth, path, 'POST', { password: next, reason: 'Test' }, 422);
-            await call(handleAuth, path, 'POST', { password: next, reason: 'Synthetic administrator reset' }, 204);
+            const valid = { password: next, confirmation: next };
+            await call(handleAuth, path, 'POST', { reason: 'Former email reset request' }, 422);
+            await call(handleAuth, path, 'POST', { password: next }, 422);
+            await call(handleAuth, path, 'POST', { ...valid, confirmation: 'Synthetic-Mismatch2!' }, 422);
+            await call(handleAuth, path, 'POST', { ...valid, reason: 'Test' }, 422);
+            await call(handleAuth, path, 'POST', valid, 403, staff);
+            await call(handleAuth, '/auth/me', 'GET', undefined, 200, staff);
+            const staleMail = randomUUID();
+            await sql.query(`INSERT INTO auth.auth_credential_emails(id,user_id,credential_version,payload,payload_hash,state,expires_at)
+                SELECT $1,id,credential_version,$3,'synthetic','sending',now()+interval '1 hour' FROM auth.users WHERE id=$2`,
+                [staleMail, user, Buffer.from('synthetic')]);
+            await call(handleAuth, path, 'POST', valid, 204);
             await call(handleAuth, '/auth/me', 'GET', undefined, 401, staff);
-            assert.ok((await login(username, next)).access_token);
+            await assert.rejects(login(username, password));
+            const signedIn = await login(username, next);
+            assert.ok(signedIn.access_token);
+            assert.equal(signedIn.must_change_password, false);
             const { rows } = await sql.query("SELECT reason FROM auth.auth_credential_changes WHERE user_id=$1 AND action='password_reset'", [user]);
-            assert.equal(rows.at(-1)?.reason, 'Synthetic administrator reset');
+            assert.deepEqual(rows.map(row => row.reason), ['Password set by Superadmin']);
+            const mail = await sql.query('SELECT id,state,payload FROM auth.auth_credential_emails WHERE user_id=$1', [user]);
+            assert.deepEqual(mail.rows, [{ id: staleMail, state: 'cancelled', payload: null }]);
         });
         await t.test('historical TSC preserves original response while reviewing and exporting repeatedly', async () => {
             const draft = randomUUID(), job = randomUUID(), input = seal({

@@ -3,7 +3,7 @@ import { rows, transaction, type DB } from "../db";
 import { AuthError, forbidden, invalid, publicUser, reason, strongPassword, username, uuid, type User } from "./domain";
 import { accountEvent, assignRoles, authorize, loadRoles, loadUser, revokeUser, setPassword } from "./repository";
 import { config, hashPassword } from "./security";
-import { publicURL, queueCredentialMail, requireMail } from "./mail";
+import { cancelStaleMail, publicURL, queueCredentialMail, requireMail } from "./mail";
 import { stageEmail, sendVerification } from "./account";
 import registry from "./permissions.json";
 import presets from "./finance-presets.json";
@@ -46,18 +46,17 @@ function protectTarget(target: User | null, by: User): asserts target is User {
   if (!target) throw new AuthError(404, "User not found");
   if (target.is_superuser && !by.is_superuser) throw forbidden();
 }
-async function issueCredential(db: DB, u: User, by: string, changeReason: string, reset: boolean) {
+async function issueInitialCredential(db: DB, u: User, by: string) {
   requireMail();
   if (!u.is_active) invalid("Inactive users cannot receive a temporary password.");
   const raw = `Aa1!${randomBytes(24).toString("base64url")}`;
   await setPassword(db, u.id, await hashPassword(raw), by, true);
   const current = (await loadUser(db, u.id))!;
-  const subject = reset ? "Your epcERP temporary password" : "Welcome to epcERP — your account is ready";
-  const opening = reset ? "An authorised administrator has reset your epcERP password." : "Your Vishal Technopower epcERP account has been created.";
-  const message = `Hello ${u.username},\n\n${opening}\n\nUsername: ${u.username}\nTemporary password: ${raw}\n\n${publicURL()}/login\n\nSign in within 24 hours. You must choose a new password before accessing your workspace. This temporary password replaces any earlier password.\n\nFor assistance, contact your administrator.\n\nRegards,\nVishal Technopower`;
+  const subject = "Welcome to epcERP — your account is ready";
+  const message = `Hello ${u.username},\n\nYour Vishal Technopower epcERP account has been created.\n\nUsername: ${u.username}\nTemporary password: ${raw}\n\n${publicURL()}/login\n\nSign in within 24 hours. You must choose a new password before accessing your workspace. This temporary password replaces any earlier password.\n\nFor assistance, contact your administrator.\n\nRegards,\nVishal Technopower`;
   await queueCredentialMail(db, { ID: randomUUID(), UserID: u.id, Recipient: u.email, Subject: subject, Message: message }, current.credential_version, current.temporary_password_expires_at!, by);
-  const action = reset ? "temporary_password_reset" : "user_created";
-  if (u.is_superuser && !reset) changeReason = "New superadmin account; full platform access";
+  const action = "user_created";
+  const changeReason = u.is_superuser ? "New superadmin account; full platform access" : "New employee account";
   await db.query(`INSERT INTO auth.auth_credential_changes(id,user_id,actor_id,action,reason,credential_version) SELECT $1,id,$3,$4,$5,credential_version FROM auth.users WHERE id=$2`, [randomUUID(), u.id, by, action, changeReason]);
   await accountEvent(db, u.id, by, action);
 }
@@ -74,7 +73,7 @@ export function createUser(token: string, input: UserInput) {
     await db.query(`INSERT INTO auth.users(id,username,email,first_name,last_name,mobile,password_hash,is_active,is_superuser,created_by_id,updated_by_id)
       VALUES($1,$2,$3,$4,$5,$6,'pending-credential',true,$7,$8,$8)`, [id, input.username, input.email, input.first_name, input.last_name, input.mobile, input.is_superuser, by.id]);
     await assignRoles(db, id, input.role_names, by);
-    await issueCredential(db, (await loadUser(db, id))!, by.id, "New employee account", false);
+    await issueInitialCredential(db, (await loadUser(db, id))!, by.id);
     return publicUser((await loadUser(db, id))!);
   });
 }
@@ -100,29 +99,26 @@ export async function updateUser(token: string, id: string, input: UserUpdate) {
   if (staged.verification) await sendVerification(staged.verification.recipient, staged.verification.raw);
   return staged.user;
 }
-export function resetCredential(token: string, id: string, changeReason: string, directPassword?: string, newUsername?: string) {
+export function resetCredential(token: string, id: string, changeReason: string, password: string, newUsername?: string) {
   uuid(id); reason(changeReason);
-  if (directPassword !== undefined && !strongPassword(directPassword)) {
+  if (!strongPassword(password)) {
     invalid("Use 8 to 128 characters including uppercase, lowercase, number and symbol.");
   }
   return transaction(async db => {
     const by = await authorize(db, token, "admin.users.write", true);
+    if (!by.is_superuser) throw forbidden();
     if (id === by.id) invalid("Use your account security settings to change your own password.");
     const u = await loadUser(db, id, true); protectTarget(u, by);
     if (newUsername !== undefined && newUsername.trim() !== "" && newUsername.trim() !== u.username) {
-      if (!by.is_superuser) throw forbidden();
       const validUname = username(newUsername);
       const [existing] = await rows<{ id: string }>(db, "SELECT id FROM auth.users WHERE username=$1 AND id<>$2", [validUname, id]);
       if (existing) invalid("Username is already taken.");
       await db.query("UPDATE auth.users SET username=$2,updated_by_id=$3,updated_at=clock_timestamp() WHERE id=$1", [id, validUname, by.id]);
     }
-    if (directPassword !== undefined) {
-      await setPassword(db, u.id, await hashPassword(directPassword), by.id, false);
-      await db.query(`INSERT INTO auth.auth_credential_changes(id,user_id,actor_id,action,reason,credential_version) SELECT $1,id,$3,$4,$5,credential_version FROM auth.users WHERE id=$2`, [randomUUID(), u.id, by.id, "password_reset", changeReason]);
-      await accountEvent(db, u.id, by.id, "password_reset");
-    } else {
-      await issueCredential(db, u, by.id, changeReason, true);
-    }
+    await setPassword(db, u.id, await hashPassword(password), by.id);
+    await cancelStaleMail(db, u.id);
+    await db.query(`INSERT INTO auth.auth_credential_changes(id,user_id,actor_id,action,reason,credential_version) SELECT $1,id,$3,$4,$5,credential_version FROM auth.users WHERE id=$2`, [randomUUID(), u.id, by.id, "password_reset", changeReason]);
+    await accountEvent(db, u.id, by.id, "password_reset");
   });
 }
 export function setActive(token: string, id: string, active: boolean, changeReason: string) {

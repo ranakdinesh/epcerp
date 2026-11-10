@@ -96,7 +96,7 @@ export function UserDetails({ user, deliveryStatus, canManage, onEdit, onReset, 
     <section aria-labelledby="user-organisation-title" className="space-y-4 border-t border-slate-200 pt-5"><h3 id="user-organisation-title" className="text-base font-bold text-slate-900">Organisation</h3>{canReadOrganisation ? <OrganisationDetails userID={user.id}/> : <p className="text-sm text-slate-600">Organisation details require organisation read access.</p>}</section>
     <SecurityHistory entityID={user.id}/>
     {(canManage || canReadHandover) && <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
-      {canManage && <><button type="button" className={actionButtonClass("primary")} onClick={onEdit}>Edit user</button>{user.id !== actor.id && <button type="button" className={actionButtonClass(user.is_active?"danger":"success")} onClick={onStatus}>{user.is_active ? "Deactivate user" : "Reactivate user"}</button>}{user.is_active && user.id !== actor.id && <button type="button" className={actionButtonClass("warning")} onClick={onReset}>Reset password</button>}</>}
+      {canManage && <><button type="button" className={actionButtonClass("primary")} onClick={onEdit}>Edit user</button>{user.id !== actor.id && <button type="button" className={actionButtonClass(user.is_active?"danger":"success")} onClick={onStatus}>{user.is_active ? "Deactivate user" : "Reactivate user"}</button>}{actor.is_superuser === true && user.is_active && user.id !== actor.id && <button type="button" className={actionButtonClass("warning")} onClick={onReset}>Reset password</button>}</>}
       {canReadHandover && <a className={action} href="/dashboard?screen=offboarding">View handovers</a>}
     </div>}
   </div>;

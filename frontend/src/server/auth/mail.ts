@@ -49,10 +49,10 @@ export async function sendEmail(recipient: string, subject: string, message: str
   await response.body?.cancel();
   if (!response.ok) throw new AuthError(503, "Email delivery failed. Please retry.");
 }
-export async function cancelStaleMail(db: DB) {
+export async function cancelStaleMail(db: DB, userID?: string) {
   await db.query(`UPDATE auth.auth_credential_emails e SET state=CASE WHEN e.attempts>=5 THEN 'failed' ELSE 'cancelled' END,payload=NULL,updated_at=clock_timestamp(),updated_by_id=NULL
-    WHERE e.state IN ('pending','sending') AND (e.expires_at<=clock_timestamp() OR (e.attempts>=5 AND e.state='sending' AND e.lease_until<clock_timestamp()) OR NOT EXISTS
-      (SELECT 1 FROM auth.users u WHERE u.id=e.user_id AND u.is_active AND u.must_change_password AND u.credential_version=e.credential_version))`);
+    WHERE ($1::uuid IS NULL OR e.user_id=$1) AND e.state IN ('pending','sending') AND (e.expires_at<=clock_timestamp() OR (e.attempts>=5 AND e.state='sending' AND e.lease_until<clock_timestamp()) OR NOT EXISTS
+      (SELECT 1 FROM auth.users u WHERE u.id=e.user_id AND u.is_active AND u.must_change_password AND u.credential_version=e.credential_version))`, [userID ?? null]);
 }
 export type CredentialMail = { ID: string; UserID: string; Recipient: string; Subject: string; Message: string };
 export async function queueCredentialMail(db: DB, mail: CredentialMail, version: number, expiry: Date, by: string) {
