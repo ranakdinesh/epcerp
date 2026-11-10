@@ -117,7 +117,8 @@ Application revision `c8b0ac4` introduced schema 104 on development.
 Tender draft rename and removal retain audit events. A Superadmin sets a new
 password immediately by submitting it with matching confirmation. The reset
 revokes existing sessions and records a credential audit entry with either
-the supplied reason or the default audit reason. The reset queues no email.
+the supplied reason or the default audit reason. The reset clears the account's
+sign-in lockout and queues no email.
 When email delivery is unavailable, administrators create users with a
 confirmed temporary password that expires after 24 hours. The user must
 choose a personal password at first sign-in. Configured email delivery

@@ -5,6 +5,8 @@ import { pool, transaction } from '../../src/server/db';
 import { initializeAuth } from '../../src/server/auth/bootstrap';
 import { login } from '../../src/server/auth/sessions';
 import { handleAuth } from '../../src/server/auth/http';
+import { handlePurchasing } from '../../src/server/purchasing/http';
+import { handleProjects } from '../../src/server/projects/http';
 import { handleIntake } from '../../src/server/tenders/intake/http';
 import { initializeProjectPurchase } from '../../src/server/purchasing/project-registration';
 import presets from '../../src/server/auth/finance-presets.json';
@@ -223,7 +225,13 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             await call(handleAuth, '/users', 'GET', undefined, 403, first.access_token);
             await call(handleAuth, '/auth/me/password', 'POST', { current_password: temporary, password: personal }, 204, first.access_token);
             await assert.rejects(login(account.username, temporary));
-            assert.equal((await login(account.username, personal)).must_change_password, false);
+            const signedIn = await login(account.username, personal);
+            assert.equal(signedIn.must_change_password, false);
+            const purchase = await call(handlePurchasing, '/purchase-fms', 'GET', undefined, 200, signedIn.access_token);
+            assert.equal(purchase.portfolio, true);
+            assert.ok(purchase.items.some((project: { project_number: string }) => project.project_number === 'QA-UNASSIGNED'));
+            const general = await call(handleProjects, '/projects', 'GET', undefined, 200, signedIn.access_token);
+            assert.equal(general.total, 0);
         });
         await t.test('configured email onboarding still queues an invitation', async () => {
             const configuration = { EPCERP_EMAIL_DELIVERY_ENABLED: 'true', EPCERP_BREVO_API_KEY: 'synthetic-test-key',
@@ -259,6 +267,10 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             await sql.query(`INSERT INTO auth.auth_credential_emails(id,user_id,credential_version,payload,payload_hash,state,expires_at)
                 SELECT $1,id,credential_version,$3,'synthetic','sending',now()+interval '1 hour' FROM auth.users WHERE id=$2`,
                 [staleMail, user, Buffer.from('synthetic')]);
+            for (let attempt = 0; attempt < 5; attempt++) {
+                await assert.rejects(login(username, 'Incorrect-Synthetic8!'));
+            }
+            await assert.rejects(login(username, password));
             await call(handleAuth, path, 'POST', valid, 204);
             await call(handleAuth, '/auth/me', 'GET', undefined, 401, staff);
             await assert.rejects(login(username, password));

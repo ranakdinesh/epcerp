@@ -111,7 +111,8 @@ checks; deployment does not mark every pending business workflow complete.
 
 - [x] Verify tender draft rename and audited removal with synthetic records.
 - [x] Verify that Superadmins can set a confirmed password immediately, with
-  session revocation and an audit entry. Reject requests for email-only resets.
+  session revocation, lockout clearance and an audit entry. Reject requests
+  for email-only resets.
 - [x] Verify user creation with a temporary password while email is disabled,
   and confirm configured email can still queue a welcome invitation.
 - [x] Verify new Purchase FMS workspaces can start unassigned and notify eligible

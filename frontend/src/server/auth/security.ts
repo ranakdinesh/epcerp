@@ -4,6 +4,7 @@ import argon2 from "argon2";
 import { denied, uuid } from "./domain";
 
 export const sha256 = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
+export const loginAttemptKey = (identifier: string) => sha256(`login:${identifier}`);
 export const opaqueToken = () => randomBytes(48).toString("base64url");
 function setting(name: string, fallback: number, min: number, max: number) {
   const raw = process.env[name];

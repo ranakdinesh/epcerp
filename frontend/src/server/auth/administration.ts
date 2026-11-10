@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { rows, transaction, type DB } from "../db";
 import { AuthError, forbidden, invalid, publicUser, reason, strongPassword, username, uuid, type User } from "./domain";
 import { accountEvent, assignRoles, authorize, loadRoles, loadUser, revokeUser, setPassword } from "./repository";
-import { config, hashPassword } from "./security";
+import { config, hashPassword, loginAttemptKey } from "./security";
 import { cancelStaleMail, mailReady, publicURL, queueCredentialMail } from "./mail";
 import { stageEmail, sendVerification } from "./account";
 import registry from "./permissions.json";
@@ -105,7 +105,7 @@ export async function updateUser(token: string, id: string, input: UserUpdate) {
   return staged.user;
 }
 export function resetCredential(token: string, id: string, changeReason: string, password: string, newUsername?: string) {
-  uuid(id); reason(changeReason);
+  id = uuid(id); reason(changeReason);
   if (!strongPassword(password)) {
     invalid("Use 8 to 128 characters including uppercase, lowercase, number and symbol.");
   }
@@ -113,6 +113,8 @@ export function resetCredential(token: string, id: string, changeReason: string,
     const by = await authorize(db, token, "admin.users.write", true);
     if (!by.is_superuser) throw forbidden();
     if (id === by.id) invalid("Use your account security settings to change your own password.");
+    // Sign-in takes the login-attempt lock before locking the user.
+    await db.query("DELETE FROM auth.login_attempts WHERE identifier_hash=$1", [loginAttemptKey(id)]);
     const u = await loadUser(db, id, true); protectTarget(u, by);
     if (newUsername !== undefined && newUsername.trim() !== "" && newUsername.trim() !== u.username) {
       const validUname = username(newUsername);

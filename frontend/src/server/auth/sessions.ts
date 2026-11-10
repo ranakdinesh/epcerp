@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { actor, lock, rows, transaction, type DB } from "../db";
 import { denied, forbidden, identity, temporaryValid, uuid, type User, AuthError } from "./domain";
-import { config, issueAccess, opaqueToken, sha256, verifyAbsent, verifyPassword } from "./security";
+import { config, issueAccess, loginAttemptKey, opaqueToken, sha256, verifyAbsent, verifyPassword } from "./security";
 import { loadUser, resolve, revokeFamily, revokeUser } from "./repository";
 
 type Refresh = { user_id: string; family_id: string; expires_at: Date; revoked_at: Date | null };
@@ -20,7 +20,7 @@ export async function login(identifier: string, password: string) {
   const result = await transaction(async db => {
     const users = await rows<{ id: string }>(db, "SELECT id FROM auth.users WHERE username=$1 OR email=lower($1) LIMIT 2", [identifier]);
     const found = users.length === 1 ? await loadUser(db, users[0].id) : null;
-    const key = sha256(`login:${found?.id ?? identifier.trim().toLowerCase()}`);
+    const key = loginAttemptKey(found?.id ?? identifier.trim().toLowerCase());
     const [attempt] = await rows<{ blocked: boolean }>(db, `WITH stale AS (DELETE FROM auth.login_attempts WHERE identifier_hash IN (SELECT identifier_hash FROM auth.login_attempts WHERE window_started_at<clock_timestamp()-interval '1 day' LIMIT 100))
       INSERT INTO auth.login_attempts(identifier_hash) VALUES($1) ON CONFLICT(identifier_hash) DO UPDATE SET identifier_hash=EXCLUDED.identifier_hash
       RETURNING COALESCE(blocked_until>clock_timestamp(),false) AS blocked`, [key]);
