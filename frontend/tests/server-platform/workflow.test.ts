@@ -4,6 +4,10 @@ import { randomUUID, createCipheriv, createHash } from 'node:crypto';
 import { pool, transaction } from '../../src/server/db';
 import { initializeAuth } from '../../src/server/auth/bootstrap';
 import { login } from '../../src/server/auth/sessions';
+import { handleAuth } from '../../src/server/auth/http';
+import { handleIntake } from '../../src/server/tenders/intake/http';
+import { initializeProjectPurchase } from '../../src/server/purchasing/project-registration';
+import presets from '../../src/server/auth/finance-presets.json';
 import { handleOrganisation } from '../../src/server/platform/organisation';
 import { handleProfile } from '../../src/server/platform/profile';
 import { handleGovernance } from '../../src/server/platform/governance';
@@ -21,7 +25,7 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
     const sql = pool(), password = process.env.VTPL_BOOTSTRAP_SUPERADMIN_PASSWORD!, token = (await login('superadmin', password)).access_token, admin = (await sql.query("SELECT id FROM auth.users WHERE username='superadmin'")).rows[0].id;
     const call = async (handler: (r: Request) => Promise<Response>, path: string, method = 'GET', value?: unknown, status = 200, access = token) => {
         const response = await handler(new Request('http://fixture.invalid/api/v1' + path, { method, headers: { Authorization: 'Bearer ' + access, 'Content-Type': 'application/json' }, body: value === undefined ? undefined : JSON.stringify(value) }));
-        const data = await response.json();
+        const data = response.status === 204 ? undefined : await response.json();
         assert.equal(response.status, status, JSON.stringify(data));
         return data;
     };
@@ -33,6 +37,29 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
     try {
         await t.test('health checks the owned clean schema', async () => {
             assert.equal((await health(true)).status, 200);
+        });
+        await t.test('procurement manager grants are seeded on a fresh database and address project notices', async () => {
+            const role = presets.find(p => p.name === 'procurement.manager')!;
+            const { rows: granted } = await sql.query(`SELECT r.id, p.code FROM auth.roles r
+                JOIN auth.role_permissions rp ON rp.role_id=r.id JOIN auth.permissions p ON p.id=rp.permission_id
+                WHERE r.name=$1 ORDER BY p.code`, [role.name]);
+            assert.deepEqual(granted.map(row => row.code), [...role.permission_codes].sort());
+            await sql.query('INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)', [user, granted[0].id]);
+        });
+        await t.test('tender draft rename and removal retain an audit trail', async () => {
+            const path = '/tender-fms/drafts', operation = randomUUID();
+            const created = await handleIntake(new Request('http://fixture.invalid/api/v1' + path, {
+                method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'Idempotency-Key': operation },
+                body: JSON.stringify({ name: 'Synthetic intake draft' }),
+            }));
+            assert.equal(created.status, 201);
+            const { id } = await created.json();
+            const updated = await call(handleIntake, path + '/' + id, 'PATCH', { name: 'Renamed intake draft' });
+            assert.equal(updated.name, 'Renamed intake draft');
+            await call(handleIntake, path + '/' + id, 'DELETE');
+            await call(handleIntake, path + '/' + id, 'GET', undefined, 404);
+            const audit = (await sql.query('SELECT action FROM tender.draft_events WHERE draft_id=$1 ORDER BY created_at', [id])).rows;
+            assert.deepEqual(audit.slice(-2).map(row => row.action), ['renamed', 'soft_deleted']);
         });
         await t.test('tender costing and award create one project and a reviewable BOQ', async () => {
             const draft = randomUUID(), client = randomUUID(), clientName = 'QA' + client.replaceAll('-', '').slice(0, 12);
@@ -62,6 +89,15 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.equal(boq[0].state, 'draft');
             assert.equal(Number(boq[0].quantity), 2);
             assert.equal(boq[0].item_snapshot.description, 'Synthetic equipment');
+            const notices = (await sql.query("SELECT recipient_id FROM communication_notices WHERE project_id=$1 AND notice_kind='procurement_manager'", [first.project_id])).rows;
+            assert.deepEqual(notices.map(row => row.recipient_id).sort(), [user, admin].sort());
+            const unassigned = randomUUID();
+            await transaction(async db => {
+                await db.query(`INSERT INTO projects(id,project_number,name,normalized_name,client_id,project_manager_id,created_by_id,updated_by_id)
+                    VALUES($1,'QA-UNASSIGNED','Synthetic unassigned purchase','synthetic unassigned purchase',$2,$3,$3,$3)`, [unassigned, client, admin]);
+                await initializeProjectPurchase(db, unassigned, null, admin);
+            });
+            assert.equal((await sql.query('SELECT purchase_manager_id FROM purchase_fms_owner_history WHERE project_id=$1', [unassigned])).rows[0].purchase_manager_id, null);
             await tender('bid-costing', 'POST', { material_cost: 100 }, 409);
         });
         await t.test('AES framing reads original Go nonce+cipher+tag and rejects corrupt data', () => {
@@ -166,6 +202,16 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.ok((await org('offboarding')).some((x: {
                 id: string;
             }) => x.id === c.id));
+        });
+        await t.test('an admin password reset revokes the existing login and records its reason', async () => {
+            const path = '/users/' + user + '/password';
+            const next = 'Synthetic-Reset2!';
+            await call(handleAuth, path, 'POST', { password: next, reason: 'Test' }, 422);
+            await call(handleAuth, path, 'POST', { password: next, reason: 'Synthetic administrator reset' }, 204);
+            await call(handleAuth, '/auth/me', 'GET', undefined, 401, staff);
+            assert.ok((await login(username, next)).access_token);
+            const { rows } = await sql.query("SELECT reason FROM auth.auth_credential_changes WHERE user_id=$1 AND action='password_reset'", [user]);
+            assert.equal(rows.at(-1)?.reason, 'Synthetic administrator reset');
         });
         await t.test('historical TSC preserves original response while reviewing and exporting repeatedly', async () => {
             const draft = randomUUID(), job = randomUUID(), input = seal({

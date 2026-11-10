@@ -41,6 +41,7 @@ export function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<PlatformUser | null>(null);
   const [selectedRoleNames, setSelectedRoleNames] = useState<string[]>([]);
   const [superadmin, setSuperadmin] = useState(false);
+  const [sendTemporaryEmail, setSendTemporaryEmail] = useState(false);
   const [revision, setRevision] = useState(0);
   const rolesOptional = superadmin || (dialogMode === "edit" && selectedUser?.is_superuser === true);
   const canManage = (user: PlatformUser) => canWrite && (!user.is_superuser || actor.is_superuser === true);
@@ -83,7 +84,7 @@ export function UserManagement() {
   async function openDialog(mode: DialogMode, user: PlatformUser | null = null) {
     detailRequest.current?.abort();
     setRolesError(""); setFormError(""); setDetailsError("");
-    setSelectedUser(user); setSelectedRoleNames(user?.roles ?? []); setSuperadmin(false); setDialogMode(mode);
+    setSelectedUser(user); setSelectedRoleNames(user?.roles ?? []); setSuperadmin(false); setSendTemporaryEmail(false); setDialogMode(mode);
     const needsDetails = user !== null && (mode === "edit" || mode === "view");
     setDetailsLoading(needsDetails);
     if (!needsDetails) return;
@@ -114,12 +115,74 @@ export function UserManagement() {
     const editing = dialogMode === "edit";
     const resetting = dialogMode === "reset";
     const changingStatus = dialogMode === "status";
-    const payload = changingStatus ? {is_active:!selectedUser?.is_active,reason:String(form.get("reason")??"").trim()} : resetting ? {reason:String(form.get("reason") ?? "").trim()} : { ...(editing ? {expected_version:selectedUser?.edit_version} : {is_superuser:actor.is_superuser === true && superadmin,username:String(form.get("username") ?? "").trim()}),first_name:String(form.get("first_name")??"").trim(),last_name:String(form.get("last_name")??"").trim(),mobile:String(form.get("mobile")??"").trim(),email:String(form.get("email") ?? "").trim(),...(editing && selectedUser?.is_superuser && selectedRoleNames.length===0 ? {} : {role_names:selectedRoleNames})};
+
+    let payload: Record<string, unknown>;
+
+    if (changingStatus) {
+      payload = { is_active: !selectedUser?.is_active, reason: String(form.get("reason") ?? "").trim() };
+    } else if (resetting) {
+      const pwd = String(form.get("password") ?? "");
+      const confirm = String(form.get("confirmation") ?? "");
+      const newUsername = String(form.get("username") ?? "").trim();
+      const customReason = String(form.get("reason") ?? "").trim();
+
+      if (!sendTemporaryEmail) {
+        if (!pwd) {
+          setFormError("New password is required.");
+          return;
+        }
+        if (pwd !== confirm) {
+          setFormError("New password and confirm password do not match.");
+          return;
+        }
+        const hasUpper = /[A-Z]/.test(pwd);
+        const hasLower = /[a-z]/.test(pwd);
+        const hasNumber = /[0-9]/.test(pwd);
+        const hasSymbol = /[^A-Za-z0-9]/.test(pwd);
+        if (pwd.length < 8 || pwd.length > 128 || !hasUpper || !hasLower || !hasNumber || !hasSymbol) {
+          setFormError("Password must be 8 to 128 characters and include uppercase, lowercase, number, and symbol.");
+          return;
+        }
+      }
+
+      payload = {
+        reason: customReason || (sendTemporaryEmail ? "Temporary password reset requested" : "Direct password reset by administrator"),
+        ...(sendTemporaryEmail ? {} : { password: pwd }),
+        ...(newUsername && newUsername !== selectedUser?.username ? { username: newUsername } : {}),
+      };
+    } else {
+      payload = {
+        ...(editing ? { expected_version: selectedUser?.edit_version } : { is_superuser: actor.is_superuser === true && superadmin }),
+        username: String(form.get("username") ?? "").trim(),
+        first_name: String(form.get("first_name") ?? "").trim(),
+        last_name: String(form.get("last_name") ?? "").trim(),
+        mobile: String(form.get("mobile") ?? "").trim(),
+        email: String(form.get("email") ?? "").trim(),
+        ...(editing && selectedUser?.is_superuser && selectedRoleNames.length === 0 ? {} : { role_names: selectedRoleNames }),
+      };
+    }
+
     const url = changingStatus ? `/api/administration/users/${selectedUser?.id}/status` : resetting ? `/api/administration/users/${selectedUser?.id}/password` : editing ? `/api/administration/users/${selectedUser?.id}` : "/api/administration/users";
     try {
       const response = await fetch(url, {method:editing?"PATCH":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       if(!response.ok){if(response.status===409)setConflict(true);const error=await response.json().catch(()=>({detail:"Unable to save user."}));if(!displayServerErrors(submittedForm,error))setFormError(typeof error.detail === "string" ? error.detail : "Unable to save user.");return;}
-      setDialogMode(null);if(editing&&selectedUser?.id===actor.id)router.refresh();setNotice(changingStatus ? selectedUser?.is_active ? "User deactivated. Access revoked immediately; handover can be completed later." : "User reactivated. A new sign-in is required; revoked sessions remain invalid." : resetting ? "Temporary password email queued. The user must change it at next login." : editing ? selectedUser?.email!==String(form.get("email")??"").trim()?"User updated. Verification was sent to the new email; the current sign-in email remains unchanged until confirmation.":"User updated." : "User created. Welcome email queued with temporary credentials and the login link.");setRevision(value=>value+1);
+      setDialogMode(null);if(editing&&selectedUser?.id===actor.id)router.refresh();
+      setNotice(
+        changingStatus
+          ? selectedUser?.is_active
+            ? "User deactivated. Access revoked immediately; handover can be completed later."
+            : "User reactivated. A new sign-in is required; revoked sessions remain invalid."
+          : resetting
+            ? sendTemporaryEmail
+              ? "Temporary password email queued. The user must change it at next login."
+              : `Password updated successfully for ${selectedUser?.username}. The user can now sign in with the new password.`
+            : editing
+              ? selectedUser?.email !== String(form.get("email") ?? "").trim()
+                ? "User updated. Verification was sent to the new email; the current sign-in email remains unchanged until confirmation."
+                : "User updated."
+              : "User created. Welcome email queued with temporary credentials and the login link."
+      );
+      setRevision(value=>value+1);
     } catch {setFormError("Unable to reach user administration. Please try again.");}
     finally {setBusy(false);}
   }
@@ -146,9 +209,84 @@ export function UserManagement() {
         {dialogMode==="status" ? <>
           <p className="text-sm leading-6 text-slate-600">{selectedUser?.is_active?<>Deactivate <strong>{selectedUser.username}</strong> now. Login and existing sessions will be blocked immediately. A pending handover will be opened or the existing case retained. Work can be reassigned later, even if no reporting manager is configured.</>:<>Reactivate <strong>{selectedUser?.username}</strong>. The user must sign in again. Previously revoked sessions stay invalid, and existing handover work remains recorded.</>}</p>
           <ValidatedLabel required className="block text-sm font-bold">Status change reason<ValidatedTextarea name="reason" required minLength={10} maxLength={1000} rows={3} className={input}/></ValidatedLabel>
-        </> : dialogMode==="reset" ? <><p className="text-sm leading-6 text-slate-600">Send a new temporary password to <strong>{selectedUser?.email}</strong>. Existing credentials and sessions will be revoked. The temporary password expires in 24 hours and must be changed at first login.</p><ValidatedLabel required className="block text-sm font-bold">Reset reason<ValidatedTextarea name="reason" required minLength={10} maxLength={1000} className={input} rows={3}/></ValidatedLabel></> : <>
+        </> : dialogMode==="reset" ? <>
+          <p className="text-sm leading-6 text-slate-600">
+            Reset credentials for <strong>{selectedUser?.username}</strong> ({selectedUser?.email}). Existing active sessions will be terminated immediately.
+          </p>
+          <ValidatedLabel required={actor.is_superuser} className="block text-sm font-bold">
+            Username {actor.is_superuser ? <span className="font-normal text-xs text-slate-500">(editable by Superadmin)</span> : null}
+            <ValidatedInput
+              name="username"
+              required
+              minLength={3}
+              maxLength={64}
+              pattern="[a-zA-Z0-9._-]+"
+              defaultValue={selectedUser?.username}
+              readOnly={!actor.is_superuser}
+              className={input + (!actor.is_superuser ? " bg-slate-100 cursor-not-allowed" : "")}
+            />
+          </ValidatedLabel>
+          {!sendTemporaryEmail ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ValidatedLabel required className="block text-sm font-bold">
+                  New password
+                  <ValidatedInput
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    maxLength={128}
+                    placeholder="Enter new password"
+                    className={input}
+                  />
+                </ValidatedLabel>
+                <ValidatedLabel required className="block text-sm font-bold">
+                  Confirm new password
+                  <ValidatedInput
+                    name="confirmation"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    maxLength={128}
+                    placeholder="Confirm new password"
+                    className={input}
+                  />
+                </ValidatedLabel>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-700">Password requirements:</p>
+                <p className="mt-0.5">8 to 128 characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.</p>
+              </div>
+            </>
+          ) : (
+            <p className="rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+              A temporary password will be sent to <strong>{selectedUser?.email}</strong>. The user will be required to change it upon first login.
+            </p>
+          )}
+          <ValidatedLabel className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-medium text-slate-700 cursor-pointer">
+            <ValidatedInput
+              type="checkbox"
+              checked={sendTemporaryEmail}
+              onChange={(e) => setSendTemporaryEmail(e.target.checked)}
+            />
+            <span>Send temporary password via email instead of setting directly</span>
+          </ValidatedLabel>
+          <ValidatedLabel className="block text-sm font-bold">
+            Reset reason <span className="font-normal text-xs text-slate-500">(optional)</span>
+            <ValidatedTextarea
+              name="reason"
+              maxLength={1000}
+              rows={2}
+              placeholder="e.g. Administrative credential update"
+              className={input}
+            />
+          </ValidatedLabel>
+        </> : <>
           {dialogMode==="edit"&&selectedUser&&<>
-            <ValidatedLabel className="block text-sm font-bold">Username<ValidatedInput name="username" readOnly defaultValue={selectedUser.username} className={input+" bg-slate-100"}/></ValidatedLabel>
+            <ValidatedLabel className="block text-sm font-bold">Username{actor.is_superuser && <span className="font-normal text-xs text-slate-500"> (editable by Superadmin)</span>}<ValidatedInput name="username" readOnly={!actor.is_superuser} defaultValue={selectedUser.username} className={input+(!actor.is_superuser?" bg-slate-100":"")}/></ValidatedLabel>
             {(!selectedUser.first_name||!selectedUser.last_name||!selectedUser.mobile)&&<p role="status" className="ui-notice--warning rounded-xl p-3 text-sm">No saved value for {[!selectedUser.first_name&&"first name",!selectedUser.last_name&&"last name",!selectedUser.mobile&&"mobile number"].filter(Boolean).join(", ")}. Enter the missing details to complete this user’s profile.</p>}
           </>}
           {dialogMode==="create"&&<><p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">The user will receive a welcome email with a generated temporary password and a link to erp.vishaltechnopower.in. They must change the password at first login.</p></>}<div className="grid gap-3 sm:grid-cols-2"><ValidatedLabel required className="block text-sm font-bold">First name<ValidatedInput name="first_name" required maxLength={100} defaultValue={selectedUser?.first_name} className={input}/></ValidatedLabel><ValidatedLabel required className="block text-sm font-bold">Last name<ValidatedInput name="last_name" required maxLength={100} defaultValue={selectedUser?.last_name} className={input}/></ValidatedLabel></div><ValidatedLabel required className="block text-sm font-bold">Mobile number<ValidatedInput name="mobile" type="tel" required minLength={8} maxLength={24} defaultValue={selectedUser?.mobile} className={input}/></ValidatedLabel>{dialogMode==="create"&&<><ValidatedLabel required className="block text-sm font-bold">Username<ValidatedInput name="username" required minLength={3} maxLength={64} pattern="[a-zA-Z0-9._-]+" className={input}/></ValidatedLabel></>}
@@ -158,7 +296,7 @@ export function UserManagement() {
           <fieldset><legend className="text-sm font-bold">Assigned roles {!rolesOptional&&<span aria-hidden="true" className="text-red-600">*</span>}</legend><RequiredSelection selectionCount={rolesOptional?Math.max(1,selectedRoleNames.length):selectedRoleNames.length} onInvalid={()=>setRolesError("Select at least one role.")} className="mt-3 grid gap-2 sm:grid-cols-2">{roles.filter(role=>role.is_active!==false||selectedRoleNames.includes(role.name)).map(role=><ValidatedLabel key={role.id} className="user-role-option flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm"><ValidatedInput type="checkbox" checked={selectedRoleNames.includes(role.name)} disabled={role.is_active===false&&!selectedRoleNames.includes(role.name)} onChange={()=>{setRolesError("");setSelectedRoleNames(names=>names.includes(role.name)?names.filter(name=>name!==role.name):[...names,role.name]);}}/>{role.name}{role.is_active===false?" (Inactive)":""}</ValidatedLabel>)}</RequiredSelection>{rolesError&&<p role="alert" className="mt-2 text-sm text-red-700">{rolesError}</p>}</fieldset>
         </>}
         {formError&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{formError}</p>}{conflict&&dialogMode==="edit"&&<button type="button" className={actionButtonClass("secondary")} onClick={()=>{setConflict(false);void openDialog("edit",selectedUser);}}>Reload saved user (discard unsaved changes)</button>}
-        <div className="record-drawer-actions sticky bottom-0 flex flex-col-reverse gap-3 py-4 sm:flex-row sm:justify-end"><button type="button" disabled={busy} onClick={closeDialog} className={actionButtonClass("secondary")}>Cancel</button><button type="submit" disabled={busy} className={actionButtonClass(dialogMode==="status"?(selectedUser?.is_active?"danger":"success"):dialogMode==="reset"?"warning":"primary")}>{busy?"Saving…":dialogMode==="status"?selectedUser?.is_active?"Deactivate user now":"Reactivate user":dialogMode==="reset"?"Send temporary password":dialogMode==="create"?"Create user & email access":"Save changes"}</button></div>
+        <div className="record-drawer-actions sticky bottom-0 flex flex-col-reverse gap-3 py-4 sm:flex-row sm:justify-end"><button type="button" disabled={busy} onClick={closeDialog} className={actionButtonClass("secondary")}>Cancel</button><button type="submit" disabled={busy} className={actionButtonClass(dialogMode==="status"?(selectedUser?.is_active?"danger":"success"):dialogMode==="reset"?(sendTemporaryEmail?"warning":"primary"):dialogMode==="create"?"primary":"primary")}>{busy?"Saving…":dialogMode==="status"?selectedUser?.is_active?"Deactivate user now":"Reactivate user":dialogMode==="reset"?(sendTemporaryEmail?"Send temporary password":"Reset password"):dialogMode==="create"?"Create user & email access":"Save changes"}</button></div>
       </ValidatedForm>}
     </RecordDrawer>}
   </section>;

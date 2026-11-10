@@ -78,12 +78,18 @@ export async function handleAuth(request: Request): Promise<Response> {
       const [,id,action] = target;
       if (!action && method === "GET") return response(await admin.user(token,id));
       if (!action && method === "PATCH") {
-        const p = await body(request,["email","first_name","last_name","mobile","role_names","expected_version"]);
+        const p = await body(request,["username","email","first_name","last_name","mobile","role_names","expected_version"]);
         return response(await admin.updateUser(token,id,{...contact(p,true), expected_version:version(p),
+          ...(typeof p.username === "string" && p.username.trim() !== "" ? { username: text(p,"username",3,64) } : {}),
           ...(p.email !== undefined ? { email:address(p) } : {}), ...(p.role_names !== undefined ? { role_names:names(p,1) } : {})}));
       }
       if (action === "password" && method === "POST") {
-        const p = await body(request,["reason"]); await admin.resetCredential(token,id,reason(p.reason)); return response();
+        const p = await body(request,["reason","password","username","confirmation"]);
+        const pwd = p.password === undefined ? undefined : text(p,"password",8,128);
+        const uname = typeof p.username === "string" && p.username.trim() !== "" ? text(p,"username",3,64) : undefined;
+        const changeReason = reason(p.reason);
+        await admin.resetCredential(token,id,changeReason,pwd,uname);
+        return response();
       }
       if (action === "deactivate" && method === "POST") return response(await admin.setActive(token,id,false,"Administrator revoked account access."));
       if (action === "status" && method === "POST") {

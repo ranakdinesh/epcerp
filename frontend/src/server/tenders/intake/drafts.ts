@@ -67,6 +67,10 @@ function view(row: Record<string, unknown>) {
     next_step: nextStep,
     status_label: statusLabel,
     completed_steps: completedSteps,
+    can_delete: Boolean(row.can_delete ?? false),
+    can_edit: Boolean(row.can_edit ?? false),
+    created_by_id: row.created_by_id,
+    owner_id: row.owner_id,
   };
 }
 export async function ownedDraft(db: DB, draft: string, actor: string) { const row = (await db.query('SELECT * FROM tender.document_drafts WHERE id=$1 AND owner_id=$2 AND is_active FOR UPDATE', [id(draft), actor])).rows[0]; if (!row)
@@ -95,9 +99,12 @@ export async function list(token: string, query: URLSearchParams) {
     throw new AppError(422, 'Invalid draft query');
   return transaction(async (db) => {
     const actor = await access(db, token, 'draft'),
-    filter = 'd.owner_id=$1 AND d.is_active AND strpos(lower(d.name),lower($2))>0',
+    isSuperuser = Boolean(actor.superuser || actor.allows('system:admin')),
+    filter = '(d.owner_id=$1 OR d.created_by_id=$1 OR $5::boolean) AND d.is_active AND strpos(lower(d.name),lower($2))>0',
     rows = (await db.query(`
       SELECT d.*,
+             (d.created_by_id = $1 OR d.owner_id = $1 OR $5::boolean) as can_delete,
+             (d.created_by_id = $1 OR d.owner_id = $1 OR $5::boolean) as can_edit,
              EXISTS(
                SELECT 1 FROM document_package_receipts r
                WHERE r.draft_id = d.id AND r.state IN ('consumed', 'ready')
@@ -123,8 +130,8 @@ export async function list(token: string, query: URLSearchParams) {
       WHERE ${filter}
       ORDER BY ${sort === 'name' ? 'd.name' : 'd.created_at'} ${direction === 'asc' ? 'ASC' : 'DESC'}, d.id
       LIMIT $3 OFFSET $4
-    `, [actor.id, search, size, (page - 1) * size])).rows,
-    total = Number((await db.query(`SELECT count(*) AS count FROM tender.document_drafts d WHERE ${filter}`, [actor.id, search])).rows[0].count);
+    `, [actor.id, search, size, (page - 1) * size, isSuperuser])).rows,
+    total = Number((await db.query(`SELECT count(*) AS count FROM tender.document_drafts d WHERE (d.owner_id=$1 OR d.created_by_id=$1 OR $3::boolean) AND d.is_active AND strpos(lower(d.name),lower($2))>0`, [actor.id, search, isSuperuser])).rows[0].count);
     return { items: rows.map(view), total };
   });
 }
@@ -132,8 +139,11 @@ export async function get(token: string, draft: string) {
   await admit(token, 'draft', 'read');
   return transaction(async (db) => {
     const actor = await access(db, token, 'draft');
+    const isSuperuser = Boolean(actor.superuser || actor.allows('system:admin'));
     const rows = (await db.query(`
       SELECT d.*,
+             (d.created_by_id = $2 OR d.owner_id = $2 OR $3::boolean) as can_delete,
+             (d.created_by_id = $2 OR d.owner_id = $2 OR $3::boolean) as can_edit,
              EXISTS(
                SELECT 1 FROM document_package_receipts r
                WHERE r.draft_id = d.id AND r.state IN ('consumed', 'ready')
@@ -156,8 +166,8 @@ export async function get(token: string, draft: string) {
              EXISTS(SELECT 1 FROM tender.vendor_quotations WHERE draft_id = d.id AND is_l1 = true) as has_l1,
              (SELECT status FROM tender.bid_costings WHERE draft_id = d.id) as costing_status
       FROM tender.document_drafts d
-      WHERE d.id = $1 AND d.owner_id = $2 AND d.is_active
-    `, [id(draft), actor.id])).rows;
+      WHERE d.id = $1 AND (d.owner_id = $2 OR d.created_by_id = $2 OR $3::boolean) AND d.is_active
+    `, [id(draft), actor.id, isSuperuser])).rows;
     if (!rows[0]) throw new AppError(404, 'Tender draft not found');
     const d = rows[0];
     const batches = (await db.query('SELECT * FROM document_package_receipts WHERE draft_id=$1 ORDER BY created_at,id', [draft])).rows;
@@ -187,3 +197,46 @@ export async function artifact(token: string, draft: string, document: string, k
         ocr_text?: string;
     }[];
 }; return '# Retained legacy reading\n\nOriginal documents and result JSON remain authoritative. Local extraction is retired for cloud TSC.\n\n' + (retained.segments ?? []).map(s => '## ' + (s.label ?? 'Source') + '\n\n' + (s.text ?? s.native_text ?? s.ocr_text ?? '')).join('\n\n'); }); }
+
+export async function update(token: string, draft: string, value: unknown) {
+  await admit(token, 'draft', 'create', true);
+  const r = object(value, ['name']), name = str(r.name, 2048).trim();
+  if ([...name].length < 2 || [...name].length > 255 || /\p{Cc}/u.test(name))
+    throw new AppError(422, 'Tender name must contain 2–255 characters without control characters');
+  return transaction(async (db) => {
+    const actor = await access(db, token, 'draft', true);
+    const isSuperuser = Boolean(actor.superuser || actor.allows('system:admin'));
+    const row = (await db.query('SELECT * FROM tender.document_drafts WHERE id=$1 AND is_active FOR UPDATE', [id(draft)])).rows[0];
+    if (!row) throw new AppError(404, 'Tender not found');
+    const isOwnerOrCreator = row.created_by_id === actor.id || row.owner_id === actor.id;
+    if (!isSuperuser && !isOwnerOrCreator) {
+      throw new AppError(403, 'Only superadmin or tender creator can edit this tender');
+    }
+    const updated = (await db.query(
+      'UPDATE tender.document_drafts SET name=$2, version=version+1, updated_at=clock_timestamp(), updated_by_id=$3 WHERE id=$1 RETURNING *',
+      [row.id, name, actor.id]
+    )).rows[0];
+    await db.query("INSERT INTO tender.draft_events(id,draft_id,action,created_by_id) VALUES($1,$2,'renamed',$3)", [randomUUID(), row.id, actor.id]);
+    return view(updated);
+  });
+}
+
+export async function remove(token: string, draft: string) {
+  await admit(token, 'draft', 'create', true);
+  return transaction(async (db) => {
+    const actor = await access(db, token, 'draft', true);
+    const isSuperuser = Boolean(actor.superuser || actor.allows('system:admin'));
+    const row = (await db.query('SELECT * FROM tender.document_drafts WHERE id=$1 AND is_active FOR UPDATE', [id(draft)])).rows[0];
+    if (!row) throw new AppError(404, 'Tender not found');
+    const isOwnerOrCreator = row.created_by_id === actor.id || row.owner_id === actor.id;
+    if (!isSuperuser && !isOwnerOrCreator) {
+      throw new AppError(403, 'Only superadmin or tender creator can delete this tender');
+    }
+    await db.query(
+      'UPDATE tender.document_drafts SET is_active=false, updated_at=clock_timestamp(), updated_by_id=$2 WHERE id=$1',
+      [row.id, actor.id]
+    );
+    await db.query("INSERT INTO tender.draft_events(id,draft_id,action,created_by_id) VALUES($1,$2,'soft_deleted',$3)", [randomUUID(), row.id, actor.id]);
+    return { ok: true, id: row.id };
+  });
+}

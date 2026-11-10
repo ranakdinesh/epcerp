@@ -26,7 +26,7 @@ export async function options(token:string){return transaction(async db=>{
     return {managers,clients,procurement_executives};
 });}
 export async function create(token:string,b:Record<string,unknown>){return transaction(async db=>{
-    const a=await access(db,token,canCreate),name=projectName(b.name),client=id(b.client_id,'client_id'),manager=id(b.project_manager_id,'project_manager_id'),procurement=id(b.procurement_executive_id,'procurement_executive_id');
+    const a=await access(db,token,canCreate),name=projectName(b.name),client=id(b.client_id,'client_id'),manager=id(b.project_manager_id,'project_manager_id'),procurement=typeof b.procurement_executive_id==='string'&&b.procurement_executive_id.trim()?id(b.procurement_executive_id,'procurement_executive_id'):null;
     let c=validate(capture(b),'create',name);
     const row=(await db.query('SELECT is_active FROM clients WHERE id=$1 FOR SHARE',[client])).rows[0];if(!row?.is_active)invalid('client_id','Select an active client');
     const user=await assignmentIdentity(db,manager);if(!user?.active||!user.allows('projects.master.read')||!user.allows('projects.master.write'))invalid('project_manager_id','Select an active manager with project read/write permissions');

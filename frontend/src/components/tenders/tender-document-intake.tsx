@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   DocumentCheckIcon,
   EyeIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { DataGrid } from "@/components/ui/data-grid";
 import {
@@ -123,6 +124,9 @@ export function TenderDocumentIntake({
   ).length;
   const totalBatches = draft.batches.length;
   const attachedDocs = draft.batches.flatMap((b) => b.documents ?? []);
+  const isVerifying = draft.batches.some(
+    (b) => b.state === "verifying" || b.state === "receiving"
+  );
 
   const sources = draft.batches.flatMap((b) =>
     (b.sources ?? []).map((s) => ({
@@ -159,24 +163,13 @@ export function TenderDocumentIntake({
 
   return (
     <div className="space-y-6">
-      {/* Verification Status Banner */}
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
-        <div className="flex items-start gap-3">
-          <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-          <div>
-            <p className="font-bold">
-              {native
-                ? `${verifiedBatches} of ${totalBatches} upload batches verified.`
-                : `${read} of ${sources.length} source occurrences processed.`}
-            </p>
-            <p className="mt-0.5 text-slate-600 dark:text-slate-400">
-              {native
-                ? "Upload verification runs automatically in the background. Once verified, original documents are available in Step 2 to prepare the TSC."
-                : "Reading continues in the background. Failed or incomplete batches remain flagged as review gaps."}
-            </p>
-          </div>
+      {/* Verification In-Progress Banner */}
+      {isVerifying && (
+        <div className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs font-semibold text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-200">
+          <ArrowPathIcon className="h-4 w-4 shrink-0 animate-spin text-blue-600 dark:text-blue-400" />
+          <span>Expanding and verifying uploaded tender documents… Extracted files will appear below automatically.</span>
         </div>
-      </div>
+      )}
 
       {error && (
         <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">
@@ -188,7 +181,7 @@ export function TenderDocumentIntake({
       {canWrite && <UploadBatch draft={draft} changed={() => void onRefresh()} />}
 
       {/* Verified Attached Documents List */}
-      {native && (
+      {native && attachedDocs.length > 0 && (
         <TenderDocumentList
           draftID={draft.id}
           version={draft.version}

@@ -4,6 +4,7 @@ import { lock, rows, transaction } from "../db";
 import { hashPassword, config } from "./security";
 import { email, username } from "./domain";
 import registry from "./permissions.json";
+import presets from "./finance-presets.json";
 
 export async function initializeAuth() {
   config();
@@ -12,6 +13,14 @@ export async function initializeAuth() {
     if (!migration || migration.dirty || Number(migration.version) < 96) throw new Error("Apply the owned Node migrations before starting Next.js Auth");
     await lock(db,"auth.administration");
     for (const p of registry) await db.query("INSERT INTO auth.permissions(id,code,description) VALUES($1,$2,$3) ON CONFLICT(code) DO UPDATE SET description=EXCLUDED.description", [randomUUID(),p.code,p.description]);
+    const procurement = presets.find(p => p.name === "procurement.manager")!;
+    const [procurementRole] = await rows<{ id: string }>(db,
+      "INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,$2,$3,true) ON CONFLICT(name) DO NOTHING RETURNING id",
+      [randomUUID(), procurement.name, procurement.description]);
+    if (procurementRole) {
+      await db.query("INSERT INTO auth.role_permissions(role_id,permission_id) SELECT $1,id FROM auth.permissions WHERE code=ANY($2::text[])",
+        [procurementRole.id, procurement.permission_codes]);
+    }
     const [role] = await rows<{ id: string }>(db, "INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,'superadmin','Platform super administrator',true) ON CONFLICT(name) DO UPDATE SET name=roles.name RETURNING id", [randomUUID()]);
     for (const p of registry) await db.query("INSERT INTO auth.role_permissions(role_id,permission_id) SELECT $1,id FROM auth.permissions WHERE code=$2 ON CONFLICT DO NOTHING",[role.id,p.code]);
     const [bound] = await rows<{ id: string; is_superuser: boolean }>(db, "SELECT u.id,u.is_superuser FROM auth.users u JOIN auth.auth_bootstrap_identity b ON b.user_id=u.id WHERE b.singleton");

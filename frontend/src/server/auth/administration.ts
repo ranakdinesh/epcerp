@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { rows, transaction, type DB } from "../db";
-import { AuthError, forbidden, invalid, publicUser, reason, uuid, type User } from "./domain";
+import { AuthError, forbidden, invalid, publicUser, reason, strongPassword, username, uuid, type User } from "./domain";
 import { accountEvent, assignRoles, authorize, loadRoles, loadUser, revokeUser, setPassword } from "./repository";
 import { config, hashPassword } from "./security";
 import { publicURL, queueCredentialMail, requireMail } from "./mail";
@@ -41,7 +41,7 @@ export function user(token: string, id: string) {
   });
 }
 export type UserInput = { username: string; email: string; first_name: string; last_name: string; mobile: string; role_names: string[]; is_superuser: boolean };
-export type UserUpdate = Partial<Pick<UserInput, "email" | "first_name" | "last_name" | "mobile" | "role_names">> & { expected_version?: number };
+export type UserUpdate = Partial<Pick<UserInput, "username" | "email" | "first_name" | "last_name" | "mobile" | "role_names">> & { expected_version?: number };
 function protectTarget(target: User | null, by: User): asserts target is User {
   if (!target) throw new AuthError(404, "User not found");
   if (target.is_superuser && !by.is_superuser) throw forbidden();
@@ -86,6 +86,13 @@ export async function updateUser(token: string, id: string, input: UserUpdate) {
     if (input.expected_version !== undefined && input.expected_version !== u.edit_version) throw new AuthError(409, "This user changed while you were editing. Reload and review the saved details.");
     let verification: { raw: string; recipient: string } | undefined;
     if (input.email !== undefined && input.email !== u.email) verification = { raw: await stageEmail(db, u, input.email, by.id), recipient: input.email };
+    if (input.username !== undefined && input.username.trim() !== "" && input.username.trim() !== u.username) {
+      if (!by.is_superuser) throw forbidden();
+      const validUname = username(input.username);
+      const [existing] = await rows<{ id: string }>(db, "SELECT id FROM auth.users WHERE username=$1 AND id<>$2", [validUname, id]);
+      if (existing) invalid("Username is already taken.");
+      await db.query("UPDATE auth.users SET username=$2,updated_by_id=$3,updated_at=clock_timestamp() WHERE id=$1", [id, validUname, by.id]);
+    }
     await db.query(`UPDATE auth.users SET first_name=COALESCE($2,first_name),last_name=COALESCE($3,last_name),mobile=COALESCE($4,mobile),updated_at=now(),updated_by_id=$5 WHERE id=$1`, [id, input.first_name, input.last_name, input.mobile, by.id]);
     if (input.role_names !== undefined) await assignRoles(db, id, input.role_names, by, u.roles.map(r => r.name));
     return { user: publicUser((await loadUser(db, id))!), verification };
@@ -93,13 +100,29 @@ export async function updateUser(token: string, id: string, input: UserUpdate) {
   if (staged.verification) await sendVerification(staged.verification.recipient, staged.verification.raw);
   return staged.user;
 }
-export function resetCredential(token: string, id: string, changeReason: string) {
+export function resetCredential(token: string, id: string, changeReason: string, directPassword?: string, newUsername?: string) {
   uuid(id); reason(changeReason);
+  if (directPassword !== undefined && !strongPassword(directPassword)) {
+    invalid("Use 8 to 128 characters including uppercase, lowercase, number and symbol.");
+  }
   return transaction(async db => {
     const by = await authorize(db, token, "admin.users.write", true);
     if (id === by.id) invalid("Use your account security settings to change your own password.");
     const u = await loadUser(db, id, true); protectTarget(u, by);
-    await issueCredential(db, u, by.id, changeReason, true);
+    if (newUsername !== undefined && newUsername.trim() !== "" && newUsername.trim() !== u.username) {
+      if (!by.is_superuser) throw forbidden();
+      const validUname = username(newUsername);
+      const [existing] = await rows<{ id: string }>(db, "SELECT id FROM auth.users WHERE username=$1 AND id<>$2", [validUname, id]);
+      if (existing) invalid("Username is already taken.");
+      await db.query("UPDATE auth.users SET username=$2,updated_by_id=$3,updated_at=clock_timestamp() WHERE id=$1", [id, validUname, by.id]);
+    }
+    if (directPassword !== undefined) {
+      await setPassword(db, u.id, await hashPassword(directPassword), by.id, false);
+      await db.query(`INSERT INTO auth.auth_credential_changes(id,user_id,actor_id,action,reason,credential_version) SELECT $1,id,$3,$4,$5,credential_version FROM auth.users WHERE id=$2`, [randomUUID(), u.id, by.id, "password_reset", changeReason]);
+      await accountEvent(db, u.id, by.id, "password_reset");
+    } else {
+      await issueCredential(db, u, by.id, changeReason, true);
+    }
   });
 }
 export function setActive(token: string, id: string, active: boolean, changeReason: string) {

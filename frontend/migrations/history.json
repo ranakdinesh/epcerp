@@ -410,5 +410,9 @@
   "000103_tender_bidding_and_costing.up.sql": {
     "original": "frontend/migrations/000103_tender_bidding_and_costing.up.sql",
     "sha256": "0d3dee4e524cc1328209cf2414d05669a547f7f15bfbf36ff6fb7c77d8d9f480"
+  },
+  "000104_procurement_manager_role.up.sql": {
+    "original": "frontend/migrations/000104_procurement_manager_role.up.sql",
+    "sha256": "7446f1e5a78cc442ef6dfe16c5f4f80e112d4be06a9ad265fed3970a513deb72"
   }
 }

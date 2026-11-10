@@ -8,12 +8,15 @@ import {
   ArrowDownTrayIcon,
   ClockIcon,
   SparklesIcon,
+  PencilSquareIcon,
+  LightBulbIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { createRecordId } from "@/lib/record-id";
 import { TSCWorkspace } from "./tsc-workspace";
-import { ValidatedInput, ValidatedSelect, ValidatedTextarea } from "@/components/ui/validated-controls";
+import { ValidatedInput, ValidatedSelect, ValidatedTextarea, ValidatedLabel } from "@/components/ui/validated-controls";
 import type { Answer, Question, Source, Snapshot } from "@/server/tenders/tsc/types";
 
 const button = "ui-action";
@@ -264,24 +267,41 @@ function NativeTSC({
     };
   }, [refresh]);
 
-  const format = options.formats[0];
+  const [selectedFormatId, setSelectedFormatId] = useState<string>(options.formats[0]?.id || "");
+  const [selectedProvider, setSelectedProvider] = useState<string>(
+    options.providers.find((p) => p.available)?.mode || "gemini"
+  );
 
-  // Initialize checklist if no job exists at all
-  async function generate() {
-    if (!format || busy) return;
+  const selectedFormat = options.formats.find((f) => f.id === selectedFormatId) || options.formats[0];
+  const pdfSources = useMemo(
+    () => options.sources.filter((s) => !s.reference_document && s.kind === "pdf"),
+    [options.sources]
+  );
+  const availableProviders = useMemo(
+    () => options.providers.filter((p) => p.available),
+    [options.providers]
+  );
+  const activeProvider =
+    options.providers.find((p) => p.mode === selectedProvider) ||
+    availableProviders[0] ||
+    options.providers[0];
+
+  // Initialize checklist if no job exists at all, or trigger a new generation
+  async function generate(mode: string = "manual") {
+    if (!selectedFormat || busy) return;
     setBusy(true);
     setError("");
     try {
       const request = {
         expected_version: sourceVersion,
-        format_id: format.id,
-        format_version: format.version,
-        mode: "manual",
-        source_ids: [],
+        format_id: selectedFormat.id,
+        format_version: selectedFormat.version,
+        mode,
+        source_ids: mode === "manual" ? [] : pdfSources.map((s) => s.id),
         auto_escalate: false,
         stronger_model: false,
         recover_overload: false,
-        original_documents_confirmed: false,
+        original_documents_confirmed: mode !== "manual",
       };
       const fingerprint = JSON.stringify(request);
       if (operation.current?.fingerprint !== fingerprint) {
@@ -409,7 +429,7 @@ function NativeTSC({
         };
 
         const next = await api<Job>(
-          `${base}/answers/${encodeURIComponent(qId)}`,
+          `${base}/${job.id}/answers/${encodeURIComponent(qId)}`,
           write(payload, undefined, "PATCH")
         );
 
@@ -419,6 +439,13 @@ function NativeTSC({
         markDirty(false);
       } catch (err) {
         console.error("Auto-save failed for", qId, err);
+        try {
+          const fresh = await api<Job>(`${base}/${job.id}`);
+          latestVersionRef.current = fresh.version;
+          setJob(fresh);
+        } catch {
+          // ignore
+        }
         setRowStatus((prev) => ({ ...prev, [qId]: "error" }));
       }
     });
@@ -443,35 +470,247 @@ function NativeTSC({
       )}
 
       {!jobs.length && busy ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-900">
-          <DocumentTextIcon className="h-10 w-10 animate-pulse text-blue-600" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-blue-300 bg-blue-50/40 p-12 text-center dark:border-blue-900 dark:bg-blue-950/20">
+          <SparklesIcon className="h-10 w-10 animate-spin text-blue-600" />
           <p className="mt-3 text-sm font-bold text-slate-800 dark:text-slate-200">
-            Initializing Tender Selection Questionnaire…
+            Initializing Technical Scrutiny Questionnaire…
           </p>
-          <span className="text-xs text-slate-500">Setting up technical criteria and particulars grid.</span>
+          <span className="text-xs text-slate-500">Setting up checklist criteria and preparing scrutiny grid.</span>
         </div>
       ) : !jobs.length ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-900">
-          <DocumentTextIcon className="h-10 w-10 text-slate-400" />
-          <h3 className="mt-2 text-base font-bold text-slate-900 dark:text-white">
-            Tender Selection Questionnaire
-          </h3>
-          <p className="mt-1 text-xs text-slate-500">
-            Click to start recording tender particulars, compliance, and scope details.
-          </p>
-          <button
-            type="button"
-            className={primary + " mt-4 px-6 py-2.5 text-xs font-bold"}
-            disabled={busy || !format || !canWrite}
-            onClick={() => void generate()}
-          >
-            {busy ? "Starting…" : "Start Questionnaire Grid"}
-          </button>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+                  Step 2 · Technical Scrutiny Checklist (TSC / TMC)
+                </span>
+              </div>
+              <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
+                Prepare Technical Scrutiny Checklist
+              </h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Choose how you want to prepare the technical checklist. You can evaluate with AI, fill manually, or combine both for full scrutiny.
+              </p>
+            </div>
+
+            {/* Format selector */}
+            {options.formats.length > 0 && (
+              <div className="flex flex-col gap-1 text-xs">
+                <ValidatedLabel htmlFor="tsc-format-select" className="font-semibold text-slate-700 dark:text-slate-300">
+                  Checklist Format
+                </ValidatedLabel>
+                <ValidatedSelect
+                  id="tsc-format-select"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-900 shadow-sm transition focus:border-blue-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  value={selectedFormatId}
+                  onChange={(e) => setSelectedFormatId(e.target.value)}
+                  disabled={busy}
+                >
+                  {options.formats.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({f.question_count} questions)
+                    </option>
+                  ))}
+                </ValidatedSelect>
+              </div>
+            )}
+          </div>
+
+          {/* Explanatory banner explaining the 3 options and the recommended flow */}
+          <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/60 dark:bg-blue-950/40">
+            <div className="flex items-start gap-3">
+              <LightBulbIcon className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div className="text-xs">
+                <h4 className="font-bold text-blue-900 dark:text-blue-200">
+                  How to Prepare the Technical Scrutiny Checklist (TMC):
+                </h4>
+                <ul className="mt-1.5 space-y-1 text-slate-600 dark:text-slate-300 list-disc list-inside">
+                  <li>
+                    <strong className="text-slate-800 dark:text-slate-100">Option 1 (Cloud LLM AI):</strong> Evaluates verified tender documents automatically using configured AI to extract criteria and attach source page citations.
+                  </li>
+                  <li>
+                    <strong className="text-slate-800 dark:text-slate-100">Option 2 (Manual Entry):</strong> Open the questionnaire grid directly to review tender documents side-by-side and record answers manually.
+                  </li>
+                  <li>
+                    <strong className="text-blue-800 dark:text-blue-300">Option 3 (Recommended Combined Flow):</strong> Start with <strong>Cloud LLM</strong> to auto-populate facts and citations from documents, then inspect remaining unfilled or judgement-based questions directly in the grid to finalize the scrutiny.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Two Option Cards Grid */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Card 1: Cloud LLM */}
+            <div className="flex flex-col justify-between rounded-xl border border-blue-200 bg-gradient-to-b from-blue-50/40 to-white p-5 shadow-sm transition hover:shadow-md dark:border-blue-900/60 dark:from-blue-950/20 dark:to-slate-900">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800 dark:bg-blue-900/80 dark:text-blue-200">
+                    <SparklesIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-300" />
+                    Option 1 · Cloud LLM
+                  </span>
+                  {activeProvider?.available ? (
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      ● AI Ready
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      Not Configured
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="mt-3 text-base font-bold text-slate-900 dark:text-white">
+                  Automated Cloud LLM Scrutiny
+                </h3>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Uses configured AI to read verified source PDFs (NIT, technical specifications, BOQ) and auto-fill questionnaire answers with clause citations.
+                </p>
+
+                <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">AI Model Provider:</span>
+                    {availableProviders.length > 1 ? (
+                      <ValidatedSelect
+                        className="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-700 dark:text-white"
+                        value={selectedProvider}
+                        onChange={(e) => setSelectedProvider(e.target.value)}
+                        disabled={busy}
+                      >
+                        {availableProviders.map((p) => (
+                          <option key={p.mode} value={p.mode}>
+                            {p.name || p.mode.toUpperCase()} ({p.model})
+                          </option>
+                        ))}
+                      </ValidatedSelect>
+                    ) : (
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {activeProvider?.name || activeProvider?.mode?.toUpperCase() || "Gemini"} ({activeProvider?.model || "Standard"})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Source Documents:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {pdfSources.length} verified PDF file{pdfSources.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+
+                  {activeProvider?.reservation_paise ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Estimated Allowance:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        ₹{(activeProvider.reservation_paise / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {pdfSources.length === 0 && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+                    <ExclamationTriangleIcon className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                    <span>No PDF documents verified in Step 1. Upload PDFs in Step 1 to run AI scrutiny, or choose manual entry below.</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <button
+                  type="button"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={busy || !canWrite || pdfSources.length === 0 || !activeProvider?.available}
+                  onClick={() => void generate(activeProvider?.mode || "gemini")}
+                >
+                  <SparklesIcon className="h-4 w-4" />
+                  {busy ? "Starting AI Evaluation…" : "Run AI Document Scrutiny"}
+                </button>
+              </div>
+            </div>
+
+            {/* Card 2: Manual Scrutiny Grid */}
+            <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    <PencilSquareIcon className="h-3.5 w-3.5 text-slate-500" />
+                    Option 2 · Manual Scrutiny
+                  </span>
+                  <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                    Always Available
+                  </span>
+                </div>
+
+                <h3 className="mt-3 text-base font-bold text-slate-900 dark:text-white">
+                  Manual Questionnaire Entry
+                </h3>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Open the scrutiny grid directly to review tender documents side-by-side and enter answers, compliance verdicts, and scope notes manually.
+                </p>
+
+                <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Questions:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {selectedFormat?.question_count ?? 0} checklist questions
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">AI Tokens / Cost:</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      ₹0.00 (Zero Cost)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Access:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      Immediate interactive grid
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  type="button"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                  disabled={busy || !canWrite || !selectedFormat}
+                  onClick={() => void generate("manual")}
+                >
+                  <PencilSquareIcon className="h-4 w-4" />
+                  {busy ? "Opening Grid…" : "Open Manual Questionnaire Grid"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
 
       {job ? (
         <>
+          {job.state !== "ready" && job.state !== "failed" && job.mode !== "manual" && (
+            <div className="flex items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900/60 dark:bg-blue-950/40">
+              <div className="flex items-center gap-3">
+                <SparklesIcon className="h-5 w-5 animate-pulse text-blue-600 dark:text-blue-400" />
+                <div>
+                  <p className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                    AI Document Scrutiny Running…
+                  </p>
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                    Evaluating tender documents with {job.mode.toUpperCase()}. Answers will populate automatically as they complete. You can also edit and enter answers manually.
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <ClockIcon className="h-3.5 w-3.5 animate-spin" />
+                Processing
+              </span>
+            </div>
+          )}
+
           {/* Header & Controls Card */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -483,6 +722,17 @@ function NativeTSC({
                   <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                     {answeredCount}/{totalQuestions} Answered
                   </span>
+                  {job.mode !== "manual" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                      <SparklesIcon className="h-3 w-3" />
+                      Cloud LLM ({job.mode.toUpperCase()})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <PencilSquareIcon className="h-3 w-3 text-slate-500" />
+                      Manual Scrutiny
+                    </span>
+                  )}
                 </div>
                 <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
                   Technical Scrutiny Questionnaire
@@ -493,6 +743,18 @@ function NativeTSC({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {pdfSources.length > 0 && activeProvider?.available && (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-xs font-bold text-blue-700 shadow-sm transition hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                    disabled={busy || !canWrite}
+                    onClick={() => void generate(activeProvider.mode)}
+                    title="Run or re-run Cloud LLM evaluation on verified source documents"
+                  >
+                    <SparklesIcon className="h-4 w-4" />
+                    {busy ? "Evaluating…" : "Run AI Scrutiny"}
+                  </button>
+                )}
                 {has("tenders.tsc.export") && job.state === "ready" && job.answers.some((a) => a.answer.trim()) && (
                   <a
                     className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
@@ -688,7 +950,28 @@ function NativeTSC({
                                     Management Judgement
                                   </span>
                                 )}
+                                {job.answers.find((a) => a.question_id === q.id)?.citations?.length ? (
+                                  <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                                    <SparklesIcon className="h-3 w-3" />
+                                    AI Cited ({job.answers.find((a) => a.question_id === q.id)?.citations?.length} clause{job.answers.find((a) => a.question_id === q.id)?.citations?.length === 1 ? "" : "s"})
+                                  </span>
+                                ) : null}
                               </div>
+                              {job.answers.find((a) => a.question_id === q.id)?.citations?.length ? (
+                                <details className="mt-1.5 text-[11px] text-slate-500">
+                                  <summary className="cursor-pointer font-medium hover:text-blue-600 dark:hover:text-blue-400">
+                                    View source clause citation ({job.answers.find((a) => a.question_id === q.id)?.citations.length})
+                                  </summary>
+                                  <div className="mt-1 space-y-1 rounded-lg bg-slate-50 p-2 text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                    {job.answers.find((a) => a.question_id === q.id)?.citations.map((c, i) => (
+                                      <div key={i} className="border-l-2 border-blue-500 pl-2">
+                                        <p className="font-semibold text-blue-800 dark:text-blue-300">Page {c.page}:</p>
+                                        <blockquote className="italic whitespace-pre-wrap">&ldquo;{c.quote}&rdquo;</blockquote>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </details>
+                              ) : null}
                             </td>
 
                             {/* Right: Working Answer Textarea (Vertical auto-expand, NO horizontal scroll) */}
@@ -747,11 +1030,20 @@ function NativeTSC({
                                       Saved
                                     </span>
                                   ) : saveState === "error" ? (
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600">
+                                    <button
+                                      type="button"
+                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-700 underline focus:outline-none"
+                                      onClick={() => saveQuestion(q.id)}
+                                      title="Click to retry saving this answer"
+                                    >
+                                      <ExclamationTriangleIcon className="h-3.5 w-3.5" />
                                       Retry
-                                    </span>
+                                    </button>
                                   ) : answerDraft.trim().length > 0 ? (
-                                    <span className="text-[10px] text-slate-400">Ready</span>
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                      <CheckCircleIcon className="h-3.5 w-3.5" />
+                                      Saved
+                                    </span>
                                   ) : null}
                                 </div>
                               </div>

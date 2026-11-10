@@ -10,6 +10,8 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   DocumentCheckIcon,
+  PencilSquareIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { DataGrid, type GridQuery } from "@/components/ui/data-grid";
@@ -111,6 +113,10 @@ type Draft = {
   next_step?: string;
   status_label?: string;
   completed_steps?: number[];
+  created_by_id?: string;
+  owner_id?: string;
+  can_delete?: boolean;
+  can_edit?: boolean;
 };
 
 function stepName(code: string): string {
@@ -163,13 +169,13 @@ const failure = (e: unknown) =>
   e instanceof Error ? e.message : "Unable to complete request";
 
 export function TenderReadingWorkspace({
-  assigned,
+  assigned: _assigned,
   step,
   draftID,
   onSelectDraft,
   onSelectStep,
 }: {
-  assigned: ReactNode;
+  assigned?: ReactNode;
   step?: string;
   draftID?: string;
   onSelectDraft?: (id: string | null, targetStep?: string) => void;
@@ -188,6 +194,8 @@ export function TenderReadingWorkspace({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [add, setAdd] = useState(false);
+  const [editingTender, setEditingTender] = useState<Draft | null>(null);
+  const [deletingTender, setDeletingTender] = useState<Draft | null>(null);
   const [selected, setSelected] = useState<Draft | null>(null);
   const [page, setPage] = useState({
     page: 1,
@@ -359,7 +367,7 @@ export function TenderReadingWorkspace({
             onClick={() => setAdd(true)}
           >
             <PlusIcon className="h-4 w-4" />
-            Add tender draft
+            Add Tender
           </button>
         )}
       </header>
@@ -379,7 +387,7 @@ export function TenderReadingWorkspace({
 
       <DataGrid
         stateKey="tender_drafts"
-        label="Document reading drafts"
+        label="Tenders"
         rows={rows}
         loading={loading}
         searchable
@@ -449,31 +457,63 @@ export function TenderReadingWorkspace({
             ),
           },
         ]}
-        actions={(d) => (
-          <Link
-            href={`/dashboard?screen=tender-fms&draft=${encodeURIComponent(d.id)}&step=${encodeURIComponent(d.next_step || "TS-01")}`}
-            className={primary + " gap-1 px-3 py-1.5 text-xs"}
-            title={`Open ${d.name} at ${stepName(d.next_step || "TS-01")}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              openDraft(d, d.next_step);
-            }}
-          >
-            Continue <ArrowRightIcon className="h-3.5 w-3.5" />
-          </Link>
-        )}
+        actions={(d) => {
+          const canManage =
+            user.permissions.includes("system:admin") ||
+            (d.created_by_id && user.id === d.created_by_id) ||
+            (d.owner_id && user.id === d.owner_id) ||
+            Boolean(d.can_delete) ||
+            Boolean(d.can_edit);
+          return (
+            <div className="flex items-center gap-1">
+              <Link
+                href={`/dashboard?screen=tender-fms&draft=${encodeURIComponent(d.id)}&step=${encodeURIComponent(d.next_step || "TS-01")}`}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                title={`Continue ${d.name} at ${stepName(d.next_step || "TS-01")}`}
+                aria-label={`Continue ${d.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDraft(d, d.next_step);
+                }}
+              >
+                <ArrowRightIcon className="h-5 w-5" />
+              </Link>
+              {canManage && (
+                <button
+                  type="button"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  title={`Edit ${d.name}`}
+                  aria-label={`Edit ${d.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingTender(d);
+                  }}
+                >
+                  <PencilSquareIcon className="h-5 w-5" />
+                </button>
+              )}
+              {canManage && (
+                <button
+                  type="button"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/60"
+                  title={`Delete ${d.name}`}
+                  aria-label={`Delete ${d.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeletingTender(d);
+                  }}
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          );
+        }}
       />
-
-      <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <summary className="cursor-pointer text-sm font-bold text-slate-800 hover:text-blue-700 dark:text-slate-200 dark:hover:text-blue-400">
-          Previously assigned tenders & register handoffs
-        </summary>
-        <div className="mt-4">{assigned}</div>
-      </details>
 
       {add && (
         <RecordDrawer
-          title="Add Tender Draft"
+          title="Add Tender"
           onClose={() => setAdd(false)}
         >
           <CreateDraft
@@ -482,6 +522,38 @@ export function TenderReadingWorkspace({
               openDraft(d);
               void refresh();
             }}
+          />
+        </RecordDrawer>
+      )}
+
+      {editingTender && (
+        <RecordDrawer
+          title="Edit Tender"
+          onClose={() => setEditingTender(null)}
+        >
+          <EditDraft
+            draft={editingTender}
+            saved={() => {
+              setEditingTender(null);
+              void refresh();
+            }}
+            onCancel={() => setEditingTender(null)}
+          />
+        </RecordDrawer>
+      )}
+
+      {deletingTender && (
+        <RecordDrawer
+          title="Delete Tender"
+          onClose={() => setDeletingTender(null)}
+        >
+          <DeleteDraft
+            draft={deletingTender}
+            deleted={() => {
+              setDeletingTender(null);
+              void refresh();
+            }}
+            onCancel={() => setDeletingTender(null)}
           />
         </RecordDrawer>
       )}
@@ -554,7 +626,160 @@ function CreateDraft({ saved }: { saved: (d: Draft) => void }) {
 
       <div className="flex justify-end pt-2">
         <button className={primary} disabled={busy || !name.trim()}>
-          {busy ? "Creating…" : locked ? "Retry same request" : "Create draft"}
+          {busy ? "Creating…" : locked ? "Retry same request" : "Create"}
+        </button>
+      </div>
+    </ValidatedForm>
+  );
+}
+
+function EditDraft({
+  draft,
+  saved,
+  onCancel,
+}: {
+  draft: Draft;
+  saved: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(draft.name);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <ValidatedForm
+      className="space-y-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        const trimmed = name.trim();
+        if (trimmed.length < 2) {
+          setError("Tender name must be at least 2 characters.");
+          return;
+        }
+        setBusy(true);
+        setError("");
+        try {
+          await api<Draft>(`drafts/${draft.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: trimmed }),
+          });
+          saved();
+        } catch (e) {
+          setError(failure(e));
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <ValidatedLabel
+        required
+        htmlFor="edit-draft-name"
+        className="text-xs font-bold text-slate-700 dark:text-slate-300"
+      >
+        Tender Name
+        <ValidatedInput
+          id="edit-draft-name"
+          name="name"
+          required
+          minLength={2}
+          maxLength={255}
+          value={name}
+          disabled={busy}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. 50 MW Solar Power Plant Grid Interconnection Tender"
+          className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-800"
+        />
+      </ValidatedLabel>
+
+      {error && (
+        <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      )}
+
+      <div className="flex justify-end gap-3 pt-3">
+        <button
+          type="button"
+          className={secondary}
+          disabled={busy}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className={primary}
+          disabled={busy || !name.trim() || name.trim() === draft.name}
+        >
+          {busy ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+    </ValidatedForm>
+  );
+}
+
+function DeleteDraft({
+  draft,
+  deleted,
+  onCancel,
+}: {
+  draft: Draft;
+  deleted: () => void;
+  onCancel: () => void;
+}) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <ValidatedForm
+      className="space-y-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        setBusy(true);
+        setError("");
+        try {
+          await api(`drafts/${draft.id}`, { method: "DELETE" });
+          deleted();
+        } catch (e) {
+          setError(failure(e));
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+          Remove tender from active list?
+        </p>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+          <span className="font-bold">{draft.name}</span> will be soft-deleted and removed from the active grid, while preserving intake records in the database.
+        </p>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      )}
+
+      <div className="flex justify-end gap-3 pt-3">
+        <button
+          type="button"
+          className={secondary}
+          disabled={busy}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-red-600 px-4 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+          disabled={busy}
+        >
+          {busy ? "Deleting…" : "Delete tender"}
         </button>
       </div>
     </ValidatedForm>
@@ -755,9 +980,6 @@ function DraftDetail({
               <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
                 Tender FMS · Step {currentStageInfo.stepNumber} ({currentStageInfo.code})
               </span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                {native ? "Cloud Engine" : "Document Intake"}
-              </span>
               {totalBatches > 0 && (
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
@@ -774,9 +996,6 @@ function DraftDetail({
             <h1 className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
               {data.name}
             </h1>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {currentStageInfo.title} — {currentStageInfo.description}
-            </p>
           </div>
         </div>
 
@@ -857,7 +1076,7 @@ function DraftDetail({
           {prevStage ? (
             <button
               type="button"
-              className={secondary + " gap-2 px-4 py-2 text-xs font-semibold"}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-100/90 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               onClick={() => changeStage(prevStage.key)}
             >
               <ArrowLeftIcon className="h-4 w-4" />
@@ -866,7 +1085,7 @@ function DraftDetail({
           ) : (
             <button
               type="button"
-              className={secondary + " gap-2 px-4 py-2 text-xs font-semibold"}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-100/90 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               onClick={onDone}
             >
               <ArrowLeftIcon className="h-4 w-4" />
@@ -879,7 +1098,7 @@ function DraftDetail({
           {nextStage ? (
             <button
               type="button"
-              className={primary + " gap-2 px-5 py-2 text-xs font-bold"}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800 active:scale-[0.99] disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-500"
               onClick={() => changeStage(nextStage.key)}
             >
               Continue to Step {nextStage.stepNumber} · {nextStage.shortLabel}

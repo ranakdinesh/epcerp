@@ -70,4 +70,4 @@ function TenderDetail({record,editable,canAssign,saved,lock}:{record:CapturedTen
  </div>;
 }
 
-export function TenderCaptureWorkspace({step,draftID,onSelectDraft,onSelectStep}:{step?:string;draftID?:string;onSelectDraft?:(id:string|null,targetStep?:string)=>void;onSelectStep?:(step:string)=>void}={}){return <TenderReadingWorkspace step={step} draftID={draftID} onSelectDraft={onSelectDraft} onSelectStep={onSelectStep} assigned={<AssignedTenderWorkspace/>}/>;}
+export function TenderCaptureWorkspace({step,draftID,onSelectDraft,onSelectStep}:{step?:string;draftID?:string;onSelectDraft?:(id:string|null,targetStep?:string)=>void;onSelectStep?:(step:string)=>void}={}){return <TenderReadingWorkspace step={step} draftID={draftID} onSelectDraft={onSelectDraft} onSelectStep={onSelectStep}/>;}

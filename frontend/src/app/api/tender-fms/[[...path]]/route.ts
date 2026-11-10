@@ -13,7 +13,7 @@ async function route(request: Request, context: Context) {
   if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method) && (named || receipt || upload || draft || tsc || joined.endsWith("/ownership"))) {
     if (!hasSameOrigin(request)) return Response.json({ detail: "Same-origin request required" }, { status: 403 });
   }
-  const methods = upload ? new Set(["GET", "PUT", "HEAD"]) : named ? new Set(["GET", "POST", "PATCH"]) : tsc ? new Set(["GET", "POST", "PATCH", "DELETE"]) : receipt ? new Set(["GET", "POST"]) : draft ? new Set(["GET", "POST", "DELETE"]) : legacy;
+  const methods = upload ? new Set(["GET", "PUT", "HEAD"]) : named ? new Set(["GET", "POST", "PATCH"]) : tsc ? new Set(["GET", "POST", "PATCH", "DELETE"]) : receipt ? new Set(["GET", "POST"]) : draft ? new Set(["GET", "POST", "PATCH", "DELETE"]) : legacy;
   const wordImport = /^drafts\/[0-9a-f-]{36}\/tsc\/import(?:\/commit)?$/.test(joined);
   const limit = wordImport ? 6 * 1024 * 1024 : upload ? 64 * 1024 * 1024 : receipt || named || draft || tsc ? 32 * 1024 : joined === "upload" ? 32 * 1024 * 1024 + 64 * 1024 : joined.endsWith("/ownership") ? 8192 : 1024;
   return proxyAuthenticatedRequest(request, context, "tender-fms", methods, limit, upload && request.method === "PUT" ? "HEAD" : false);

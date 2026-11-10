@@ -23,3 +23,68 @@ export async function directorDecisionNotice(db:DB,event:string){
     const d=(await db.query('SELECT id,user_id,version FROM organisation_director_designation WHERE slot=true AND is_active')).rows[0];if(!d||!(await assignmentIdentity(db,d.user_id))?.active)throw new AppError(409,'An effective Director must be designated before the financial decision');
     await deliver(db,s,d.user_id,'director',{id:d.id,version:d.version});
 }
+
+export async function procurementManagerProjectNotice(db: DB, eventId: string, projectId: string, projectNumber: string, projectName: string) {
+    const s = await source(db, eventId);
+    if (s.source_module !== 'purchase_fms' || s.entity_type !== 'purchase_workspace') {
+        throw new AppError(409, 'Event does not match purchase workspace creation');
+    }
+    const managers = (await db.query(`
+        SELECT DISTINCT u.id
+        FROM auth.users u
+        JOIN auth.user_roles ur ON ur.user_id = u.id
+        JOIN auth.roles r ON r.id = ur.role_id AND r.is_active
+        WHERE u.is_active
+          AND EXISTS (
+            SELECT 1 FROM auth.role_permissions rp
+            JOIN auth.permissions p ON p.id = rp.permission_id
+            WHERE rp.role_id = r.id AND p.code = 'projects.purchase_assignments.write'
+          )
+    `)).rows as { id: string }[];
+
+    const title = `Purchase FMS enabled: ${projectNumber}${projectName ? ' · ' + projectName : ''}`;
+    const link = `/dashboard?screen=purchase-fms&project=${encodeURIComponent(projectId)}`;
+
+    for (const m of managers) {
+        const id = randomUUID(), at = timestamp(s.at)!;
+        const inserted = (await db.query(`
+            INSERT INTO communication_notices(
+                id, source_event_id, recipient_id, director_designation_id, director_version,
+                decision_id, project_id, source_version, decision_action,
+                created_at, updated_at, created_by_id, updated_by_id,
+                notice_kind, title, link
+            )
+            VALUES($1, $2, $3, NULL, 0, $4, $4, $5, 'assigned', $6, $6, $7, $7, 'procurement_manager', $8, $9)
+            ON CONFLICT(source_event_id, recipient_id) DO NOTHING
+            RETURNING id
+        `, [id, s.id, m.id, projectId, Number(s.entity_version), at, s.actor_id, title, link])).rows[0];
+
+        if (inserted) {
+            const snapshot = {
+                notice_kind: 'procurement_manager',
+                title,
+                link,
+                id,
+                source_event_id: s.id,
+                recipient_id: m.id,
+                director_designation_id: '',
+                director_version: 0,
+                decision_id: projectId,
+                project_id: projectId,
+                source_version: Number(s.entity_version),
+                decision_action: 'assigned',
+                version: 1,
+                is_active: true,
+                read_at: null,
+                acknowledged_at: null,
+                created_at: at,
+                updated_at: at,
+                created_by_id: s.actor_id,
+                updated_by_id: s.actor_id
+            };
+            const event = randomUUID();
+            await db.query("INSERT INTO communication_notice_events(id,notice_id,action,notice_version,before_snapshot,after_snapshot,created_at,created_by_id)VALUES($1,$2,'delivered',1,'null'::jsonb,$3,$4,$5)", [event, id, snapshot, at, s.actor_id]);
+            await db.query(`INSERT INTO business_events(id,source_module,entity_type,entity_id,entity_version,delivery_count,action,actor_id,actor_kind,correlation_id,causation_id,scope_kind,scope_id,visibility,occurred_at)VALUES($1,'communication_inbox','director_notice',$2,1,0,'delivered',$3,'user',$4,$4,'project',$5,'restricted',$6)`, [event, id, s.actor_id, s.id, projectId, at]);
+        }
+    }
+}

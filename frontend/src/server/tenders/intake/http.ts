@@ -48,6 +48,10 @@ export async function handleIntake(request: Request): Promise<Response> {
                 return json(await drafts.create(token, key, await body(request, ['name'], 8192)), 201);
             if (parts.length === 3 && method === 'GET')
                 return json(await drafts.get(token, draft));
+            if (parts.length === 3 && method === 'PATCH')
+                return json(await drafts.update(token, draft, await body(request, ['name'], 8192)));
+            if (parts.length === 3 && method === 'DELETE')
+                return json(await drafts.remove(token, draft));
             if (parts.length === 4 && parts[3] === 'batches' && method === 'POST') {
                 await drafts.attach(token, draft, await body(request, ['receipt_id'], 8192));
                 return new Response(null, { status: 204, headers });
