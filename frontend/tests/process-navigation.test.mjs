@@ -49,11 +49,11 @@ test('confirmed project delivery remains 19 processes, with register separate fr
 test('Purchase map routes BO, indent, quotation receipt and comparison only within a selected project', async()=>{
  const {purchaseProcess,processHandoffs,processMapHref}=await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
  const stages=purchaseProcess.steps.filter(s=>s.number>0);
- assert.equal(stages.length,21);
- assert.deepEqual(stages.map(s=>s.number),Array.from({length:21},(_,i)=>i+1));
+ assert.equal(stages.length,22);
+ assert.deepEqual(stages.map(s=>s.number),Array.from({length:22},(_,i)=>i+1));
  assert.deepEqual([...new Set(stages.map(s=>s.group.split(' · ')[0]))],['WO2I','I2LOI','LOI2PO','PO2INS','INS2D']);
  assert.ok(stages.every(s=>s.evidence.length && s.team));
- assert.deepEqual(stages.filter(s=>s.available).map(s=>s.code),["PUR-01","PUR-02","PUR-03","PUR-04","PUR-05","PUR-06","PUR-07","PUR-08","PUR-PO-CLIENT","PUR-09","PUR-10","PUR-11","PUR-12","PUR-13","PUR-14","PUR-15","PUR-16","PUR-17","PUR-18","PUR-19","PUR-20"]);
+ assert.deepEqual(stages.filter(s=>s.available).map(s=>s.code),["PUR-01","PUR-VENDORS","PUR-02","PUR-03","PUR-04","PUR-05","PUR-06","PUR-07","PUR-08","PUR-PO-CLIENT","PUR-09","PUR-10","PUR-11","PUR-12","PUR-13","PUR-14","PUR-15","PUR-16","PUR-17","PUR-18","PUR-19","PUR-20"]);
  for(const stage of stages.filter(s=>s.available)) { assert.equal(processStepHref(purchaseProcess,stage),undefined); assert.ok(processStepHref(purchaseProcess,stage,"project-id").endsWith("&project=project-id")); }
  assert.equal(availableProcessStep(purchaseProcess,'PUR-20').code,'PUR-20');
  assert.equal(processStepHref(purchaseProcess,purchaseProcess.steps[0]),undefined);

@@ -8,7 +8,8 @@ export const acceptanceLabels:Record<AcceptanceStatus,string>={pending:"Pending 
 export function acceptanceCommand(version:number,f:FormData){
  const text=(name:string)=>String(f.get(name)??"");
  const status=text("status") as AcceptanceStatus;
- return {version,action:"record",reason:text("reason"),response:{status,dispatched_date:text("dispatched_date"),dispatch_reference:text("dispatch_reference"),accepted_date:status==="pending"?"":text("accepted_date"),signatory_name:text("signatory_name"),document_reference:text("document_reference"),remarks:text("remarks")}};
+ const dispatchedDate=text("dispatched_date"), dispatchReference=text("dispatch_reference");
+ return {version,action:"record",reason:text("reason"),response:{status,...(dispatchedDate && {dispatched_date:dispatchedDate}),...(dispatchReference && {dispatch_reference:dispatchReference}),accepted_date:status==="pending"?"":text("accepted_date"),signatory_name:text("signatory_name"),document_reference:text("document_reference"),remarks:text("remarks")}};
 }
 export function indiaDate(now=new Date()){
  const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);

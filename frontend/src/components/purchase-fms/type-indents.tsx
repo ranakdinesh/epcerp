@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedForm, ValidatedLabel, ValidatedInput, ValidatedSelect } from "@/components/ui/validated-controls";
+
 import "./indent-document.css";
 import { indentApprovalLabels, indentFields, indentSignatureNotice, readIndentContent, validateIndentContent, type IndentContent } from "@/lib/indent-content";
 import { IndentParagraphs, IndentRichEditor } from "./indent-rich-editor";
@@ -161,19 +163,19 @@ function IndentWorkspace({ path, projectName, details, category, draft, items, v
     {draft && <p className="text-sm">Draft version {draft.version}</p>}
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <IndentHTMLPreview typeName={typeName} projectName={projectName} details={details} items={items} content={content} />
-      <form onSubmit={save} className="space-y-3 rounded-xl border border-teal-200 p-4">
+      <ValidatedForm onSubmit={save} className="space-y-3 rounded-xl border border-teal-200 p-4">
         {editable && indentFields.map(([key, label]) => <IndentRichEditor key={key} label={label} initial={content[key]} spacing={content.spacing?.[key]}
           onSpacingChange={spacing => setContent(current => ({ ...current, spacing: { ...current.spacing, [key]: spacing } }))}
           onChange={paragraphs => setContent(current => ({ ...current, [key]: paragraphs }))} />)}
         {error && <p role="alert" className="text-red-700">{error}</p>}
-        {editable && reissueRequired && <label className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
-          <input className="mt-1" name="reissue" type="checkbox" required />
+        {editable && reissueRequired && <ValidatedLabel className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
+          <ValidatedInput className="mt-1" name="reissue" type="checkbox" required />
           <span>Reissue indents using the current vendor assignments. Earlier dispatches stay in the history. Send the new indents before entering quotations.</span>
-        </label>}
+        </ValidatedLabel>}
         {editable && <div className="flex justify-end">
           <button className={action} disabled={busy} type="submit">{busy ? "Saving…" : "Finalise and open vendor dispatch"}</button>
         </div>}
-      </form>
+      </ValidatedForm>
     </div>
   </section>;
 }
@@ -234,24 +236,24 @@ function IndentDispatch({ path, rows, canDispatch, complete, listHref, quotation
       <DocumentPDFViewer url={pdf(preview)} filename={`${preview.number}.pdf`} />
     </RecordDrawer>}
     {recording && <RecordDrawer title={`Record dispatch · ${recording.vendor}`} onClose={() => { if (!busy) setRecording(null); }}>
-      <form onSubmit={record} className="space-y-4">
-        <label className="block">Date sent
-          <input className="mt-1 block w-full rounded-lg border p-2" type="date" name="sent_date" min={recording.generatedDate.slice(0, 10)} required />
-        </label>
-        <label className="block">Channel
-          <select className="mt-1 block w-full rounded-lg border p-2" name="channel" defaultValue="" required>
+      <ValidatedForm onSubmit={record} className="space-y-4">
+        <ValidatedLabel className="block">Date sent
+          <ValidatedInput className="mt-1 block w-full rounded-lg border p-2" type="date" name="sent_date" min={recording.generatedDate.slice(0, 10)} required />
+        </ValidatedLabel>
+        <ValidatedLabel className="block">Channel
+          <ValidatedSelect className="mt-1 block w-full rounded-lg border p-2" name="channel" defaultValue="" required>
             <option value="" disabled>Choose channel</option>
             <option>Email</option><option>Vendor portal</option><option>Courier</option><option>Other</option>
-          </select>
-        </label>
-        <label className="block">Dispatch reference
-          <input className="mt-1 block w-full rounded-lg border p-2" name="dispatch_reference" maxLength={500} required />
-        </label>
+          </ValidatedSelect>
+        </ValidatedLabel>
+        <ValidatedLabel className="block">Dispatch reference
+          <ValidatedInput className="mt-1 block w-full rounded-lg border p-2" name="dispatch_reference" maxLength={500} required />
+        </ValidatedLabel>
         {error && <p role="alert" className="text-red-700">{error}</p>}
         <div className="flex justify-end">
           <button className={action} type="submit" disabled={busy}>{busy ? "Saving…" : "Save dispatch"}</button>
         </div>
-      </form>
+      </ValidatedForm>
     </RecordDrawer>}
   </section>;
 }

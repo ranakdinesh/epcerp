@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedLabel, ValidatedInput } from "@/components/ui/validated-controls";
+
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeftIcon, EyeIcon, PencilSquareIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
@@ -115,15 +117,15 @@ export function CategoryDirectory() {
     ]} actions={row => <div className="flex gap-1">{!selected && canWrite && <button type="button" className="min-h-11 px-2 text-blue-700" onClick={() => { setError(""); setImageCategory(row); }}>Upload image</button>}<button type="button" title={`View ${row.name}`} aria-label={`View ${row.code}`} onClick={() => selected ? void viewConfiguration(row) : openCategory(row)} className={iconAction}><EyeIcon className="h-5 w-5" /></button>{selected && canConfigure && <button type="button" className="min-h-11 px-2 font-semibold text-blue-700" aria-label={`Configure ${row.code}`} onClick={()=>setConfigurationEditor(row)}>Configuration</button>}{canWrite && <button type="button" title={`Edit ${row.name}`} aria-label={`Edit ${row.code}`} onClick={() => void openEditor({ kind, record: row })} className={iconAction}><PencilSquareIcon className="h-5 w-5" /></button>}</div>} />
     {imageCategory && <RecordDrawer title={`Image for ${imageCategory.name}`} onClose={() => { if (!uploading) setImageCategory(null); }}>
       <CategoryThumbnail code={imageCategory.code} revision={imageRevision}/>
-      <label className="block space-y-2">
+      <ValidatedLabel className="block space-y-2">
         <span>Choose a PNG, JPEG or WebP image up to 1 MB</span>
-        <input className="block" type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading}
+        <ValidatedInput className="block" type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading}
           onChange={event => {
             const file = event.target.files?.[0];
             event.target.value = "";
             if (file) void uploadImage(imageCategory, file);
           }} />
-      </label>
+      </ValidatedLabel>
       {uploading && <p role="status">Uploading…</p>}
       {error && <p role="alert" className="text-red-700">{error}</p>}
     </RecordDrawer>}

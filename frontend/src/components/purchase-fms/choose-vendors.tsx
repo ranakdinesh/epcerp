@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedLabel, ValidatedInput } from "@/components/ui/validated-controls";
+
 import "./choose-vendors.css";
 import { CategoryThumbnail } from "@/components/items/category-thumbnail";
 import Link from "next/link";
@@ -135,8 +137,8 @@ function VendorSelection({ project, data }: { project: string; data: Workspace }
             <p className="text-xs">Assigned · Set {assignment + 1}</p>
             </div>
           </div>;
-          return <label className="flex items-start gap-[5px] font-semibold [overflow-wrap:anywhere]">
-            <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={!unchecked.includes(item.id)}
+          return <ValidatedLabel className="flex items-start gap-[5px] font-semibold [overflow-wrap:anywhere]">
+            <ValidatedInput type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={!unchecked.includes(item.id)}
               aria-label={`Select ${itemName(item)} ${identifyingSpecs(item) || item.sku || ""}`.trim()}
               disabled={!editable || busy || !item.category} onChange={event => {
                 const checked = event.target.checked;
@@ -144,7 +146,7 @@ function VendorSelection({ project, data }: { project: string; data: Workspace }
               }} />
             <CategoryThumbnail code={item.category} />
             <span className="min-w-0">{itemName(item)}</span>
-          </label>;
+          </ValidatedLabel>;
         } },
         { key: "sku", label: "SKU", value: item => item.sku ?? "", className: "text-xs", render: item => <div className="[overflow-wrap:anywhere]">{item.sku}</div> },
         { key: "specifications", label: "Specifications", value: item => itemSpecs(item).join(" "), sortable: false,
@@ -204,7 +206,7 @@ function VendorSelection({ project, data }: { project: string; data: Workspace }
         { key: "code", label: "Vendor code", value: vendor => vendor.code },
         { key: "select", label: "Select", value: vendor => picker.vendorIds.includes(vendor.id) ? "Selected" : "", sortable: false,
           className: "text-right", headerClassName: "text-right", render: vendor =>
-            <input type="checkbox" aria-label={`Select ${vendor.name}`} className="size-5"
+            <ValidatedInput type="checkbox" aria-label={`Select ${vendor.name}`} className="size-5"
               checked={picker.vendorIds.includes(vendor.id)} onChange={event => {
                 const checked = event.target.checked;
                 setPicker(current => current && { ...current, vendorIds: checked

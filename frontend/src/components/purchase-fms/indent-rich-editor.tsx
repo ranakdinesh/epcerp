@@ -1,5 +1,7 @@
 "use client";
 
+import { ValidatedLabel, ValidatedSelect } from "@/components/ui/validated-controls";
+
 import { useId, useRef, type ClipboardEvent } from "react";
 import { indentSpacingOptions, type IndentSpacing, type IndentRun } from "@/lib/indent-content";
 
@@ -50,12 +52,12 @@ export function IndentRichEditor({ label, initial, onChange, spacing = 1, onSpac
           document.execCommand(command);
           read();
         }}>{title}</button>)}
-      <label className="flex items-center gap-2 text-sm">Line spacing
-        <select value={spacing} className="rounded border border-teal-300 bg-[var(--go-panel)] px-2 py-1"
+      <ValidatedLabel className="flex items-center gap-2 text-sm">Line spacing
+        <ValidatedSelect value={spacing} className="rounded border border-teal-300 bg-[var(--go-panel)] px-2 py-1"
           onChange={event => onSpacingChange(Number(event.target.value) as IndentSpacing)}>
           {indentSpacingOptions.map(option => <option key={option} value={option}>{option === 1 ? "Single" : option === 2 ? "Double" : option}</option>)}
-        </select>
-      </label>
+        </ValidatedSelect>
+      </ValidatedLabel>
     </div>
     <div ref={editor} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true"
       aria-labelledby={labelId} style={{ lineHeight: 1.4 * spacing }} className="min-h-24 max-h-80 overflow-y-auto rounded-lg border border-slate-400 bg-[var(--go-panel)] p-3"

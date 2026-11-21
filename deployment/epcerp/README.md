@@ -27,6 +27,29 @@ The deployed development server has its own HTTPS gateway and office-LAN fronten
 preserve that server's private configuration and routes when preparing releases.
 Do not replace its Compose file with this local-preview configuration.
 
+## Shared server releases
+
+Open a pull request to `main` and merge after the verification job passes.
+GitHub Actions packages the frontend, migrator and document processor from the
+exact resulting `main` commit. Feature branches and pull requests can run
+verification but cannot publish release images.
+
+From an authenticated GitHub CLI session, run
+`sh deployment/epcerp/fetch-main-release.sh RUN_ID NEW_DIRECTORY`. This accepts
+successful runs of the release workflow from this repository's `main` and
+verifies the downloaded archive. Load the archive with
+`docker load --input NEW_DIRECTORY/images.tar.gz`. Use the resulting
+`epcerp-frontend:main-COMMIT` image for both server frontends and the schema
+service and `epcerp-document-processor:main-COMMIT` for the private processor.
+Use the server's existing Compose configuration and private env files. Check
+schema ownership and version before starting the matching services. Verify
+readiness on both development routes and record the commit, run ID, image IDs
+and applied migration version.
+
+Future production releases use the same verified archive after development
+verification and explicit production approval. Retain the approved archive
+privately for promotion or rollback beyond GitHub's artifact retention period.
+
 Historical migration and deployment evidence, including the verified 5 November
 server cutover, is in [history](history/). Those records describe past releases,
 not current setup instructions. The retired Go reference is available through
