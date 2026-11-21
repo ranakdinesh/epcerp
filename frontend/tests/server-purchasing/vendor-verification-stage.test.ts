@@ -6,13 +6,14 @@ import sharp from 'sharp';
 import { handleAuth } from '../../src/server/auth/http';
 import { initializeAuth } from '../../src/server/auth/bootstrap';
 import { login } from '../../src/server/auth/sessions';
-import { pool } from '../../src/server/db';
+import { pool, transaction } from '../../src/server/db';
 import { AppError } from '../../src/server/errors';
 import { handleMaster } from '../../src/server/master/http';
 import { seal } from '../../src/server/master/documents/files';
 import { status, review } from '../../src/server/master/verification/service';
 import { execute as saveBudget } from '../../src/server/projects/budgets/service';
 import { handlePurchasing } from '../../src/server/purchasing/http';
+import { catalogue, permitted } from '../../src/server/purchasing/core/catalogue';
 import { workspace as quoteApprovals } from '../../src/server/purchasing/approvals/service';
 import { upload as uploadTechnical } from '../../src/server/purchasing/technical/evidence';
 import { upload as uploadSignedOrder } from '../../src/server/purchasing/orders/evidence';
@@ -66,8 +67,20 @@ test('purchase workflow enforces vendor verification, advance evidence and clien
         const category = await master('/categories/categories', { code: prefix + 'C', name: prefix, unit_id: unit.id });
         const type = await master('/categories/subcategories', { code: prefix + 'T', name: prefix, category_id: category.id });
         const template = await master('/configuration-templates/' + type.id + '/publish', { definition: { ...definition(), subcategory_code: type.code, template_name: prefix }, expected_revision: 0 });
-        const make = await master('/manufacturers', { code: prefix, name: prefix, data: { eligible: [category.code] } });
-        const item = await post(handleMaster, '/catalogue-items', { configuration_id: template.id, manufacturer_id: make.id, specifications: { SIZE: 'S1' }, model: prefix });
+        const item = await post(handleMaster, '/catalogue-items', { configuration_id: template.id, specifications: { SIZE: 'S1' }, model: prefix });
+        assert.equal(item.manufacturer_id, null);
+        const checkItem = () => transaction(async db => permitted(db, project, await catalogue(db, item.id)));
+        assert.equal((await checkItem()).id, item.id);
+        const rule = randomUUID();
+        await sql.query(
+            'INSERT INTO client_purchase_rules(id,client_id,data,is_active,version) SELECT $1,client_id,$2,true,1 FROM projects WHERE id=$3',
+            [rule, { project_id: project, scope_code: category.code, mode: 'approved_only', allowed: [], excluded: [], effective_from: '2000-01-01' }, project],
+        );
+        try {
+            await assert.rejects(checkItem(), /Client manufacturer restriction/);
+        } finally {
+            await sql.query('UPDATE client_purchase_rules SET is_active=false,version=version+1 WHERE id=$1', [rule]);
+        }
         const vendors = await Promise.all([1, 2, 3].map(i => master('/suppliers', { code: prefix + i, name: 'QA vendor ' + prefix + i, data: {} })));
         const vendor = vendors[0];
         assert.equal((await status(finance, vendor.id)).can_generate_purchase_order, false);
@@ -83,7 +96,7 @@ test('purchase workflow enforces vendor verification, advance evidence and clien
         };
         const legacyProject = await createProject(buyerID);
         await sql.query("UPDATE projects SET purchase_enabled=true,currency='INR' WHERE id=$1", [legacyProject]);
-        const alternateItem = await post(handleMaster, '/catalogue-items', { configuration_id: template.id, manufacturer_id: make.id, specifications: { SIZE: 'S2' }, model: prefix });
+        const alternateItem = await post(handleMaster, '/catalogue-items', { configuration_id: template.id, specifications: { SIZE: 'S2' }, model: prefix });
         const legacyDate = indiaDate(new Date(Date.now() + 30 * 86400000));
         const createPreparation = (id: string, itemID = item.id) => post(handlePurchasing, '/projects/' + legacyProject + '/purchase-bo/' + id, {
             version: 0, name: 'Purchase requirements', reason, lines: [{id: randomUUID(), item_id: itemID, quantity: '1', required_date: legacyDate}],

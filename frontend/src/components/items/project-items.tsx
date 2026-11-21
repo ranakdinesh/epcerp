@@ -82,7 +82,7 @@ export function ProjectItems({ projectId }: { projectId: string }) {
         <h2 className="text-2xl font-bold">Project items</h2>
         <p className="text-slate-600">
           One material requirement per configuration. Allocate quantities to
-          locations and record manufacturer alternatives under the same
+          locations and record alternative catalogue items under the same
           requirement.
         </p>
         <p>{records.filter((r) => r.is_active).length} active requirements</p>
@@ -204,7 +204,7 @@ export function ProjectItems({ projectId }: { projectId: string }) {
                     </p>
                   )}
                   <p className="text-sm">
-                    {r.alternatives.length} manufacturer alternatives
+                    {r.alternatives.length} alternative items
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {write && (
@@ -260,7 +260,7 @@ export function ProjectItems({ projectId }: { projectId: string }) {
               onChange={(e) => setManufacturer(e.target.value)}
             >
               <option value="">All manufacturers</option>
-              {[...new Set(choices.map((c) => c.manufacturer))].map((c) => (
+              {[...new Set(choices.map((c) => c.manufacturer).filter(Boolean))].map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </ValidatedSelect>
@@ -481,7 +481,7 @@ function DemandEditor({
         </button>
         <fieldset>
           <legend className="font-semibold">
-            Alternative manufacturers for this requirement
+            Alternative items for this requirement
           </legend>
           <p className="text-sm text-slate-500">
             Alternatives do not add quantity or imply client approval.
@@ -506,7 +506,7 @@ function DemandEditor({
                   }
                 />
                 <span className="break-all">
-                  {c.manufacturer} · {c.sku}
+                  {c.manufacturer ? `${c.manufacturer} · ` : ""}{c.sku}
                 </span>
               </ValidatedLabel>
             ))}

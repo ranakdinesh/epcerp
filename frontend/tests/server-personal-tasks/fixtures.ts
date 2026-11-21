@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { pool } from '../../src/server/db';
 import { handleMaster } from '../../src/server/master/http';
-import { definition } from '../server-master/catalogue-fixtures';
+import { definition, legacyCatalogueItem } from '../server-master/catalogue-fixtures';
 import { project } from '../server-inbox/fixtures';
 export async function workFixture(token:string,actor:string,other:string){
     const sql=pool(),p=await project(actor),prefix='QA'+randomUUID().replaceAll('-','').slice(0,9).toUpperCase();
     const call=async(path:string,body:unknown)=>{const r=await handleMaster(new Request('http://localhost/api/v1'+path,{method:'POST',headers:{Authorization:'Bearer '+token},body:JSON.stringify(body)}));const v=await r.json();assert.ok(r.ok,JSON.stringify(v));return v;};
-    const unit=await call('/categories/units',{code:prefix,name:prefix,reason:'Synthetic unit'}),category=await call('/categories/categories',{code:prefix+'C',name:prefix,unit_id:unit.id,reason:'Synthetic category'}),sub=await call('/categories/subcategories',{code:prefix+'T',name:prefix,category_id:category.id,reason:'Synthetic type'}),template=await call('/configuration-templates/'+sub.id+'/publish',{definition:{...definition(),subcategory_code:sub.code,template_name:prefix},expected_revision:0,reason:'Synthetic configuration'}),make=await call('/manufacturers',{code:prefix,name:prefix,data:{eligible:[category.code]},reason:'Synthetic make'}),item=await call('/catalogue-items',{configuration_id:template.id,manufacturer_id:make.id,specifications:{SIZE:'S1'},model:prefix});
+    const unit=await call('/categories/units',{code:prefix,name:prefix,reason:'Synthetic unit'}),category=await call('/categories/categories',{code:prefix+'C',name:prefix,unit_id:unit.id,reason:'Synthetic category'}),sub=await call('/categories/subcategories',{code:prefix+'T',name:prefix,category_id:category.id,reason:'Synthetic type'}),template=await call('/configuration-templates/'+sub.id+'/publish',{definition:{...definition(),subcategory_code:sub.code,template_name:prefix},expected_revision:0,reason:'Synthetic configuration'}),make=await call('/manufacturers',{code:prefix,name:prefix,data:{eligible:[category.code]},reason:'Synthetic make'}),item=await legacyCatalogueItem(template.id, make, prefix);
     await sql.query("UPDATE projects SET purchase_enabled=true WHERE id=$1",[p]);
     const client=(await sql.query('SELECT client_id FROM projects WHERE id=$1',[p])).rows[0].client_id;
     const demand=randomUUID(),indent=randomUUID(),pkg=randomUUID(),bo=randomUUID(),group=randomUUID();
@@ -21,6 +21,6 @@ export async function workFixture(token:string,actor:string,other:string){
     await sql.query("INSERT INTO purchase_indent_group_sets(bo_id,project_id,version,data,is_active)VALUES($1,$2,1,'{}',true)",[bo,p]);
     await sql.query("INSERT INTO purchase_indent_group_entries(id,bo_id,name,scope_revision,data,is_active)VALUES($1,$2,'Synthetic group',1,'{}',true)",[group,bo]);
     const quotation=async(recipient:string,kind:string)=>{const id=randomUUID();await sql.query("INSERT INTO purchase_quotation_work_tasks(id,project_id,bo_id,group_id,attempt_id,recipient_id,kind,title,link,state)VALUES($1,$2,$3,$4,$5,$6,$7,'Synthetic quotation','/dashboard?screen=quotations','pending')",[id,p,bo,group,randomUUID(),recipient,kind]);return id;};
-    const alternative=async()=>{const otherMake=await call('/manufacturers',{code:prefix+'A',name:prefix+' alternative',data:{eligible:[category.code]},reason:'Synthetic alternative'});return call('/catalogue-items',{configuration_id:template.id,manufacturer_id:otherMake.id,specifications:{SIZE:'S1'},model:prefix+' alternative'});};
+    const alternative=async()=>{const otherMake=await call('/manufacturers',{code:prefix+'A',name:prefix+' alternative',data:{eligible:[category.code]},reason:'Synthetic alternative'});return legacyCatalogueItem(template.id, otherMake, prefix + ' alternative');};
     return {project:p,client,demand,indent,pkg,item,make,category,unit,sub,quotation,alternative};
 }

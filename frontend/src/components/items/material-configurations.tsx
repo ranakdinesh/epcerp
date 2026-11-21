@@ -49,7 +49,7 @@ export function MaterialConfigurations() {
       <div className={panel}>
         <h2 className="text-2xl font-bold">Categories & configurations</h2>
         <p className="text-slate-600">
-          Define what an item is before assigning its manufacturer and SKU.
+          Define the specifications used to create item SKUs.
         </p>
         <p>
           {records.filter((r) => r.data.kind === "category").length} categories

@@ -7,5 +7,8 @@
   },
   "000121_purchase_advance_notices.up.sql": {
     "sha256": "ce66ea8561c540ff6708860aa472f0164f9c9eb3b1239342009f35ebd623fe90"
+  },
+  "000122_manufacturer_independent_skus.up.sql": {
+    "sha256": "8af306344a9bca4383a07085c87eccb04652fc3a052f3fcb0d3a2262262d5140"
   }
 }

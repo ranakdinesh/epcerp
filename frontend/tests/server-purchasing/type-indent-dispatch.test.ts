@@ -46,11 +46,8 @@ test('category indent dispatch unlocks quotation pricing only after the last ven
         const template = await json(handleMaster, '/configuration-templates/' + sub.id + '/publish', {
             definition: { ...definition(), subcategory_code: sub.code, template_name: prefix }, expected_revision: 0, reason: 'Fixture template',
         });
-        const manufacturer = await json(handleMaster, '/manufacturers', {
-            code: prefix, name: prefix, data: { eligible: [category.code] }, reason: 'Fixture manufacturer',
-        }, 201);
         const item = await json(handleMaster, '/catalogue-items', {
-            configuration_id: template.id, manufacturer_id: manufacturer.id, specifications: { SIZE: 'S1' }, model: prefix,
+            configuration_id: template.id, specifications: { SIZE: 'S1' }, model: prefix,
         }, 201);
         const bo = randomUUID(), line = randomUUID(), today = indiaDate(new Date());
         const draft = await save(session.access_token, project, bo, {

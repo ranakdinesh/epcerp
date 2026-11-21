@@ -41,7 +41,6 @@ test("catalogue domain rules, hashes, Unicode models and legacy fingerprints mat
     for (const model of ["  QA MODEL  ", "Straße Σς İ ı ſ K", "ＡＢＣ１２３", "ΟΣ ẞ ß ﬃ", "E\u0301\u001c\u0085 X", "💡 <test> & \u2028Z", "\ufeffA", "", "x".repeat(121)])
         for (const values of [{ SIZE: "s1" }, { SIZE: "__na__" }, { SIZE: "bad" }, {}] as Record<string, string>[])
             fixtures.push({ area: "item", configuration: config, manufacturer: make, model, values });
-    fixtures.push({ area: "item", configuration: config, manufacturer: { ...make, is_active: false }, model: "model", values: { SIZE: "S1" } });
     for (const kind of ["create", "profile", "active"]) {
         for (const body of [{ code: "QA", name: "  QA make  ", data: { eligible: [" QACAT "], notes: " QA notes " }, reason: " reason ", version: 1, is_active: false }, null, {}, { is_active: true, version: "1", reason: "QA" }]) {
             if (body && "code" in body) {
@@ -81,10 +80,10 @@ test("catalogue domain rules, hashes, Unicode models and legacy fingerprints mat
                     Object.assign(actual, evaluateTemplate(template, { values: fixture.values }));
                     break;
                 case "item": {
-                    const v = deriveItem(fixture.configuration!, fixture.manufacturer!, fixture.values!, fixture.model!);
-                    Object.assign(actual, { engineering_key: v.engineering_key, fingerprint: v.fingerprint, model: v.model, description: v.description, specifications: v.specifications });
-                    // New SKU formatting intentionally differs from the historical Go policy.
-                    delete expected[i].prefix;
+                    const v = deriveItem(fixture.configuration!, fixture.values!, fixture.model!);
+                    Object.assign(actual, { engineering_key: v.engineering_key, model: v.model, specifications: v.specifications });
+                    // Manufacturer-free SKU identity and description differ from the Go policy.
+                    for (const key of ["prefix", "fingerprint", "description"]) delete expected[i][key];
                     break;
                 }
                 case "manufacturer": {

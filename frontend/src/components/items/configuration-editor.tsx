@@ -168,7 +168,7 @@ export function ConfigurationEditor({
                   checked={modelRequired}
                   onChange={(e) => setModelRequired(e.target.checked)}
                 />
-                Manufacturer model required
+                Model / part number required
               </ValidatedLabel>
             </div>
             {fields.map((f, i) => (

@@ -122,8 +122,8 @@ read/write grants, with separate import grants. Corrections require versions and
 reasons. Template publication appends a revision and retains old field/option
 codes. Issued item identity, snapshots, SKU numbers and audit records stay
 immutable. New SKUs use the category, family, specifications and optional model
-token. Creation rejects a duplicate even if the manufacturer differs or the
-matching item has a legacy SKU. PostgreSQL enforces full SKU uniqueness across
+token. New catalogue items have no manufacturer. Normalized duplicates reuse the
+existing item, including items with a legacy SKU and manufacturer snapshot. PostgreSQL enforces full SKU uniqueness across
 all items, including retired items. Shared advisory and row locks protect item
 creation and lifecycle changes.
 

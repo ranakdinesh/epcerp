@@ -57,8 +57,7 @@ export class ItemRepository {
                 catalogue.push(v);
             }
         }
-        const manufacturers = (await new ManufacturerRepository(this.db).list()).map(m => ({ id: m.id, code: m.code, name: m.name, is_active: m.is_active, data: { eligible: m.data.eligible ?? null } }));
-        return { catalogue, manufacturers };
+        return { catalogue };
     }
     async create(v: Omit<StoredItem, "serial" | "version" | "created_at" | "updated_at" | "created_by_id" | "updated_by_id">, actor: string) { return (await query<StoredItem>(this.db, "ItemsCreateItem", { ...v, actor_id: actor })).rows[0] ?? null; }
     async change(old: StoredItem, status: string, actor: string) { const [row] = (await query<StoredItem>(this.db, "ItemsChangeItem", { id: old.id, expected_version: old.version, status, is_active: status === "approved", actor_id: actor })).rows; if (!row)

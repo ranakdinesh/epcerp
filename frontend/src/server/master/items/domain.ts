@@ -43,13 +43,13 @@ export type ItemSnapshot = {
         name: string;
         code: string;
     };
-    manufacturer: ItemMake;
+    manufacturer?: ItemMake;
     sku_prefix: string;
 };
 export type Item = {
     id: string;
     configuration_id: string;
-    manufacturer_id: string;
+    manufacturer_id: string | null;
     model: string;
     specifications: Record<string, string>;
     snapshot: ItemSnapshot;
@@ -74,7 +74,7 @@ const modelFold = new Map<number, string>((fullFold as [
     string
 ][]).map(([key, value]) => [key, value]));
 export function normalizeModel(value: string) { return spacedName([...value.normalize("NFKC")].map(c => modelFold.get(c.codePointAt(0)!) ?? c).join("").replace(/[\u001c-\u001f]/g, " ")); }
-export function eligible(c: ItemConfiguration, m: ItemMake) { return c.is_active && m.is_active && (m.data.eligible ?? []).some(code => code === c.code || code === c.data.family_code || code === c.data.category_code); }
+export function eligibleLegacyMake(c: ItemConfiguration, m: ItemMake) { return c.is_active && m.is_active && (m.data.eligible ?? []).some(code => code === c.code || code === c.data.family_code || code === c.data.category_code); }
 export function buildItemSku(config: ItemDefinition, specifications: Record<string, string>, model: string) {
     const tokens = [config.category_code, config.family_code];
     for (const field of config.fields ?? []) {
@@ -86,11 +86,9 @@ export function buildItemSku(config: ItemDefinition, specifications: Record<stri
         tokens.push(modelToken);
     return tokens.join("-");
 }
-export function deriveItem(c: ItemConfiguration, m: ItemMake, spec: Record<string, string>, rawModel: string) {
+export function deriveItem(c: ItemConfiguration, spec: Record<string, string>, rawModel: string) {
     if (!c.is_active || c.data.kind !== "type")
         fieldError("configuration_id", "Choose an active configuration with an active category and unit");
-    if (!eligible(c, m))
-        fieldError("manufacturer_id", "Manufacturer is inactive or not eligible for this configuration");
     if (Object.keys(spec).length > 64)
         fieldError("specifications", "Too many specification fields");
     const known = new Set(c.data.fields.map(f => f.code));
@@ -116,13 +114,12 @@ export function deriveItem(c: ItemConfiguration, m: ItemMake, spec: Record<strin
         fieldError("model", "Model must be at most 120 characters");
     if (c.data.model_required && !model)
         fieldError("model", "Model or part number is required");
-    labels.push(m.name);
     if (model)
         labels.push(model);
     const prefix = buildItemSku(c.data, values, model);
     if (byteLength(prefix) > 900)
         fieldError("specifications", "Specifications produce a SKU prefix longer than 900 characters");
-    const base = { family: c.data.family_code, uom: c.data.uom, specifications: sortedMap(values) }, engineering_key = itemHash(base), fingerprint = itemHash({ ...base, manufacturer: m.id, model });
+    const base = { family: c.data.family_code, uom: c.data.uom, specifications: sortedMap(values) }, engineering_key = itemHash(base), fingerprint = itemHash({ ...base, model });
     return { engineering_key, fingerprint, model, prefix, description: labels.join(" · "), specifications: values };
 }
 export function parseItem(value: unknown, change = false) {
@@ -131,17 +128,16 @@ export function parseItem(value: unknown, change = false) {
     for (const [key, v] of Object.entries(value as Record<string, unknown>))
         if (v === null)
             fieldError(key, "Null is not accepted");
+    // Older callers may still send manufacturer_id. New SKUs do not use it.
     const r = goObject(value, change ? ["status", "version", "reason"] : ["configuration_id", "manufacturer_id", "specifications", "model"]);
     if (change) {
         const version = integer(r.version);
         if (version < 1)
             fieldError("version", "Provide a positive version");
-        return { status: text(r.status), version, reason: text(r.reason), configuration_id: "", manufacturer_id: "", model: "", specifications: {} };
+        return { status: text(r.status), version, reason: text(r.reason), configuration_id: "", model: "", specifications: {} };
     }
-    const configuration_id = text(r.configuration_id), manufacturer_id = text(r.manufacturer_id);
+    const configuration_id = text(r.configuration_id);
     if (!uuidPattern.test(configuration_id))
         fieldError("configuration_id", "Choose a valid configuration");
-    if (!uuidPattern.test(manufacturer_id))
-        fieldError("manufacturer_id", "Choose a valid manufacturer");
-    return { configuration_id: configuration_id.toLowerCase(), manufacturer_id: manufacturer_id.toLowerCase(), model: text(r.model), specifications: stringMap(r.specifications, true), status: "", version: 0, reason: "" };
+    return { configuration_id: configuration_id.toLowerCase(), model: text(r.model), specifications: stringMap(r.specifications, true), status: "", version: 0, reason: "" };
 }
