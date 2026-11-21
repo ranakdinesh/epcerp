@@ -8,7 +8,7 @@ export type TechnicalWorkspace = {
  source:{supplier_name?:string;loi_reference:string;description:string;quantity:string;currency:string;total:string;project_available:boolean;blockers:string[]};
  actions:TechnicalAction[];files:TechnicalFile[];history:{id:string;action:string;reason:string;actor_id:string;at:string}[];ready:boolean;task_only:boolean;
 };
-export const technicalLabels:Record<TechnicalAction,string>={configure:"Create technical kit",document:"Save document",submit:"Submit full kit",team_review:"Record team review",client_approval:"Record client decision",revise:"Revise technical kit"};
+export const technicalLabels:Record<TechnicalAction,string>={configure:"Create technical kit",document:"Save document",submit:"Record submission to client",team_review:"Verify technical kit",client_approval:"Record client decision",revise:"Revise technical kit"};
 export function technicalError(detail:unknown,fallback:string):string{return typeof detail==="string"?detail:fallback;}
 export function technicalCommand(action:TechnicalAction,version:number,f:FormData,doc?:TechnicalDocument){
  const text=(key:string)=>String(f.get(key)??"");

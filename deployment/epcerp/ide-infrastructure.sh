@@ -11,7 +11,7 @@ fi
 cd "$script_dir"
 case "${1:-start}" in
   start)
-    docker compose --env-file .env -f compose.yaml stop api frontend document-worker
+    docker compose --env-file .env -f compose.yaml stop frontend document-processor
     docker compose --env-file .env -f compose.yaml up -d --wait db storage
     ;;
   status)

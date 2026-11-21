@@ -1,16 +1,20 @@
 # epcERP
 
-Independent Go backend and Next.js frontend for EPC operations.
+EPC operations application built with Next.js, TypeScript and PostgreSQL.
 
-- `backend/`: Go API, workers, owned PostgreSQL migrations and native tests.
-- `frontend/`: Next.js application connected to the Go API.
-- `backend/sql/migrations/`: ordered Go-owned PostgreSQL migrations embedded in the migrator.
-- `deployment/epcerp/`: Go Docker stack and operator tooling.
+- `frontend/src/server/`: authentication, master data, tenders, projects, purchasing and platform services.
+- `frontend/migrations/`: the complete owned PostgreSQL migration history.
+- `frontend/tools/document-processor/`: private document validation, conversion and extraction helpers.
+- `deployment/epcerp/`: Docker configuration and operator tools.
 
-See each project's README for setup and verification. Local `.env` files,
-credentials, database snapshots, build outputs and dependencies stay outside Git.
+Start with [frontend setup](frontend/README.md) or [Docker setup](deployment/epcerp/README.md).
+The ERP has no Go application backend, Go worker or local-model service. PostgreSQL,
+MinIO object storage and ClamAV remain required infrastructure. MinIO's optional
+vendor-image build uses upstream Go source; no ERP Go source is kept in this tree.
 
-For local native backend development, `backend/.env.local` selects the host
-PostgreSQL database at `127.0.0.1:5432/vtplerp`. Keep the password private.
-The Docker stack supplies its own database URL; loopback inside a container
-refers to that container, not the host.
+The removed implementation remains recoverable in Git history. Optional historical
+compatibility checks are documented in [the test guide](frontend/scripts/compatibility/README.md).
+Database volumes, documents, credentials and encryption keys are never Git cleanup targets.
+
+The reviewed release target is `main`; combined development work uses
+`codex/development`. [Migration/deployment records](deployment/epcerp/history/) are historical evidence.

@@ -11,10 +11,21 @@ import { chargeEstimate, decimalMoney, lineEstimate, editPrice, fixedPrice, type
 
 const field = "block min-h-11 w-full min-w-20 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm tabular-nums";
 const durations = [6, 12, 24, 48];
+const coverageLabels = {
+  warranty: "Warranty",
+  guarantee: "Guarantee",
+  both: "Warranty and guarantee",
+};
+
+function coverageLabel(line: Quote["lines"][number] | undefined) {
+  if (!line?.warranty_months) return "Not recorded";
+  return `${coverageLabels[line.coverage_type ?? "warranty"]} · ${line.warranty_months} months`;
+}
+
 export function QuotationItemPrices({document, previous, money, taxRate, negotiating=false, canWrite=false, landedCosts}: {canWrite?:boolean; landedCosts?:{line_id:string;landed:string|null}[];document: VendorIndent; previous?: Quote; negotiating?:boolean; taxRate:string; money: (value: string | null | undefined)=>string}) {
   const [entries,setEntries] = useState<Record<string,PriceInput>>(()=>Object.fromEntries(document.data.lines.map(line=>{
     const old=previous?.lines.find(entry=>entry.line_id===line.id);
-    const initial:PriceInput={pricing_mode:old?.pricing_mode??"unit_price",unit_price:old?.unit_price??"",line_total:old?.line_total??"",discount_pct:old?.discount_pct??"0",tax_pct:canWrite?taxRate:old?.tax_pct??taxRate};
+    const initial:PriceInput={pricing_mode:previous?.amount_mode==="total_only"?"unit_price":old?.pricing_mode??"unit_price",unit_price:previous?.amount_mode==="total_only"?"":old?.unit_price??"",line_total:previous?.amount_mode==="total_only"?"":old?.line_total??"",discount_pct:old?.discount_pct??"0",tax_pct:canWrite?taxRate:old?.tax_pct??taxRate};
     return [line.id,editPrice(initial,initial.pricing_mode==="line_total"?"line_total":"unit_price",initial.pricing_mode==="line_total"?initial.line_total:initial.unit_price,line.quantity??"0")];
   })));
   const [activeItem, setActiveItem] = useState<number | null>(null);
@@ -41,19 +52,46 @@ export function QuotationItemPrices({document, previous, money, taxRate, negotia
   const display=(value:bigint)=>money(decimalMoney(value));
   function update(id:string,patch:Partial<PriceInput>) {setEntries(current=>({...current,[id]:{...current[id],...patch}}));}
   const rows=document.data.lines.map((line,index)=>({...line,position:index+1,sku:line.item_snapshot.sku||line.id,entry:entries[line.id],cost:lineEstimate(entries[line.id],line.quantity??"0"),old:previous?.lines.find(entry=>entry.line_id===line.id),quoted:Boolean(entries[line.id].pricing_mode==="line_total"?entries[line.id].line_total:entries[line.id].unit_price)}));
+  const recordedCoverage = rows.find(row => row.old?.warranty_months)?.old;
+  const mixedCoverage = rows.some(({old}) => old?.warranty_months && coverageLabel(old) !== coverageLabel(recordedCoverage));
+  const itemCoverageInHistory = !canWrite && Boolean(recordedCoverage) && (mixedCoverage || rows.some(row => !row.old?.warranty_months));
+  const coverageHelp = useId();
   type Row = typeof rows[number];
   function numberCell(row: Row, key: keyof Omit<PriceInput,"pricing_mode">, name: string, label: string, step: string, required=false, disabled=false, max?: number) {
     return <ValidatedLabel className="block text-sm font-semibold"><span>{label}</span><ValidatedInput aria-label={`${label} item ${row.position}`} name={`${name}_${row.id}`} title={key==="line_total"?"Total before discount and tax":undefined} type="number" min="0" max={max} step={step} required={required&&!readOnly} disabled={disabled} value={disabled ? "" : row.entry[key]} placeholder={disabled ? "—" : undefined} className={`${field} mt-1 text-right disabled:bg-slate-100 ${negotiating&&key==="discount_pct"?"ring-2 ring-amber-400":""}`} readOnly={key==="tax_pct"} onBlur={event=>{if(key==="unit_price"||key==="line_total")update(row.id,{[key]:fixedPrice(event.target.value)})}} onChange={event=>{if(key==="unit_price"||key==="line_total")setEntries(current=>({...current,[row.id]:editPrice(current[row.id],key,event.target.value,row.quantity??"0")}));else update(row.id,{[key]:event.target.value})}}/></ValidatedLabel>;
   }
   return <div className="min-w-0 space-y-4 [&_table]:min-w-[600px]">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-bold">Quotation pricing</h3><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">{valid.length} / {rows.length} items priced</span></div>
+    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-bold">Quotation pricing</h3><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">{totalOnly ? `${rows.length} items covered` : `${valid.length} / ${rows.length} items priced`}</span></div>
     <ValidatedLabel className="indent-selection flex min-h-11 items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-4 font-semibold"><ValidatedInput aria-label="Vendor supplied only one overall quotation total" name="total_only" disabled={!canWrite} type="checkbox" checked={totalOnly} onChange={event=>setTotalOnly(event.target.checked)}/>One overall quotation total</ValidatedLabel>
-    {totalOnly?<section aria-label="Overall quotation total" className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4"><ValidatedLabel className="block font-semibold">All-inclusive quotation total<ValidatedInput required={canWrite} readOnly={!canWrite} name="total_amount" type="number" min="0.01" step="0.01" value={totalAmount} onBlur={event=>setTotalAmount(fixedPrice(event.target.value))} onChange={event=>setTotalAmount(event.target.value)} className={`${field} mt-1 max-w-md`}/></ValidatedLabel><p className="text-sm text-slate-700">Enter the final amount for the complete vendor indent, including tax, freight and other charges. Item prices and charge allocations are not required. This quotation can be recorded and compared, but it cannot proceed to item-level Accounts approval until the vendor provides an itemized revision.</p></section>:<>
+    {canWrite ? <div className="max-w-md space-y-1">
+      <ValidatedLabel className="block text-sm font-semibold">Indent warranty / guarantee
+        <ValidatedSelect name="indent_coverage" required={totalOnly || rows.some(row => row.quoted)} aria-describedby={coverageHelp} className={`${field} mt-1`}
+          defaultValue={!mixedCoverage && recordedCoverage?.warranty_months && durations.includes(recordedCoverage.warranty_months) ? `${recordedCoverage.coverage_type ?? "warranty"}:${recordedCoverage.warranty_months}` : ""}>
+          <option value="">Choose coverage and duration</option>
+          {Object.entries(coverageLabels).map(([type, label]) => <optgroup key={type} label={label}>
+            {durations.map(months => <option key={months} value={`${type}:${months}`}>{label} · {months} months</option>)}
+          </optgroup>)}
+        </ValidatedSelect>
+      </ValidatedLabel>
+      <p id={coverageHelp} className="text-sm text-slate-600">{mixedCoverage ? "The previous revision had different terms by item. Choose one to apply to every item in this indent." : "Applies to every item in this indent."}</p>
+    </div> : previous && <div className="text-sm">
+      <p className="font-semibold">Indent warranty / guarantee</p>
+      <p>{itemCoverageInHistory ? "See coverage by item in this revision." : coverageLabel(recordedCoverage)}</p>
+    </div>}
+    {totalOnly?<section aria-label="Overall quotation total" className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4"><ValidatedLabel className="block font-semibold">All-inclusive quotation total<ValidatedInput required={canWrite} readOnly={!canWrite} name="total_amount" type="number" min="0.01" step="0.01" value={totalAmount} onBlur={event=>setTotalAmount(fixedPrice(event.target.value))} onChange={event=>setTotalAmount(event.target.value)} className={`${field} mt-1 max-w-md`}/></ValidatedLabel>{rows.length > 1 && <p className="text-sm">For Finance submission, enter an internal allocation for each item that adds up to the all-inclusive vendor total.</p>}
+      <DataGrid label="Quotation items" rows={rows} searchable={false} paginate={false} initialSort="position" columns={[
+        {key:"position",label:"#",value:row=>row.position},
+        {key:"item",label:"Item / SKU",value:row=>row.sku,render:row=><div className="min-w-40 break-words"><strong>{row.item_snapshot.description||row.sku}</strong><p className="text-sm">{row.sku}</p></div>},
+        ...(itemCoverageInHistory ? [{key:"coverage",label:"Coverage",value:(row:Row)=>coverageLabel(row.old)}] : []),
+        {key:"compliant",label:"Technical compliance",value:row=>row.old?.compliant?"Confirmed":"",render:row=><ValidatedLabel className="flex items-center gap-2"><ValidatedInput type="checkbox" name={`compliant_${row.id}`} disabled={!canWrite} defaultChecked={row.old?.compliant??false}/>Confirmed</ValidatedLabel>},
+        ...(rows.length > 1 ? [{key:"allocation",label:"Internal allocation (all-inclusive)",value:(row:Row)=>row.old?.line_total??"",render:(row:Row)=><ValidatedInput aria-label={`Internal allocation item ${row.position}`} name={`allocation_${row.id}`} type="number" min="0.01" step="0.01" readOnly={!canWrite} defaultValue={previous?.amount_mode==="total_only"?row.old?.line_total??"":""} className={field}/>}]:[]),
+      ]} /></section>:<>
     <DataGrid label="Quotation item pricing" rows={rows} searchable={false} paginate={false} initialSort="position" columns={[
       {key:"position",label:"#",value:row=>row.position},
       {key:"item",label:"Item / specification",value:row=>row.sku,render:row=><div className="min-w-40 max-w-72"><p className="break-all text-sm font-semibold">{row.sku}</p><p className="mt-1 line-clamp-2 text-xs text-slate-600">{row.item_snapshot.description||row.sku}</p></div>},
       {key:"quantity",label:"Quantity",value:row=>row.quantity||"",render:row=><span className="whitespace-nowrap tabular-nums">{Number(row.quantity??0).toFixed(2)} {row.item_snapshot.uom}</span>},
       {key:"total",label:"Total incl. tax",value:row=>row.cost?decimalMoney(row.cost.total):"",render:row=><span className="whitespace-nowrap text-sm font-semibold tabular-nums">{row.cost?display(row.cost.total):row.quoted?"Check price":"Not quoted"}</span>},
+      ...(itemCoverageInHistory ? [{key:"coverage",label:"Coverage",value:(row:Row)=>coverageLabel(row.old)}] : []),
       ...(landedCosts?[{key:"landed",label:"Cost incl. charges",value:(row:Row)=>money(landedCosts.find(cost=>cost.line_id===row.id)?.landed)}]:[]),
     ]} actions={row=><div className="flex gap-2"><button type="button" aria-label={`View pricing item ${row.position}`} title={`View pricing item ${row.position}`} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 bg-white text-blue-700" onClick={()=>{setItemMode("view");setActiveItem(row.position-1);}}><EyeIcon className="h-5 w-5"/></button>{canWrite&&<button type="button" aria-label={`Edit pricing item ${row.position}`} title={`Edit pricing item ${row.position}`} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 bg-white text-blue-700" onClick={()=>{setItemMode("edit");setActiveItem(row.position-1);}}><PencilSquareIcon className="h-5 w-5"/></button>}</div>}/>
     {/* Keep every item mounted inside the owning form for complete submission and validation. */}
@@ -72,10 +110,6 @@ export function QuotationItemPrices({document, previous, money, taxRate, negotia
           <fieldset disabled={readOnly} className="space-y-5">
           <ValidatedInput type="hidden" name={`pricing_mode_${row.id}`} value={row.entry.pricing_mode}/>
           <div className="grid gap-4 sm:grid-cols-2">{numberCell(row,"unit_price","price","Unit price","0.01")}{numberCell(row,"line_total","line_total","Line amount","0.01")}{numberCell(row,"discount_pct","discount","Discount %","0.01",true,false,100)}{numberCell(row,"tax_pct","tax","Tax % (fixed)","0.01",true,false,100)}</div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ValidatedLabel className="block text-sm font-semibold">Warranty / guarantee<ValidatedSelect required={row.quoted&&!readOnly} aria-label={`Coverage type item ${row.position}`} name={`coverage_type_${row.id}`} defaultValue={row.old?.coverage_type??"warranty"} className={`${field} mt-1`}><option value="warranty">Warranty</option><option value="guarantee">Guarantee</option><option value="both">Warranty and guarantee</option></ValidatedSelect></ValidatedLabel>
-            <ValidatedLabel className="block text-sm font-semibold">Duration (months)<ValidatedSelect required={row.quoted&&!readOnly} aria-label={`Coverage duration item ${row.position}`} name={`warranty_months_${row.id}`} defaultValue={row.old?.warranty_months??""} className={`${field} mt-1`}><option value="">Choose months</option>{durations.map(months=><option key={months} value={months}>{months} months</option>)}</ValidatedSelect></ValidatedLabel>
-          </div>
           <ValidatedLabel className="indent-selection flex min-h-11 items-center gap-3 text-sm font-semibold"><ValidatedInput aria-label={`Technical compliance ${row.sku}`} name={`compliant_${row.id}`} type="checkbox" defaultChecked={row.old?.compliant??false}/>Technical compliance confirmed</ValidatedLabel>
           <ValidatedLabel className="block text-sm font-semibold">{row.quoted?"Item notes":"Reason not quoted"}<ValidatedInput required={!row.quoted&&!readOnly} aria-label={`Notes item ${row.position}`} name={`notes_${row.id}`} maxLength={2000} defaultValue={row.old?.notes??""} className={`${field} mt-1`}/></ValidatedLabel>
           </fieldset>

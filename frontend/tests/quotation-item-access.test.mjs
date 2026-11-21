@@ -56,3 +56,31 @@ test("read-only revisions retain recorded tax and costs including charge allocat
  assert.match(html,/550\.00/);
  assert.match(html,/Recorded offer/);
 });
+
+test("both pricing modes render one required coverage dropdown for the indent",()=>{
+ const secondLine={...document.data.lines[0],id:"line-2"};
+ const indent={data:{lines:[...document.data.lines,secondLine]}};
+ const lines=indent.data.lines.map(line=>({line_id:line.id,unit_price:"10.00",discount_pct:"0",tax_pct:"18.00",coverage_type:"guarantee",warranty_months:24}));
+ for(const amount_mode of ["itemized","total_only"]){
+  const html=renderToStaticMarkup(createElement(QuotationItemPrices,{...props,document:indent,previous:{lines,amount_mode},canWrite:true}));
+  assert.equal(html.match(/<select[^>]*name="indent_coverage"/g)?.length,1);
+  assert.match(html,/<select[^>]*name="indent_coverage"[^>]*required=""/);
+  assert.match(html,/<option value="guarantee:24" selected="">/);
+  assert.doesNotMatch(html,/name="(?:coverage_type|warranty_months)_/);
+ }
+});
+
+test("mixed legacy coverage stays visible in history and requires a new choice when editing",()=>{
+ const secondLine={...document.data.lines[0],id:"line-2"};
+ const indent={data:{lines:[...document.data.lines,secondLine]}};
+ const previous={lines:[
+  {line_id:"line-1",unit_price:"10.00",discount_pct:"0",tax_pct:"18.00",coverage_type:"warranty",warranty_months:12},
+  {line_id:"line-2",unit_price:"20.00",discount_pct:"0",tax_pct:"18.00",coverage_type:"both",warranty_months:48},
+ ]};
+ const editor=renderToStaticMarkup(createElement(QuotationItemPrices,{...props,document:indent,previous,canWrite:true}));
+ assert.match(editor,/<option value="" selected="">Choose coverage and duration/);
+ const history=renderToStaticMarkup(createElement(QuotationItemPrices,{...props,document:indent,previous,canWrite:false}));
+ assert.match(history,/Warranty · 12 months/);
+ assert.match(history,/Warranty and guarantee · 48 months/);
+ assert.doesNotMatch(history,/name="indent_coverage"/);
+});

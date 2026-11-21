@@ -1,0 +1,59 @@
+name: Verify and package epcERP
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+
+  package:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release images from the reviewed commit
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir release
+          for service in frontend document-processor; do
+            dockerfile=frontend
+            if [ "$service" = document-processor ]; then dockerfile=processor; fi
+            docker build --platform linux/amd64 \
+              --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+              --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+              -t "epcerp-$service:main-$GITHUB_SHA" \
+              -f "deployment/epcerp/$dockerfile.Dockerfile" frontend
+          done
+          docker save "epcerp-frontend:main-$GITHUB_SHA" "epcerp-document-processor:main-$GITHUB_SHA" \
+            | gzip > release/images.tar.gz
+          printf '%s\n' "$GITHUB_SHA" > release/commit.txt
+          (cd release && sha256sum images.tar.gz > images.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: epcerp-main-${{ github.sha }}
+          path: release/
+          retention-days: 30
+          if-no-files-found: error

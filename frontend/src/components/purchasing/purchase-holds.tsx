@@ -4,7 +4,6 @@ import { ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedSelect, Validat
 import { useState, type FormEvent } from "react";
 import { DataGrid, GridAction, GridStatus } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
-import { ItemHistory } from "../items/item-history";
 import {
   request,
   input,
@@ -326,11 +325,6 @@ function HoldEditor({
             </>
           )}
         </fieldset>
-        {old && (
-          <ItemHistory
-            url={`/api/projects/${project}/purchase-holds/${old.id}/history`}
-          />
-        )}
         <button type="button" className={secondary} onClick={close}>
           Close
         </button>

@@ -37,3 +37,10 @@ test("business metadata puts purchasing and finance outside Projects", () => {
   assert.equal(groups.find(g => g.key === "accounts.new_finance_resource").area, "Accounts / Finance");
   assert.equal(groupPermissions(groups.flatMap(g => g.permissions), "finance").length, 2);
 });
+
+test("finds the finalise and reopen permission using the purchase screen wording", () => {
+  const code = "projects.purchase_bo.complete";
+  const [group] = groupPermissions([{ code, description: "Publish requirements", group: "purchasing" }], "purchase finalise");
+  assert.equal(group.label, "Items to purchase");
+  assert.equal(group.permissions[0].code, code);
+});

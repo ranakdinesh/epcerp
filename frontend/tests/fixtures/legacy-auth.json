@@ -1,0 +1,11 @@
+{
+  "password": "Migration-Test1!",
+  "hashes": [
+    "$argon2id$v=19$m=65536,t=3,p=4$c3ludGhldGljLXNhbHQxMg$pXtLdsysw2ZFoW3BlKlq2qhkVfwo8XCZfTxPh2wF6JY",
+    "$argon2i$v=19$m=65536,t=3,p=4$c3ludGhldGljLXNhbHQxMg$BiLF2cS7mnPDALixPFPAzCuRow1MYRUsvyKi+j9mTVY"
+  ],
+  "mail_payload": "HK3OHp3TfdJqEpwNAWR5xV0g7Or0bwQDnBPUi65pAKS4RUaa4RYXpaSkoWBYLqj6PSemYeYw/Q==",
+  "mail_hash": "ae53b31f6668d80c356eef3e87025ddaade4c03da383a5a9746796c4719caacf",
+  "reference_commit": "a18ae634c00fd194fe00ed7bbe9f303bad9b39b9",
+  "synthetic_only": true
+}

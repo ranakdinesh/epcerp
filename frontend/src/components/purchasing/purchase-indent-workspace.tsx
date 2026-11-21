@@ -8,7 +8,7 @@ import { PurchaseIndentTerms, vendorIndentDefaults } from "./purchase-indent-ter
 import { VendorIndentRegister, type DocumentWorkspace, type DocumentCommand } from "./purchase-indent-documents";
 import { PurchaseIndentGroups, type GroupWorkspace, type GroupCommand } from "./purchase-indent-groups";
 import { RecordDrawer } from "@/components/ui/record-drawer";
-import { displayServerErrors } from "@/components/ui/server-field-errors";
+import { displayServerErrors, serverErrorMessage } from "@/components/ui/server-field-errors";
 
 import {useRouter,useSearchParams} from "next/navigation";
 import { useEffect, useState } from "react";
@@ -83,6 +83,7 @@ export function PurchaseIndentWorkspace({
   const [loading, setLoading] = useState(true);
   const allowedTabs = indentTabs(user.permissions);
   const [activeTab, setActiveTab] = useState<"assignment" | "vendors" | "report" | "preview" | "document">(
+    params.get("indentTab")==="register"&&allowedTabs.includes("preview")?"preview":
     params.get("indentTab")==="vendors"&&allowedTabs.includes("vendors")?"vendors":allowedTabs[0] ?? "assignment",
   );
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
@@ -90,6 +91,7 @@ export function PurchaseIndentWorkspace({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [registerGroupId, setRegisterGroupId] = useState(()=>params.get("indentTab")==="register"?params.get("group")??"":"");
   const [isDocumentOpen, setIsDocumentOpen] = useState(false);
   const [documentOpener, setDocumentOpener] = useState<HTMLElement | null>(null);
   const [printNotice, setPrintNotice] = useState("");
@@ -141,7 +143,10 @@ export function PurchaseIndentWorkspace({
       const allVendorsReady = savedGroups.length > 0 && savedGroups.every(group =>
         group.vendor_ids.filter(id => saved.vendors.some(vendor => vendor.id === id && vendor.is_active)).length >= 3);
       if ((command.action === "create_group" || command.action === "add_items") && allGrouped && allowedTabs.includes("vendors")) setActiveTab("vendors");
-      if ((command.action === "set_vendors" || command.action === "add_vendors") && allVendorsReady && allowedTabs.includes("preview")) setActiveTab("preview");
+      if ((command.action === "set_vendors" || command.action === "add_vendors") && allVendorsReady && allowedTabs.includes("preview")) {
+        setRegisterGroupId("");
+        setActiveTab("preview");
+      }
       if (command.action === "reset_item") setActiveTab("assignment");
       setSelectedDocumentId("");
       setDocuments(previous=>previous?{...previous,documents:previous.documents.map(d=>({...d,data:{...d.data,is_current:(d.data.scope_revision??1)===(data.record?.groups.find((g:{id:string;scope_revision?:number})=>g.id===d.group_id)?.scope_revision??1)}}))}:null);
@@ -155,7 +160,11 @@ export function PurchaseIndentWorkspace({
     try {
       const response=await fetch(documentUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...command,group_version:workspace?.record?.version??0,bo_version:boVersion})});
       const data=await response.json();
-      if(!response.ok){if(form&&displayServerErrors(form,data))return false;throw new Error(typeof data.detail==="string"?data.detail:"Unable to save indent log.");}
+      if (!response.ok) {
+        if (displayServerErrors(form, data)) return false;
+        setNotice(serverErrorMessage(data, "Unable to save the vendor indent."));
+        return false;
+      }
       setDocuments(data);
       window.dispatchEvent(new CustomEvent("purchase-progress-saved", {detail:project}));
       const updated=await fetch(groupUrl);const groupsData=await updated.json();
@@ -170,7 +179,7 @@ export function PurchaseIndentWorkspace({
 
       window.dispatchEvent(new Event("indent-dispatch-changed"));
       return true;
-    } catch(error){setNotice(error instanceof Error?error.message:"Unable to save indent log.");return false;}
+    } catch(error){setNotice(error instanceof Error?error.message:"Unable to save the vendor indent.");return false;}
     finally{setBusy(false);}
   }
   const created = workspace?.record?.state === "created";
@@ -420,7 +429,7 @@ export function PurchaseIndentWorkspace({
         <div className="flex items-center gap-3">
           {/* Mode toggle */}
           <div className="bo-segmented flex-wrap" role="navigation" aria-label="Purchase indent steps">
-            {([ ["assignment","Items & groups"], ["vendors","Group vendors"], ["report","Item vendor report"], ["preview","Vendor indent register"], ["document","Indent document"] ] as const).filter(([tab])=>allowedTabs.includes(tab)).map(([tab,label])=><button key={tab} type="button" aria-pressed={activeTab===tab} disabled={loading || busy || (tab!=="assignment" && !groups.length)} onClick={event=>{if(tab === "document"){setDocumentOpener(event.currentTarget);setPrintNotice("");setIsDocumentOpen(true);}else setActiveTab(tab);}} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${activeTab===tab?"bg-blue-600 text-white shadow-sm":"text-slate-700 hover:text-blue-900"}`}>{label}</button>)}
+            {([ ["assignment","Items & groups"], ["vendors","Group vendors"], ["report","Item vendor report"], ["preview","Vendor indent register"], ["document","Indent document"] ] as const).filter(([tab])=>allowedTabs.includes(tab)).map(([tab,label])=><button key={tab} type="button" aria-pressed={activeTab===tab} disabled={loading || busy || (tab!=="assignment" && !groups.length)} onClick={event=>{if(tab === "document"){setDocumentOpener(event.currentTarget);setPrintNotice("");setIsDocumentOpen(true);}else {if(tab==="preview")setRegisterGroupId("");setActiveTab(tab);}}} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${activeTab===tab?"bg-blue-600 text-white shadow-sm":"text-slate-700 hover:text-blue-900"}`}>{label}</button>)}
           </div>
 
           {activeTab === "document" && canPrint && (
@@ -473,11 +482,12 @@ export function PurchaseIndentWorkspace({
             </button>
           </div>
         ) : !allowedTabs.includes(activeTab) ? <p role="status" className="p-6">You do not have permission to open this indent tab.</p> : activeTab === "assignment" || activeTab === "vendors" || activeTab === "report" ? (
-          <PurchaseIndentGroups initialVendorGroup={params.get("group")??undefined} key={boId} stage={activeTab === "assignment" ? "items" : activeTab} onStageChange={stage=>setActiveTab(stage === "items" ? "assignment" : stage)} lines={validLines} suppliers={suppliers} record={workspace?.record ?? null} report={workspace?.item_report ?? []} canWrite={workspace?.can_write ?? false} canManageVendors={workspace?.can_manage_vendors ?? false} canViewVendors={allowedTabs.includes("vendors")} canViewRegister={allowedTabs.includes("preview")} busy={busy} notice={notice} history={workspace?.history ?? []} onSave={saveGroups} onPreview={id => { setSelectedDocumentId("");setSelectedGroupId(id); setSelectedSupplierId(""); setActiveTab("preview"); }} />
+          <PurchaseIndentGroups initialVendorGroup={params.get("group")??undefined} key={boId} stage={activeTab === "assignment" ? "items" : activeTab} onStageChange={stage=>setActiveTab(stage === "items" ? "assignment" : stage)} lines={validLines} suppliers={suppliers} record={workspace?.record ?? null} report={workspace?.item_report ?? []} canWrite={workspace?.can_write ?? false} canManageVendors={workspace?.can_manage_vendors ?? false} canViewVendors={allowedTabs.includes("vendors")} canViewRegister={allowedTabs.includes("preview")} documents={documents} busy={busy} notice={notice} onSave={saveGroups} onPreview={id => { setRegisterGroupId(id);setSelectedDocumentId("");setSelectedGroupId(id); setSelectedSupplierId(""); setActiveTab("preview"); }} />
         ) : activeTab === "preview" ? (
           <div className="p-6 max-w-[1000px] mx-auto space-y-6">
             {!ready && <div role="status" className="no-print rounded-lg bg-amber-50 p-3 text-sm"><p>Choose at least three active vendors for every saved group before generating indents.</p>{allowedTabs.includes("vendors") && <button type="button" disabled={busy || !groups.length} className="mt-2 min-h-11 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold" onClick={()=>setActiveTab("vendors")}>Choose group vendors</button>}</div>}
-            <VendorIndentRegister groups={groups} suppliers={suppliers} workspace={documents} canGenerate={canGenerate && (created || ready)} canWrite={canDispatch} canOpenDocument={allowedTabs.includes("document")} busy={busy} notice={notice} onAction={documentAction} onOpen={(group,vendor,documentId,opener)=>{setDocumentOpener(opener??null);setSelectedDocumentId(documentId||"");setSelectedGroupId(group);setSelectedSupplierId(vendor);setPrintNotice("");setIsDocumentOpen(true);}}/>
+            {registerGroupId && groups.some(group=>group.id===registerGroupId) && <button type="button" className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold" disabled={busy} onClick={()=>setRegisterGroupId("")}>Show all groups</button>}
+            <VendorIndentRegister groups={groups.some(group=>group.id===registerGroupId)?groups.filter(group=>group.id===registerGroupId):groups} suppliers={suppliers} workspace={documents} canGenerate={canGenerate && (created || ready)} canWrite={canDispatch} canOpenDocument={allowedTabs.includes("document")} busy={busy} notice={notice} onAction={documentAction} onOpen={(group,vendor,documentId,opener)=>{setDocumentOpener(opener??null);setSelectedDocumentId(documentId||"");setSelectedGroupId(group);setSelectedSupplierId(vendor);setPrintNotice("");setIsDocumentOpen(true);}}/>
           </div>
         ) : (
           /* TAB 3: SUPPLIER INDENT PREVIEW & PDF */

@@ -1,0 +1,5 @@
+{
+  "version": "0.3.1",
+  "gitDependency": "git+ssh://git@github.com/ranakdinesh/citual-ui.git#v0.3.1",
+  "repository": "https://github.com/ranakdinesh/citual-ui"
+}

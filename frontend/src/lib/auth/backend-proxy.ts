@@ -1,3 +1,6 @@
+import { hasSameOrigin } from "@/lib/auth/request-origin";
+import { ownsPurchasing } from "@/server/purchasing/paths";
+import { backendRequest } from "@/lib/auth/backend-request";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -24,10 +27,11 @@ export async function proxyAuthenticatedRequest(
   const { path = [] } = await context.params;
   const backendUrl = new URL(`${backendApiUrl}/${resource}${path.length ? `/${path.join("/")}` : ""}`);
   backendUrl.search = new URL(request.url).search;
+  if (process.env.EPCERP_PURCHASING_OWNER === "nextjs" && !["GET","HEAD"].includes(request.method) && ownsPurchasing(backendUrl.pathname.replace(/^\/api\/v1/,"")) && !hasSameOrigin(request)) return NextResponse.json({detail:"Same-origin request required"},{status:403});
   // Sensitive uploads authorize their exact context before this proxy buffers bytes.
   if (authorizeBeforeBody) {
     try {
-      const authority = await fetch(backendUrl, {method: authorizeBeforeBody === "HEAD" ? "HEAD" : "GET", headers: {Authorization: `Bearer ${accessToken}`}, cache: "no-store"});
+      const authority = await backendRequest(backendUrl, {method: authorizeBeforeBody === "HEAD" ? "HEAD" : "GET", headers: {Authorization: `Bearer ${accessToken}`}, cache: "no-store"});
       if (authority.status === 401) return expiredResponse();
       if (!authority.ok) return new NextResponse(await authority.arrayBuffer(), {status: authority.status, headers: {"Content-Type": authority.headers.get("Content-Type") ?? "application/json", "Cache-Control": "private, no-store"}});
     } catch { return NextResponse.json({detail: "Service temporarily unavailable"}, {status: 503}); }
@@ -42,7 +46,7 @@ export async function proxyAuthenticatedRequest(
   const body = rawBody && rawBody.byteLength > 0 ? rawBody : undefined;
   const contentType = request.headers.get("content-type");
   const send = (token: string) =>
-    fetch(backendUrl, {
+    backendRequest(backendUrl, {
       method: request.method,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -63,7 +67,7 @@ export async function proxyAuthenticatedRequest(
     const encStorage = backendResponse.headers.get("X-Encrypted-Storage");
     if (encStorage) headers.set("X-Encrypted-Storage", encStorage);
 
-    for (const name of ["Idempotency-Replayed", "Location", "Retry-After", "X-Request-ID"]) {
+    for (const name of ["Content-Security-Policy", "X-Frame-Options", "Idempotency-Replayed", "Location", "Retry-After", "X-Request-ID"]) {
       const value = backendResponse.headers.get(name); if (value) headers.set(name, value);
     }
     headers.set("Cache-Control", "private, no-store");

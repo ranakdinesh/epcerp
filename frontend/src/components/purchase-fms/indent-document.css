@@ -1,0 +1,68 @@
+.indent-document {
+  --indent-rule: #a7b6ba;
+  --indent-shade: #edf6f4;
+  width: 100%;
+  max-width: 58rem;
+  min-width: 0;
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 2.75rem);
+  border: 1px solid #d3dddf;
+  border-top: 4px solid #007d70;
+  background: white;
+  color: #162531;
+  box-shadow: 0 4px 12px rgb(22 37 49 / 8%);
+  font-family: Cambria, Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.indent-document-title {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.indent-document-title h2 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.indent-document-title p {
+  margin-top: .25rem;
+  font-weight: 600;
+}
+
+.indent-document-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.indent-document-table :is(th, td) {
+  border: 1px solid var(--indent-rule);
+  padding: .45rem .65rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.indent-document-label,
+.indent-document-table thead {
+  background: var(--indent-shade);
+  color: #16473f;
+  font-weight: 700;
+}
+
+.indent-document-label { width: 26%; }
+
+.indent-document-items { margin-top: 1rem; }
+
+.indent-document-items td.indent-document-specifications { text-align: left; }
+
+.indent-document-specifications p { white-space: pre-wrap; }
+
+.indent-document-items :is(th, td):is(:first-child, :nth-last-child(2)) { text-align: center; }
+
+.indent-document-items :is(th, td):last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

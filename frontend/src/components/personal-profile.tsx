@@ -2,6 +2,8 @@
 /* eslint-disable @next/next/no-img-element -- authenticated cookie-protected avatars bypass the public image optimizer */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { SessionManagement } from "@/components/auth/session-management";
+import { actionButtonClass } from "@/components/ui/action-button";
 import { UsernameEditor } from "@/components/auth/username-editor";
 import { prepareProfilePhoto } from "@/lib/auth/profile-photo";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
@@ -17,7 +19,7 @@ export function PersonalProfileProvider({ children }: { children: ReactNode }) {
  const pending = useRef(new Map<string, Promise<void>>());
  const load = useCallback((id: string) => {
   if (!pending.current.has(id)) pending.current.set(id, fetch(`/api/auth/user_profile/${encodeURIComponent(id)}`).then(async r => {
-   if (r.ok) { const p = await r.json() as Profile; setProfiles(v => ({ ...v, [id]: p })); }
+   if (r.ok) { const p = await r.json() as Profile; setProfiles(v => v[id] && v[id].version > p.version ? v : ({ ...v, [id]: { ...p, contact: p.contact ?? v[id]?.contact } })); }
   }).catch(() => { pending.current.delete(id); }));
   return pending.current.get(id)!;
  }, []);
@@ -49,7 +51,8 @@ async function result(r: Response, form?: HTMLFormElement) {
  return body as Profile;
 }
 export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "password"; close: () => void }) {
- const user = useAuthenticatedUser(); const profile = useProfile(user.id);
+ const user = useAuthenticatedUser();
+ const [profile, setProfile] = useState<Profile>();
  const store = useContext(ProfileContext)!; const router = useRouter();
  const dialog = useRef<HTMLDialogElement>(null);
  const upload = useRef<HTMLInputElement>(null);
@@ -62,25 +65,26 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
  const save = store.save;
  useEffect(() => {
   let active = true;
-  fetch("/api/auth/user_profile/me").then(r => result(r)).then(p => { if (active) { save(p); setReady(true); } }).catch(() => { if (active) setError("Unable to load your profile. Close and reopen to retry."); });
+  fetch("/api/auth/user_profile/me").then(r => result(r)).then(p => { if (active) { save(p); setProfile(p); setReady(true); } }).catch(() => { if (active) setError("Unable to load your profile. Close and reopen to retry."); });
   return () => { active = false; };
  }, [save]);
  useEffect(() => { const overflow = document.body.style.overflow; const element = dialog.current; element?.showModal(); document.body.style.overflow = "hidden"; return () => { element?.close(); document.body.style.overflow = overflow; }; }, []);
  async function run(work: () => Promise<void>) { if (busy) return; setBusy(true); setNotice(""); setError(""); try { await work(); } catch(e) { setError(e instanceof Error ? e.message : "Unable to save changes."); } finally { setBusy(false); } }
  async function details(e: FormEvent<HTMLFormElement>) { e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); await run(async () => {
-  store.save(await result(await fetch("/api/auth/user_profile/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: data.get("display_name"), contact: { first_name: String(data.get("first_name")).trim(), last_name: String(data.get("last_name")).trim(), mobile: String(data.get("mobile")).trim() }, expected_contact: profile?.contact, version: profile?.version }) }), form)); setNotice("Your personal details have been saved."); router.refresh();
+  const saved = await result(await fetch("/api/auth/user_profile/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: data.get("display_name"), contact: { first_name: String(data.get("first_name")).trim(), last_name: String(data.get("last_name")).trim(), mobile: String(data.get("mobile")).trim() }, expected_contact: profile?.contact, version: profile?.version }) }), form); store.save(saved); setProfile(saved); setNotice("Your personal details have been saved."); router.refresh();
  }); }
  async function security(e: FormEvent<HTMLFormElement>, password: boolean) { e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); if (password && data.get("password") !== data.get("confirmation")) { setConfirmationError("Passwords do not match."); form.querySelector<HTMLInputElement>('[name="confirmation"]')?.focus(); return; } await run(async () => {
   await result(await fetch(password ? "/api/auth/me/password" : "/api/auth/me/email", { method: password ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(password ? { current_password: data.get("current_password"), password: data.get("password") } : { current_password: data.get("current_password"), email: data.get("email") }) }), form);
   // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full navigation prevents stale dashboard refreshes after cookie removal
-  form.reset(); if (password) { window.location.assign("/login?session=password-changed"); } else { setNotice("Email updated."); router.refresh(); }
+  form.reset(); if (password) { window.location.assign("/login?session=password-changed"); } else { setNotice("Verification email sent. Your sign-in email stays unchanged until you confirm the new address."); }
  }); }
  async function photo(file?: File) { await run(async () => {
   try {
    setPhotoStage(file ? "Preparing photo…" : "Removing photo…");
    const prepared = file ? await prepareProfilePhoto(file) : undefined;
    if (prepared) setPhotoStage("Uploading photo…");
-   store.save(await result(await fetch("/api/auth/user_profile/me/photo", prepared ? { method: "PUT", headers: { "Content-Type": prepared.type }, body: prepared } : { method: "DELETE" })));
+   const saved = await result(await fetch("/api/auth/user_profile/me/photo", prepared ? { method: "PUT", headers: { "Content-Type": prepared.type }, body: prepared } : { method: "DELETE" }));
+   store.save(saved); setProfile(saved);
    setNotice(file ? "Photo updated." : "Photo removed.");
   } finally { setPhotoStage(""); }
  }); }
@@ -108,13 +112,20 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
       <ValidatedLabel>Mobile number<ValidatedInput name="mobile" type="tel" defaultValue={profile?.contact?.mobile || ""} autoComplete="tel" maxLength={24} pattern={"(?=(?:[^0-9]*[0-9]){8,15}[^0-9]*$)\\+?[0-9\\(\\) \\-]+"} title="Use 8 to 15 digits, optionally with +, spaces, hyphens or parentheses." placeholder="e.g. +91 98765 43210" required /></ValidatedLabel>
      </div></fieldset>
      <div className="go-profile-contact-note"><span>Email address</span><strong>{user.email}</strong><button type="button" onClick={() => { setSection("security"); setSecurityMode("email"); }}>Change email →</button></div>
-     <div className="go-profile-footer"><p>Changes apply to your employee record.</p><button type="submit" disabled={busy}>{busy ? "Saving…" : "Save changes"}</button></div>
+     <div className="go-profile-footer"><p>Changes apply to your employee record.</p><button type="submit" className={actionButtonClass("primary")} disabled={busy}>{busy ? "Saving…" : "Save changes"}</button></div>
     </ValidatedForm>}
    </section><section hidden={section !== "security"}>
     <div className="go-profile-section-title"><h3>Account security</h3><p>Use your current password to confirm security changes.</p></div>
     <div className="go-security-options" aria-label="Security options"><button type="button" aria-pressed={securityMode === "email"} onClick={() => { setSecurityMode("email"); setError(""); }}>Email address</button><button type="button" aria-pressed={securityMode === "password"} onClick={() => { setSecurityMode("password"); setError(""); }}>Password</button></div>
-    {securityMode === "email" ? <ValidatedForm onSubmit={e => void security(e, false)} className="go-personal-form"><ValidatedLabel>Email address<ValidatedInput type="email" name="email" defaultValue={user.email} autoComplete="email" maxLength={255} required disabled={busy} /></ValidatedLabel><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-footer"><p>Your sign-in email will be updated.</p><button type="submit" disabled={busy}>{busy ? "Updating…" : "Update email"}</button></div></ValidatedForm> : <ValidatedForm onSubmit={e => void security(e, true)} className="go-personal-form"><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-fields"><ValidatedLabel>New password<ValidatedInput type="password" name="password" autoComplete="new-password" minLength={8} maxLength={128} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}" title="Use uppercase, lowercase, a number and a symbol." required disabled={busy} /></ValidatedLabel><ValidatedLabel>Confirm new password<ValidatedInput type="password" name="confirmation" autoComplete="new-password" maxLength={128} error={confirmationError} onChange={() => setConfirmationError("")} required disabled={busy} /></ValidatedLabel></div><p>Use at least 8 characters, with uppercase, lowercase, a number and a symbol. You’ll sign in again after changing your password.</p><div className="go-profile-footer"><button type="submit" disabled={busy}>{busy ? "Updating…" : "Change password"}</button></div></ValidatedForm>}
-   </section>
+    {securityMode === "email" ? <ValidatedForm onSubmit={e => void security(e, false)} className="go-personal-form"><ValidatedLabel>Email address<ValidatedInput type="email" name="email" defaultValue={user.email} autoComplete="email" maxLength={255} required disabled={busy} /></ValidatedLabel><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-footer"><p>Your current sign-in email stays active until you verify the new address.</p><button type="submit" className={actionButtonClass("primary")} disabled={busy}>{busy ? "Updating…" : "Send verification email"}</button></div></ValidatedForm> : <ValidatedForm onSubmit={e => void security(e, true)} className="go-personal-form"><ValidatedLabel>Current password<ValidatedInput type="password" name="current_password" autoComplete="current-password" maxLength={128} required disabled={busy} /></ValidatedLabel><div className="go-profile-fields"><ValidatedLabel>New password<ValidatedInput type="password" name="password" autoComplete="new-password" minLength={8} maxLength={128} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}" title="Use uppercase, lowercase, a number and a symbol." required disabled={busy} /></ValidatedLabel><ValidatedLabel>Confirm new password<ValidatedInput type="password" name="confirmation" autoComplete="new-password" maxLength={128} error={confirmationError} onChange={() => setConfirmationError("")} required disabled={busy} /></ValidatedLabel></div><p>Use at least 8 characters, with uppercase, lowercase, a number and a symbol. You’ll sign in again after changing your password.</p><div className="go-profile-footer"><button type="submit" className={actionButtonClass("primary")} disabled={busy}>{busy ? "Updating…" : "Change password"}</button></div></ValidatedForm>}
+   {section==="security"&&<SessionManagement/>}</section>
   </div>
  </dialog>;
+}
+
+export function ProfileCompletionReminder(){
+ const user=useAuthenticatedUser();const profile=useProfile(user.id);const[open,setOpen]=useState(false);
+ const contact=profile?.contact ?? user;
+ const missing=typeof contact.first_name==="string"&&(!contact.first_name||!contact.last_name||!contact.mobile);
+ return <>{missing&&<aside role="status" className="ui-notice--warning m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-3"><p>Your profile is missing contact details. Complete your name and mobile number when available.</p><button type="button" className={actionButtonClass("secondary")} onClick={()=>setOpen(true)}>Complete my profile</button></aside>}{open&&<PersonalAccountDialog mode="profile" close={()=>setOpen(false)}/>}</>;
 }

@@ -1,0 +1,69 @@
+@media screen {
+  :root {
+    --grid-teal: #007d70;
+    --grid-group: #e3f3f1;
+    --grid-heading-ink: #142438;
+  }
+
+  html[data-theme="dark"] {
+    --grid-group: #173d3b;
+    --grid-heading-ink: #e6f4f5;
+  }
+
+  html body :is(.vtpl-data-table, .tsc-grid-table, .tsc-questions-table) {
+    width: 100%;
+    font-size: var(--ui-grid-text);
+    line-height: 1.5;
+  }
+
+  html body :is(.vtpl-data-table, .tsc-grid-table, .tsc-questions-table) > :is(thead, tbody) > tr > :is(th, td),
+  html body :is(.vtpl-data-table, .tsc-grid-table, .tsc-questions-table) :is(.text-xs, .text-sm),
+  html body .app-data-grid :is(.data-grid-toolbar, .data-grid-search, .data-grid-rows, .data-grid-search input) {
+    font-size: var(--ui-grid-text);
+    line-height: 1.5;
+  }
+
+  html body .vtpl-data-table > tbody > tr[data-grid-group] > th {
+    background: var(--grid-group);
+    color: var(--grid-heading-ink);
+    border-color: var(--surface-line);
+  }
+
+  .app-data-grid .vtpl-data-table tbody input[type="checkbox"] {
+    accent-color: var(--grid-teal);
+  }
+
+  .record-drawer-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .5rem;
+  }
+}
+
+/* Sort controls belong to the header band and share its foreground. */
+@layer app-action-colors {
+  @media screen {
+    :is(table:not(.indent-document-table) > thead, [role="row"]:has(> [role="columnheader"])) {
+      background: var(--action-color) !important;
+      color: #fff !important;
+    }
+
+    :is(table:not(.indent-document-table) > thead > tr > :is(th, td), [role="columnheader"]) {
+      background: var(--action-color) !important;
+      color: #fff !important;
+      border-color: #4a9d94 !important;
+    }
+
+    :is(table:not(.indent-document-table) > thead, [role="columnheader"]) :is(button, [role="button"]) {
+      background: transparent !important;
+      border-color: transparent !important;
+      color: #fff !important;
+    }
+
+    :is(table:not(.indent-document-table) > thead, [role="columnheader"]) :is(button, [role="button"]):focus-visible {
+      outline: 2px solid #fff !important;
+      outline-offset: 2px;
+    }
+  }
+}

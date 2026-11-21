@@ -1,2 +1,0 @@
-ALTER TABLE clients ALTER COLUMN legacy_source DROP DEFAULT,
- ALTER COLUMN legacy_source_id DROP DEFAULT;

@@ -1,13 +1,15 @@
+import { backendRequest } from "@/lib/auth/backend-request";
 import { NextResponse } from "next/server";
 
 import { setAuthCookies } from "@/lib/auth/cookies";
 
 import { backendApiUrl } from "@/lib/auth/backend-config";
+import { body } from "@/server/auth/validation";
 
 export async function POST(request: Request) {
   let payload: { identifier?: unknown; password?: unknown };
   try {
-    payload = await request.json();
+    payload = await body(request, ["identifier", "password"], 4096);
   } catch {
     return NextResponse.json({ message: "Invalid login request" }, { status: 400 });
   }
@@ -22,7 +24,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const backendResponse = await fetch(`${backendApiUrl}/auth/login`, {
+    const backendResponse = await backendRequest(`${backendApiUrl}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
     });
 
     if (!backendResponse.ok) {
+      if (backendResponse.status >= 500) return NextResponse.json({ message: "Sign-in is temporarily unavailable. Please try again." }, { status: 503 });
       return NextResponse.json(
         { message: "Invalid email or username, or password" },
         { status: backendResponse.status === 429 ? 429 : 401 },

@@ -9,6 +9,8 @@ import {usePersonalProfile} from "@/components/personal-profile";
 import {DataGrid,GridAction,GridStatus,type GridQuery} from "@/components/ui/data-grid";
 import {purchaseProjectHref,type Dashboard,type PurchaseProject} from "@/components/purchase-fms/data";
 import type {PersonalTask} from "@/components/tasks/personal-tasks";
+import {TenderPerformanceBand} from "./tender-performance-band";
+import type {TenderSummary} from "@/server/tenders/summary";
 import {ProcurementCharts} from "./procurement-charts";
 import {ProcurementTaskPanel} from "./procurement-task-panel";
 import {useDashboardSource} from "./use-dashboard-source";
@@ -26,30 +28,30 @@ export function ProcurementDashboard({purchaseEntry=false}:{purchaseEntry?:boole
  const [revision,setRevision]=useState(0),[now,setNow]=useState<Date|null>(null);
  const [query,setQuery]=useState({page:1,size:20,search:"",sort:"number",direction:"asc"});
  useEffect(()=>{const timer=setTimeout(()=>setNow(new Date()),0);return()=>clearTimeout(timer)},[revision]);
- const projectPath=`/api/purchase-fms?page=${query.page}&page_size=${query.size}&search=${encodeURIComponent(query.search)}&sort=${query.sort}&direction=${query.direction}`;
- const projects=useDashboardSource<Dashboard>(projectPath,revision);
- const scope=useDashboardSource<Dashboard>("/api/purchase-fms?page=1&page_size=1&sort=number&direction=asc",revision);
+ const showTenderBand=!purchaseEntry&&user.permissions.includes("system:admin");
+ const tenders=useDashboardSource<TenderSummary>(showTenderBand?"/api/tender-fms/summary":null,revision);
+ const projectPath=`/api/purchase-fms?page=${query.page}&page_size=${query.size}&search=${encodeURIComponent(query.search)}&sort=${query.sort}&direction=${query.direction}${showTenderBand?"":"&include_scope_total=true"}`;
+ const projects=useDashboardSource<Dashboard & {scope_total:number}>(projectPath,revision);
  const tasks=useDashboardSource<TaskPage>(taskAccess?"/api/my-tasks?page=1&page_size=20&role=all&state=all":null,revision);
  const changed=useCallback((q:GridQuery)=>setQuery(old=>old.page===q.page&&old.size===q.size&&old.search===q.search&&old.sort===q.sort&&old.direction===q.direction?old:{page:q.page,size:q.size,search:q.search,sort:q.sort,direction:q.direction}),[]);
  const projectRows=projects.data?.items??[],taskRows=tasks.data?.rows??[];
  const active=projectRows.filter(r=>projectStatus(r)==="active").length;
  const attention=taskAttention(taskRows);
- const refreshing=projects.loading||scope.loading||tasks.loading;
+ const refreshing=projects.loading||tasks.loading||tenders.loading;
  const stats=[
-  {label:scope.data?.portfolio?"Purchasing projects":"Assigned projects",value:scope.data?.total,note:scope.error?"Project count unavailable":scope.data?.portfolio?"Authorised portfolio scope":"Purchase ownership & PM oversight",icon:FolderIcon,tone:"blue"},
+  {label:projects.data?.portfolio?"Purchasing projects":"Assigned projects",value:projects.data?.scope_total,note:projects.error?"Project count unavailable":projects.data?.portfolio?"Authorised portfolio scope":"Purchase ownership & PM oversight",icon:FolderIcon,tone:"blue"},
   {label:"Active projects in view",value:projects.data?active:undefined,note:projects.error?"Project status unavailable":`${projectRows.length} ${projectRows.length===1?"project":"projects"} on this page`,icon:ChartBarIcon,tone:"teal"},
   {label:"Assigned tasks in view",value:tasks.data?taskRows.length+(tasks.data.quotation_tasks?.length??0):undefined,note:tasks.error?"Task count unavailable":!taskAccess?"Personal task access not enabled":"Workflow assignments & quotation work",icon:ClipboardDocumentCheckIcon,tone:"blue"},
   {label:"Overdue tasks in view",value:tasks.data?attention.overdue:undefined,note:tasks.error?"Due dates unavailable":!taskAccess?"Personal task access not enabled":taskRows.length?`Within ${taskRows.length} displayed assignments`:"No overdue assignments in this view",icon:ClockIcon,tone:attention.overdue?"amber":"muted"},
  ];
  useEffect(()=>{const refresh=()=>setRevision(v=>v+1);window.addEventListener("purchase-progress-saved",refresh);window.addEventListener("focus",refresh);return()=>{window.removeEventListener("purchase-progress-saved",refresh);window.removeEventListener("focus",refresh)}},[]);
  function refresh(){setRevision(v=>v+1)}
- return <div className="go-procurement-dashboard"><header className="go-dashboard-heading"><div><h1>{purchaseEntry?"Purchase FMS":`${now?greetingAt(now):"Welcome"}, ${profile?.display_name||user.username}`}</h1><p>{purchaseEntry?`${now?greetingAt(now):"Welcome"}, ${profile?.display_name||user.username}. `:""}Your purchasing work, at a glance.</p></div><div className="go-dashboard-heading-actions">{now&&<time dateTime={now.toISOString()}>{new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"short",day:"numeric",month:"short",year:"numeric"}).format(now)}</time>}<button type="button" className="go-dashboard-refresh" onClick={refresh} disabled={refreshing}><ArrowPathIcon aria-hidden="true" className={refreshing?"go-refreshing":""}/>{refreshing?"Refreshing…":"Refresh"}</button></div></header>
- <div className="go-dashboard-metrics" aria-label="Purchasing summary">{stats.map(s=><section className={`go-dashboard-metric go-metric-${s.tone}`} key={s.label}><s.icon aria-hidden="true"/><div><h2>{s.label}</h2><strong>{s.value===undefined?"—":s.value.toLocaleString("en-IN")}</strong><p>{s.note}</p></div></section>)}</div>
- {scope.error&&<p role="alert" className="go-dashboard-inline-error">{scope.error} Use Refresh to retry.</p>}
+ return <div className="go-procurement-dashboard"><header className="go-dashboard-heading"><div><h1>{purchaseEntry?"Purchase FMS":`${now?greetingAt(now):"Welcome"}, ${profile?.display_name||user.username}`}</h1><p>{purchaseEntry?`${now?greetingAt(now):"Welcome"}, ${profile?.display_name||user.username}. `:""}{showTenderBand?"":"Your purchasing work, at a glance."}</p></div><div className="go-dashboard-heading-actions">{now&&<time dateTime={now.toISOString()}>{new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"short",day:"numeric",month:"short",year:"numeric"}).format(now)}</time>}<button type="button" className="go-dashboard-refresh" onClick={refresh} disabled={refreshing}><ArrowPathIcon aria-hidden="true" className={refreshing?"go-refreshing":""}/>{refreshing?"Refreshing…":"Refresh"}</button></div></header>
+ {showTenderBand?<TenderPerformanceBand data={tenders.data} error={tenders.error}/>:<div className="go-dashboard-metrics" aria-label="Purchasing summary">{stats.map(s=><section className={`go-dashboard-metric go-metric-${s.tone}`} key={s.label}><s.icon aria-hidden="true"/><div><h2>{s.label}</h2><strong>{s.value===undefined?"—":s.value.toLocaleString("en-IN")}</strong><p>{s.note}</p></div></section>)}</div>}
  <ProcurementCharts rows={projectRows} total={projects.data?.total??null} loading={projects.loading} error={projects.error}/>
- <section className="go-dashboard-panel go-dashboard-projects" aria-labelledby="assigned-projects-title"><div className="go-dashboard-section-heading"><div><h2 id="assigned-projects-title">{scope.data?.portfolio?"Purchasing projects":"Assigned projects"}</h2><p>Open a project to continue its purchasing workflow.</p></div><Link className="go-dashboard-text-link" href={purchaseEntry?"/dashboard?screen=purchase-fms&view=map":"/dashboard?screen=purchase-fms"}>{purchaseEntry?"Reference process map":"Purchase FMS"} <ArrowUpRightIcon aria-hidden="true"/></Link></div>
+ <section className="go-dashboard-panel go-dashboard-projects" aria-labelledby="assigned-projects-title"><div className="go-dashboard-section-heading"><div><h2 id="assigned-projects-title">{projects.data?.portfolio?"Purchasing projects":"Assigned projects"}</h2><p>Open a project to continue its purchasing workflow.</p></div><Link className="go-dashboard-text-link" href={purchaseEntry?"/dashboard?screen=purchase-fms&view=map":"/dashboard?screen=purchase-fms"}>{purchaseEntry?"Reference process map":"Purchase FMS"} <ArrowUpRightIcon aria-hidden="true"/></Link></div>
  {projects.error&&<p role="alert" className="go-dashboard-inline-error">{projects.error} <button type="button" onClick={refresh}>Retry</button></p>}
- <DataGrid<PurchaseProject> label={scope.data?.portfolio?"Purchasing projects":"Assigned purchasing projects"} rows={projectRows} loading={projects.loading} remote={{total:projects.data?.total??0,onChange:changed}} initialSort="number" columns={[
+ <DataGrid<PurchaseProject> label={projects.data?.portfolio?"Purchasing projects":"Assigned purchasing projects"} rows={projectRows} loading={projects.loading} remote={{total:projects.data?.total??0,onChange:changed}} initialSort="number" columns={[
  {key:"number",label:"Project",value:r=>r.project_number,render:r=><Link className="go-dashboard-text-link" href={purchaseProjectHref(r.id,r.next_step)}>{r.project_number}</Link>},
  {key:"name",label:"Project name",value:r=>r.name},
  {key:"state",label:"Status",value:projectStatus,render:r=><GridStatus value={projectStatus(r).replaceAll("_"," ")}/>},

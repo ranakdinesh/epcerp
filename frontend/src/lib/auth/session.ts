@@ -1,3 +1,4 @@
+import { backendRequest } from "@/lib/auth/backend-request";
 import { cookies } from "next/headers";
 
 export const AUTH_COOKIE_NAMES = {
@@ -27,7 +28,7 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
   }
 
   try {
-    const response = await fetch(`${backendApiUrl}/auth/me`, {
+    const response = await backendRequest(`${backendApiUrl}/auth/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
     });

@@ -1,0 +1,11 @@
+{
+  "000119_baseline.up.sql": {
+    "sha256": "ad20572652241067a0263d1c21726a882aa944f641a51c4a9cad6986538b0962"
+  },
+  "000120_tender_prebid_review.up.sql": {
+    "sha256": "617ec4f6db8389c962ad6068ad55be66b3cd4e4bfb2272f440b5f9a547bb5925"
+  },
+  "000121_purchase_advance_notices.up.sql": {
+    "sha256": "ce66ea8561c540ff6708860aa472f0164f9c9eb3b1239342009f35ebd623fe90"
+  }
+}

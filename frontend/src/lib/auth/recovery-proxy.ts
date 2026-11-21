@@ -1,10 +1,12 @@
+import { backendRequest } from "@/lib/auth/backend-request";
 import "server-only";
 import { NextResponse } from "next/server";
 import { backendApiUrl } from "./backend-config";
+import { hasSameOrigin } from "./request-origin";
 
 export async function recoveryRequest(request: Request, action: "forgot-password" | "reset-password") {
   const headers = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
-  if (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin) {
+  if (!hasSameOrigin(request)) {
     return NextResponse.json({ message: "Invalid request origin." }, { status: 403, headers });
   }
   let payload: Record<string, unknown>;
@@ -28,7 +30,7 @@ export async function recoveryRequest(request: Request, action: "forgot-password
     return NextResponse.json({ message: "Invalid recovery request." }, { status: 400, headers });
   }
   try {
-    const response = await fetch(`${backendApiUrl}/auth/${action}`, {
+    const response = await backendRequest(`${backendApiUrl}/auth/${action}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload), cache: "no-store", signal: AbortSignal.timeout(15000),
     });
