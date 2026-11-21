@@ -1,3 +1,4 @@
+import { tenderAwardPending, tenderAwardMessage } from '../core/tender-award';
 import type { DB } from '../../db';
 import { requireAnyPermission, assignmentIdentities } from '../../auth/access';
 import { AppError } from '../../errors';
@@ -51,7 +52,7 @@ export async function access(db: DB, a: Actor, p: string, id: string): Promise<C
     } if (caps.scoped && caps.write)
     caps.configure = (await workActions(db, a, p)).write; return caps; }
 export async function source(db: DB, p: string, id: string): Promise<Source> { const { record, current } = await work.inspect(db, p, id), indent = await indents.get(db, p, record.indent_id); if (!indent)
-    throw missing(); const blockers = [...current.blockers]; if (!current.project_available)
+    throw missing(); const blockers = [...current.blockers, ...(await tenderAwardPending(db, p) ? [tenderAwardMessage] : [])]; if (!current.project_available)
     blockers.push('Project is inactive, held, closed or purchasing is disabled'); for (const s of record.steps)
     if (s.number >= 3 && s.number <= 5 && s.state === 'blocked')
         blockers.push('Sourcing preparation has an unresolved blocker'); return { package_id: id, demand_id: record.demand_id, demand_version: indent.data.released.find(r => r.demand_id === record.demand_id)?.source.demand_version ?? 0, quantity: current.quantity, currency: indent.data.currency, description: current.description, project_available: current.project_available, eligible: current.eligible, blockers }; }
@@ -76,7 +77,7 @@ export async function suppliers(db: DB, p: string, id: string): Promise<Supplier
         for (const a of await approved(db, p, link.bo_id, false))
             if (a.lines.some(l => l.line_id === link.line_id && l.item.id === item.id))
                 allowed.add(a.vendor_id);
-    return (await purchaseVendors(db)).map(v => { const s = (key: string) => typeof v.data[key] === 'string' ? v.data[key] as string : '', contains = (key: string) => Array.isArray(v.data[key]) && (v.data[key] as unknown[]).includes(item.id), category = Array.isArray(v.data.category_ids) && (v.data.category_ids as unknown[]).includes(item.category_id); return { id: v.id, name: v.name, code: v.code, version: v.version, eligible: v.is_active && s('qualification') === 'approved' && (allowed.has(v.id) || contains('item_ids') || category), registration: s('registration_reference'), contact: trim(s('contact')) ? s('contact') : trim(s('phone')) ? s('phone') : s('email'), location: s('location') }; });
+    return (await purchaseVendors(db)).map(v => { const s = (key: string) => typeof v.data[key] === 'string' ? v.data[key] as string : '', contains = (key: string) => Array.isArray(v.data[key]) && (v.data[key] as unknown[]).includes(item.id), category = Array.isArray(v.data.category_ids) && (v.data.category_ids as unknown[]).includes(item.category_id); return { id: v.id, name: v.name, code: v.code, version: v.version, eligible: allowed.has(v.id) || contains('item_ids') || category, registration: s('registration_reference'), contact: trim(s('contact')) ? s('contact') : trim(s('phone')) ? s('phone') : s('email'), location: s('location') }; });
 }
 export async function verify(db: DB, p: string, id: string, o: Offer): Promise<Proof> { const { record } = await work.inspect(db, p, id, true), link = await demandLink(db, p, record.demand_id); if (!link)
     invalid('financial_approval', 'Current source has no completed BO linkage'); const attempts = await approved(db, p, link.bo_id, false), prices = await commercial(db, p, link.bo_id, false); for (const a of attempts) {

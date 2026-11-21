@@ -5,6 +5,19 @@ function cents(value: string) {
   const [whole, fraction = ""] = value.split(".");
   return BigInt(whole) * BigInt(100) + BigInt(fraction.padEnd(2, "0"));
 }
+export function lowestRecordedQuotes(quotes: Comparison[]): Comparison[] {
+  const priced = quotes.flatMap(quote => {
+    const total = quote.amount_mode === "total_only" ? quote.total_amount ?? quote.total : quote.total;
+    if (!/^\d+(?:\.\d{1,2})?$/.test(total) || quote.exclusions.some(reason =>
+      (reason === "Partial quotation" && quote.amount_mode !== "total_only") || reason === "Quotation currency differs from the project" ||
+      reason.startsWith("Superseded indent scope")
+    )) return [];
+    return [{quote, amount:cents(total)}];
+  });
+  const lowest = priced.reduce<bigint | undefined>((min, entry) =>
+    min === undefined || entry.amount < min ? entry.amount : min, undefined);
+  return priced.filter(entry => entry.amount === lowest).map(entry => entry.quote);
+}
 export function bestVendorQuote(quotes: Comparison[]): Comparison | undefined {
   return quotes.filter(quote=>quote.eligible).sort((a,b)=>{
     const difference=cents(a.total)-cents(b.total);
@@ -25,8 +38,8 @@ export function draftComparison(quotes: Comparison[], choices: Record<string,str
     quote.rank=totals.findIndex(total=>total===cents(quote.total))+1;
     quote.suggested=quote.rank===1;
     for(const line of quote.lines){
-      const candidates=group.flatMap(other=>other.lines.filter(item=>item.line_id===line.line_id&&item.landed!==null).map(item=>cents(item.landed!)));
-      line.item_lowest=Boolean(line.landed!==null&&candidates.length&&cents(line.landed!)===candidates.reduce((a,b)=>a<b?a:b));
+      const candidates=group.filter(other=>other.amount_mode!=="total_only").flatMap(other=>other.lines.filter(item=>item.line_id===line.line_id&&item.landed!==null).map(item=>cents(item.landed!)));
+      line.item_lowest=Boolean(quote.amount_mode!=="total_only"&&line.landed!==null&&candidates.length&&cents(line.landed!)===candidates.reduce((a,b)=>a<b?a:b));
     }
   }
   return selected;

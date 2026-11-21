@@ -56,10 +56,16 @@ const inputClass =
 
 export function TenderPrebidQueries({
   draftId,
+  reviewing,
+  closed,
+  onRefresh,
   canWrite = true,
   onNavigateStep,
 }: {
   draftId: string;
+  reviewing: boolean;
+  closed: boolean;
+  onRefresh: () => Promise<void>;
   canWrite?: boolean;
   onNavigateStep?: (step: string) => void;
 }) {
@@ -130,7 +136,7 @@ export function TenderPrebidQueries({
       setTenderSpec("");
       setQueryDesc("");
       setJustification("");
-      await loadQueries();
+      await Promise.all([loadQueries(), onRefresh()]);
       window.dispatchEvent(new Event("tender-progress-saved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save query");
@@ -157,9 +163,9 @@ export function TenderPrebidQueries({
           }),
         }
       );
-      if (!res.ok) throw new Error("Failed to update query response");
+      if (!res.ok) throw new Error((await res.json()).detail || "Failed to update query response");
       setActiveResponseQuery(null);
-      await loadQueries();
+      await Promise.all([loadQueries(), onRefresh()]);
       window.dispatchEvent(new Event("tender-progress-saved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save response");
@@ -175,10 +181,31 @@ export function TenderPrebidQueries({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete query");
-      await loadQueries();
+      await Promise.all([loadQueries(), onRefresh()]);
       window.dispatchEvent(new Event("tender-progress-saved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  async function saveReview(query?: PrebidQuery) {
+    setSaving(true);
+    setError("");
+    try {
+      const path = query?.id ?? "close";
+      const response = await fetch(`/api/tender-fms/drafts/${draftId}/prebid-queries/${path}`, query ? {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "submitted" }),
+      } : { method: "POST" });
+      if (!response.ok) throw new Error((await response.json()).detail || "Failed to save pre-bid review");
+      await Promise.all([loadQueries(), onRefresh()]);
+      window.dispatchEvent(new Event("tender-progress-saved"));
+      if (!query) onNavigateStep?.("TS-TSC");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to save pre-bid review");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -228,15 +255,12 @@ export function TenderPrebidQueries({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                4
-              </span>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                Pre-Bid Queries & Corrigendum Tracker
+                {reviewing ? "Issuer replies & corrigenda" : "Prepare pre-bid queries"}
               </h2>
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Formulate formal technical, commercial, and BOQ clarifications before the pre-bid deadline, and track client Corrigendum / Addendum replies.
+              {reviewing ? "Record issuer replies and upload any formal corrigenda with the tender documents before closing review." : "Prepare questions before the clarification deadline. Submit them through the channel specified in the tender and mark them submitted here."}
             </p>
           </div>
 
@@ -252,7 +276,7 @@ export function TenderPrebidQueries({
                 Export CSV
               </button>
             )}
-            {canWrite && (
+            {canWrite && !reviewing && (
               <button
                 type="button"
                 onClick={() => setShowAddModal(true)}
@@ -383,7 +407,7 @@ export function TenderPrebidQueries({
                       </div>
                     </div>
 
-                    {q.client_response && (
+                    {(q.client_response || q.corrigendum_reference) && (
                       <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2.5 text-xs text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
                         <span className="font-bold uppercase text-[10px] text-emerald-800 dark:text-emerald-300">
                           Client Response / Corrigendum Decision
@@ -396,13 +420,19 @@ export function TenderPrebidQueries({
 
                   {canWrite && (
                     <div className="flex items-center gap-1.5 self-end sm:self-start">
+                      {!reviewing && q.status === "draft" && (
+                        <button type="button" className={secondaryBtn} disabled={saving} onClick={() => void saveReview(q)}>
+                          Mark submitted
+                        </button>
+                      )}
+                      {reviewing && q.status !== "draft" && (
                       <button
                         type="button"
                         onClick={() => {
                           setActiveResponseQuery(q);
                           setClientResponse(q.client_response || "");
                           setCorrigendumRef(q.corrigendum_reference || "");
-                          setQueryStatus(q.status === "draft" ? "answered" : q.status);
+                          setQueryStatus(q.status === "submitted" ? "answered" : q.status);
                         }}
                         className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-400"
                         title="Log or edit client reply"
@@ -410,6 +440,7 @@ export function TenderPrebidQueries({
                         <ChatBubbleLeftRightIcon className="inline h-3.5 w-3.5 mr-1" />
                         Log Reply
                       </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDelete(q.id)}
@@ -427,24 +458,27 @@ export function TenderPrebidQueries({
         )}
       </div>
 
-      {/* Step continuation action */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
-        <div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-            Ready for Step 5 · Tender BOQ Items & Make List
-          </h4>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Define the list of items to purchase, set approved brand makes, and begin floating RFQs to vendors.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => onNavigateStep?.("CV-01")}
-          className={primaryBtn + " gap-2 px-5 py-2 text-sm"}
-        >
-          Continue to Step 5 · BOQ & Make List
-          <ArrowRightIcon className="h-4 w-4" />
-        </button>
+      <div className="flex flex-wrap items-center gap-3">
+        {!reviewing ? (
+          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.("LG-04")}>
+            Review replies or confirm no queries <ArrowRightIcon className="h-4 w-4" />
+          </button>
+        ) : closed ? (
+          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.("TS-TSC")}>
+            Continue to TSC <ArrowRightIcon className="h-4 w-4" />
+          </button>
+        ) : canWrite && (
+          <button
+            type="button"
+            className={primaryBtn}
+            disabled={loading || saving || answeredCount !== queries.length}
+            onClick={() => void saveReview()}
+          >
+            {queries.length ? "Close review and continue to TSC" : "Confirm no queries and continue to TSC"}
+          </button>
+        )}
+        {reviewing && !closed && answeredCount !== queries.length &&
+          <p className="text-sm text-slate-600 dark:text-slate-400">Submit draft queries and record all outstanding replies before closing review.</p>}
       </div>
 
       {/* Modal: Add Query */}
@@ -589,10 +623,10 @@ export function TenderPrebidQueries({
 
               <div>
                 <ValidatedLabel className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400">
-                  Official Client Response Text *
+                  Official issuer response
                 </ValidatedLabel>
                 <ValidatedTextarea
-                  required
+                  required={!corrigendumRef.trim()}
                   rows={4}
                   placeholder="Paste the official response from the pre-bid minutes or corrigendum..."
                   value={clientResponse}

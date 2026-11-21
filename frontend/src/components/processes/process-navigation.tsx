@@ -29,8 +29,11 @@ export function ProcessNavigation({ process, selected, mapSelected, projectId, d
   },[process.screen,projectId,draftId]);
   const steps = filterProcessSteps(process, query);
   const groups = [...new Set(steps.map(step => step.group))];
+  const dashboard = process.screen === "purchase-fms" ? "purchase" : process.screen === "tender-fms" ? "tender" : null;
+  const backLabel = dashboard ? `Back to ${dashboard} dashboard` : "Back to workspace";
   return <>
-    <Link href={process.screen === "purchase-fms" ? "/dashboard?screen=purchase-fms" : process.screen === "tender-fms" ? (draftId ? "/dashboard?screen=tender-fms" : "/dashboard") : "/dashboard"} title={process.screen === "purchase-fms" ? "Back to purchase dashboard" : process.screen === "tender-fms" ? (draftId ? "Back to tenders" : "Back to workspace") : "Back to workspace"} aria-label={process.screen === "purchase-fms" ? "Back to purchase dashboard" : process.screen === "tender-fms" ? (draftId ? "Back to tenders" : "Back to workspace") : "Back to workspace"} onClick={close}><ArrowLeftIcon aria-hidden="true" /><span>{process.screen === "purchase-fms" ? "Back to purchase dashboard" : process.screen === "tender-fms" ? (draftId ? "Back to tenders" : "Back to workspace") : "Back to workspace"}</span></Link>
+    <Link href={dashboard ? `/dashboard?screen=${process.screen}` : "/dashboard"} title={backLabel}
+      aria-label={backLabel} onClick={close}><ArrowLeftIcon aria-hidden="true" /><span>{backLabel}</span></Link>
     <div className="go-process-heading"><strong>{process.label}</strong></div>
     <Link href={processMapHref(process,projectId)} title="Process map" aria-label="Process map" aria-current={mapSelected ? "page" : undefined} onClick={close}><MapIcon aria-hidden="true" /><span>Process map</span></Link>
     {process.screen==="purchase-fms"&&projectId&&<Link href={`/dashboard?screen=purchase-fms&project=${encodeURIComponent(projectId)}&work=packages`} title="Purchase work packages" aria-label="Purchase work packages" aria-current={workPackages?"page":undefined} onClick={close}><ClipboardDocumentListIcon aria-hidden="true"/><span>Purchase work packages</span></Link>}

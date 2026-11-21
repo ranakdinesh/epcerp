@@ -6,6 +6,8 @@ import * as account from "./account";
 import { address, body, boolean, contact, list, names, text, userName, version } from "./validation";
 import { requireMail } from "./mail";
 import { limitPublic } from "./rate-limit";
+import registry from "./permissions.json";
+import { roleBodyLimit } from "../../lib/auth/role-limits";
 
 // HTTP is only an adapter. Services can also be called by server actions and,
 // later, versioned mobile endpoints without duplicating authorization policies.
@@ -103,16 +105,16 @@ export async function handleAuth(request: Request): Promise<Response> {
     if (route === "GET /roles/permissions") return response(await admin.permissions(token));
     if (route === "POST /roles/finance-presets") return response(await admin.financePresets(token));
     if (route === "POST /roles") {
-      const p = await body(request,["name","description","permission_codes"]), name = text(p,"name",3,64);
+      const p = await body(request,["name","description","permission_codes"], roleBodyLimit), name = text(p,"name",3,64);
       if (!/^[a-z0-9._-]+$/.test(name)) invalid("Invalid role name");
-      return response(await admin.createRole(token,{name,description:p.description === undefined ? "" : text(p,"description",0,255),permission_codes:list(p,"permission_codes",1,100)}),201);
+      return response(await admin.createRole(token,{name,description:p.description === undefined ? "" : text(p,"description",0,255),permission_codes:list(p,"permission_codes",1,registry.length)}),201);
     }
     const role = /^\/roles\/([^/]+)$/.exec(path);
     if (role && method === "PATCH") {
-      const p = await body(request,["description","permission_codes","is_active","expected_version"]);
+      const p = await body(request,["description","permission_codes","is_active","expected_version"], roleBodyLimit);
       return response(await admin.updateRole(token,role[1],{expected_version:version(p),
         ...(p.description !== undefined ? {description:text(p,"description",0,255)} : {}),
-        ...(p.permission_codes !== undefined ? {permission_codes:list(p,"permission_codes",0,100)} : {}),
+        ...(p.permission_codes !== undefined ? {permission_codes:list(p,"permission_codes",0,registry.length)} : {}),
         ...(p.is_active !== undefined ? {is_active:boolean(p,"is_active")} : {})}));
     }
     if (route === "GET /auth/administration-history") return response(await admin.history(token,url.searchParams.get("entity_id")));

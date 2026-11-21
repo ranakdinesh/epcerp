@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Root-only development preflight. Existing application services remain online."""
-import copy, datetime, fcntl, hashlib, json, os, pathlib, subprocess, sys, time, urllib.request, urllib.error, uuid, base64, hmac
+import copy, datetime, fcntl, hashlib, json, os, pathlib, re, subprocess, sys, time, urllib.request, urllib.error, uuid, base64, hmac
 os.umask(0o077)
 PROJECT='epcerp-dev'; FRONT='epcerp-frontend:retire-72215c9-amd64'; PROCESSOR='epcerp-document-processor:retire-72215c9'
 LEGACY=['api','document-worker','document-package-worker','tsc-worker','tsc-reranker','migrate']
@@ -42,6 +42,11 @@ def main():
  assert os.geteuid()==0,'Run through sudo';lock=open('/run/lock/epcerp-deployment.lock','w');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
  front=inspect('frontend');root=pathlib.Path(front['Config']['Labels']['com.docker.compose.project.working_dir']);assert root==pathlib.Path('/home/vtplerp/epcerp-releases/dev-20261102-1-amd64');os.chdir(root)
  original=json.loads((root/'compose.yaml').read_text());assert original.get('name')==PROJECT;assert query('SELECT version,dirty FROM schema_migrations')=='98|f'
+ name=os.environ.get('EPCERP_PREFLIGHT_DATABASE','')
+ if not re.fullmatch(r'epcerp_auth_qa_retire_server_[a-z0-9_]+',name):
+  raise RuntimeError('Set EPCERP_PREFLIGHT_DATABASE to an existing, empty preflight database')
+ if query("SELECT EXISTS(SELECT FROM pg_namespace WHERE nspname NOT IN ('public','information_schema') AND left(nspname,3)<>'pg_') OR EXISTS(SELECT FROM pg_class WHERE relnamespace='public'::regnamespace)",name)!='f':
+  raise RuntimeError('The preflight database must be empty')
  for q in ["SELECT count(*)FROM tender.tsc_jobs WHERE state IN('queued','processing')","SELECT count(*)FROM document_readings WHERE status IN('queued','processing')","SELECT count(*)FROM document_package_receipts WHERE state IN('receiving','verifying','ready')"]:assert query(q)=='0','Active work must finish before deployment'
  archive=pathlib.Path('/home/vtplerp/epcerp-dev-native-72215c9-amd64.tar.gz');expected=pathlib.Path('/home/vtplerp/epcerp-dev-native-72215c9-amd64.sha256').read_text().strip();assert hashlib.file_digest(archive.open('rb'),'sha256').hexdigest()==expected
  run(['docker','load','-i',str(archive)],stdout=subprocess.DEVNULL)
@@ -64,7 +69,6 @@ def main():
    if k.startswith('EPCERP_TSC_')or k in ['EPCERP_DATABASE_URL','VTPL_JWT_SECRET_KEY','EPCERP_IMAGE_ENCRYPTION_KEY','EPCERP_SUPPLIER_DOCUMENT_KEY','EPCERP_DOCUMENT_READING_KEY','VTPL_STORAGE_SECRET_KEY','VTPL_DOCUMENT_ENCRYPTION_KEY']:assert candidate['services'][n]['environment'].get(k)==v,'Private setting mismatch: '+k
  write_json(release/'compose-candidate.private.json',candidate);run(['docker','compose','--project-directory',str(root),'--env-file',str(root/'.env'),'-p',PROJECT,'-f',str(release/'compose-candidate.private.json'),'config','--quiet'])
  # Consistent MVCC copy for migration rehearsal; production services remain online.
- name='epcerp_auth_qa_retire_server_'+datetime.datetime.now().strftime('%Y%m%d%H%M%S');run(['docker','exec',PROJECT+'-db-1','createdb','-U','epcerp',name])
  with(release/'preflight.database.dump').open('wb')as f:run(['docker','exec',PROJECT+'-db-1','pg_dump','-U','epcerp','-d','epcerp','-Fc'],stdout=f)
  with(release/'preflight.database.dump').open('rb')as f:run(['docker','exec','-i',PROJECT+'-db-1','pg_restore','-U','epcerp','-d',name,'--exit-on-error'],stdin=f,stdout=subprocess.DEVNULL)
  before=hashes(name);qa=dict(candidate['services']['frontend-lan']['environment']);from urllib.parse import urlsplit,urlunsplit

@@ -9,7 +9,7 @@ import { now } from '../core/time';
 import { invalid } from '../core/validation';
 import { id } from '../sourcing/values';
 import type { Order } from './types';
-import { accessGuard, missing, stale, guard, sameSource } from './policy';
+import { accessGuard, missing, stale, guard, sameOrderSource } from './policy';
 import * as context from './context';
 import * as repo from './repository';
 export type File = {
@@ -35,7 +35,7 @@ export async function validateFile(db: DB, o: Order | null, id: string) { if (!o
 async function scope(db: DB, token: string, p: string, record: string, version: number) { const a = await context.actor(db, token); id(p); id(record); accessGuard(a, await context.access(db, a, p, record), 'client_decision'); const o = await repo.get(db, p, record); if (!o?.is_active)
     throw missing(); if (o.version !== version)
     throw stale(); if (o.state !== 'draft' || o.client_approval.status !== 'submitted')
-    invalid('state', 'Submit the draft to the client before attaching their signed response'); const source = await context.source(db, p, record); guard(source); if (!sameSource(o.source_snapshot, source))
+    invalid('state', 'Submit the draft to the client before attaching their signed response'); const source = await context.source(db, p, record); guard(source); if (!sameOrderSource(o.source_snapshot, source))
     throw stale(); return { a, o }; }
 export async function authorizeUpload(token: string, p: string, record: string, version: number) { await transaction(db => scope(db, token, p, record, version)); }
 export async function upload(token: string, p: string, record: string, version: number, name: string, mime: string, data: Buffer) { await authorizeUpload(token, p, record, version); await inspectTechnical(name, mime, data); return transaction(async (db) => { const { a, o } = await scope(db, token, p, record, version), encrypted = seal(data), f: File = { id: randomUUID(), order_id: o.id, draft_revision: o.draft_revision, name, media_type: mime, size: data.length, sha256: encrypted.sha256, bucket: documentBucket(), object_key: '', created_at: now(), created_by_id: a.id }; f.object_key = 'purchase-orders/' + p + '/' + o.id + '/' + f.id; await putObject(f.bucket, f.object_key, encrypted.encrypted); await db.query('INSERT INTO purchase_order_client_files(id,order_id,draft_revision,name,media_type,byte_size,sha256,object_bucket,object_key,is_active,created_at,updated_at,created_by_id,updated_by_id)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,true,$10,$10,$11,$11)', [f.id, o.id, f.draft_revision, name, mime, f.size, f.sha256, f.bucket, f.object_key, f.created_at, a.id]); await event(db, p, o.id, f.id, 'uploaded', a.id, f.created_at); return fileView(f); }); }

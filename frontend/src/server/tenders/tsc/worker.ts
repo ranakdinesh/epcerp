@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { transaction, pool, actor, lock } from '../../db';
 import { AppError } from '../../errors';
+import { requireClosedPrebidReview } from '../flow';
 import { authorizeWorker, originalDocuments } from '../documents';
 import { encrypt } from './crypto';
 import { configured, ProviderSession } from './providers';
@@ -14,7 +15,7 @@ const failure = (e: unknown) => e instanceof Error && ['token_count_failed','doc
 async function fence(db: Parameters<typeof getJob>[0], task: Task) { const current = (await db.query("SELECT id FROM tender.tsc_workspace_tasks WHERE id=$1 AND state='processing' AND claim_id=$2 AND lease_until>clock_timestamp() FOR UPDATE", [task.id, task.claim_id])).rows[0]; if (!current)
     throw new AppError(409, 'Processing claim expired'); const job = await getJob(db, task.draft_id, task.job_id, true), draft = await authorizeWorker(db, task.actor_id, task.draft_id); if (Number(draft.version) !== Number(job.draft_version))
     throw new AppError(409, 'Tender sources changed during processing'); if (process.env.EPCERP_TSC_OWNER !== 'nextjs' || !configured(task.provider))
-    throw new AppError(403, 'Provider execution is disabled'); await actor(db, task.actor_id); return job; }
+    throw new AppError(403, 'Provider execution is disabled'); await requireClosedPrebidReview(db, task.draft_id); await actor(db, task.actor_id); return job; }
 async function complete(task: Task, initial: JobRow, answers: Answer[], error: string) {
     return transaction(async (db) => {
         await lock(db, 'auth.administration');

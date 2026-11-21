@@ -35,17 +35,19 @@ export function input(raw: Record<string, unknown>) {
         const line: LineInput = { line_id: uuid(l.line_id), unit_price: l.unit_price == null ? null : string(l.unit_price, 'unit_price'), pricing_mode: string(l.pricing_mode, 'pricing_mode', ''), line_total: l.line_total == null ? null : string(l.line_total, 'line_total'), coverage_type: string(l.coverage_type, 'coverage_type', ''), warranty_months: l.warranty_months == null ? null : version(l.warranty_months, 'warranty_months'), discount_pct: string(l.discount_pct, 'discount_pct', ''), tax_pct: string(l.tax_pct, 'tax_pct', ''), compliant: l.compliant === true, notes: string(l.notes, 'notes', '') };
         if (l.compliant !== undefined && typeof l.compliant !== 'boolean')
             invalid('compliant', 'Use true or false');
-        if (quote.amount_mode === 'total_only') {
-            Object.assign(line, { unit_price: null, line_total: null, pricing_mode: '', coverage_type: '', warranty_months: null, discount_pct: '0', tax_pct: '0', compliant: false, notes: '' });
-            quote.lines.push(line);
-            continue;
-        }
         if (line.warranty_months !== null && ![6, 12, 24, 48].includes(line.warranty_months))
             invalid('warranty_months', 'Choose 6, 12, 24 or 48 months');
-        line.pricing_mode ||= 'unit_price';
         line.coverage_type ||= 'warranty';
         if (!['warranty', 'guarantee', 'both'].includes(line.coverage_type))
             invalid('coverage_type', 'Choose warranty, guarantee or both');
+        line.notes = text(line.notes, 'notes', 0, 2000);
+        if (quote.amount_mode === 'total_only') {
+            Object.assign(line, { unit_price: null, pricing_mode: 'line_total', discount_pct: '0', tax_pct: '0' });
+            if (line.line_total !== null) amount(line.line_total, 18, 2);
+            quote.lines.push(line);
+            continue;
+        }
+        line.pricing_mode ||= 'unit_price';
         if (!['unit_price', 'line_total'].includes(line.pricing_mode))
             invalid('pricing_mode', 'Choose unit price or line total');
         if (line.unit_price !== null)
@@ -55,13 +57,12 @@ export function input(raw: Record<string, unknown>) {
         for (const raw of [line.discount_pct, line.tax_pct])
             if (amount(raw, 3, 2).compare(amount('100', 3, 2)) > 0)
                 invalid('tax_pct', 'Discount and tax percentages must be from zero to 100');
-        line.notes = text(line.notes, 'notes', 0, 2000);
         quote.lines.push(line);
     }
     return { version: version(b.version ?? 0), reason: text(b.reason, 'reason', 1, 2000), quote };
 }
 export function normalizeMoney(raw: QuoteInput) { const q = structuredClone(raw); for (const l of q.lines) {
-    l.tax_pct = '18.00';
+    l.tax_pct = q.amount_mode === 'total_only' ? '0.00' : '18.00';
     if (l.unit_price !== null)
         l.unit_price = amount(l.unit_price, 12, 2).fixed();
     if (l.line_total !== null)

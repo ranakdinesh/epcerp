@@ -29,9 +29,13 @@ Historical tender readings and TSC snapshots remain readable/exportable in
 `../tenders/intake/historical.ts` and `../tenders/tsc/legacy.ts`; local model/OCR
 queue retries remain retired in favour of cloud/manual preparation.
 
-Schema history is now owned by `frontend/migrations`. The first 101 SQL files
-are byte-identical copies of the original owned Go migration history; provenance
-hashes are in `history.json`. Future migrations belong here. Run the explicit
-Node CLI (`node tools/migrate.mjs up`) with the application writers stopped and a
-verified private backup. It refuses unowned, dirty or newer schemas; it has no
-force/reset operation and the application never performs DDL on startup.
+The current schema and its seed data are in
+[`000119_baseline.up.sql`](../../../migrations/000119_baseline.up.sql).
+The migrator installs this baseline on an empty database. An EPCERP database
+already at version 119 keeps its current schema and data. Add subsequent
+changes as sequential migrations starting at 120 and record their hashes in
+`history.json`.
+
+Run `node tools/migrate.mjs up` with application writers stopped and a verified
+private backup. The CLI refuses unowned, dirty, newer, and pre-baseline schemas.
+Application startup performs no DDL.

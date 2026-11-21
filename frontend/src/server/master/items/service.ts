@@ -3,9 +3,8 @@ import { randomUUID } from "node:crypto";
 import { transaction } from "../../db";
 import { AppError } from "../../errors";
 import { requirePermission } from "../../auth/access";
-import { itemHash, sortedMap } from "../catalogue/serialization";
 import { fieldError, reason, strictID } from "../catalogue/validation";
-import { deriveItem, eligible, normalizeModel, parseItem } from "./domain";
+import { buildItemSku, deriveItem, eligible, normalizeModel, parseItem } from "./domain";
 import { ItemRepository, itemView } from "./repository";
 export function readItems(token: string, mode = "list", id = "") {
     return transaction(async (db) => {
@@ -27,15 +26,24 @@ export function createItem(token: string, value: unknown) {
         const existing = await repo.find(d.fingerprint);
         if (existing)
             return itemView(existing);
-        for (const item of await repo.candidates(config.data.family_code, config.data.uom, make.id, d.specifications)) {
-            const key = itemHash({ family: item.snapshot.configuration.family_code, uom: item.snapshot.configuration.uom, specifications: sortedMap(item.specifications), manufacturer: item.manufacturer_id, model: normalizeModel(item.model) });
-            if (key === d.fingerprint)
-                return itemView(item);
-        }
-        const serial = await repo.next(config.data.category_code);
-        if (serial < 1 || serial > 999)
-            throw new AppError(422, "All 999 SKU numbers in this category have been issued; numbering policy must be extended");
-        const saved = await repo.create({ id: randomUUID(), configuration_id: config.id, manufacturer_id: make.id, category_id: config.category_id!, model: d.model, specifications: d.specifications, snapshot: { configuration: { ...config.data, name: config.name, code: config.code }, manufacturer: make, sku_prefix: d.prefix }, fingerprint: d.fingerprint, engineering_key: d.engineering_key, description: d.description, sku: `${d.prefix}-${String(serial).padStart(3, "0")}`, serial, status: "approved", is_active: true }, actor.id);
+        const candidates = await repo.candidates(config.data.family_code, config.data.uom, d.specifications);
+        const normalizedModel = normalizeModel(d.model);
+        const matching = candidates.filter(item => normalizeModel(item.model) === normalizedModel);
+        const sameMake = matching.find(item => item.manufacturer_id === make.id);
+        if (sameMake)
+            return itemView(sameMake);
+        const duplicateSku = () => new AppError(409, "An item already exists for this SKU. Use the existing item.");
+        if (matching.length)
+            throw duplicateSku();
+
+        // Legacy items reserve their vendor-free SKU while keeping the code they were issued.
+        const legacy = await repo.legacySkuCandidates(config.data.category_code);
+        if (legacy.some(item => buildItemSku(item.snapshot.configuration, item.specifications, normalizeModel(item.model)) === d.prefix))
+            throw duplicateSku();
+
+        const saved = await repo.create({ id: randomUUID(), configuration_id: config.id, manufacturer_id: make.id, category_id: config.category_id!, model: d.model, specifications: d.specifications, snapshot: { configuration: { ...config.data, name: config.name, code: config.code }, manufacturer: make, sku_prefix: d.prefix }, fingerprint: d.fingerprint, engineering_key: d.engineering_key, description: d.description, sku: d.prefix, status: "approved", is_active: true }, actor.id);
+        if (!saved)
+            throw duplicateSku();
         await repo.event(saved, "created", "Created catalogue item", actor.id);
         return itemView(saved);
     });

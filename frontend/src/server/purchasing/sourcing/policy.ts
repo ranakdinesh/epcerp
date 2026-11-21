@@ -12,7 +12,7 @@ export function guard(s: Source) { id(s.package_id); id(s.demand_id); if (s.dema
     invalid('source', 'Use a current source revision and currency'); if (!s.project_available || !s.eligible || s.blockers.length)
     invalid('source', 'Current source controls block sourcing: ' + s.blockers.join('; ')); scaled('quantity', s.quantity, 4, 19, true); }
 export function supplierGuard(s: Supplier | undefined, onboarding = false): asserts s is Supplier { if (!s?.eligible)
-    invalid('supplier_id', 'Supplier must be active, qualified and linked to this item'); if (onboarding && (!trim(s.registration) || !trim(s.contact) || !trim(s.location)))
+    invalid('supplier_id', 'Supplier must be active, available and linked to this item'); if (onboarding && (!trim(s.registration) || !trim(s.contact) || !trim(s.location)))
     invalid('supplier_id', 'Complete supplier registration, contact and location before LOI release'); }
 export function selected(c: Case, today: string) { const o = c.offers.find(o => o.id === c.selected_offer_id); if (!o)
     throw missing(); if (o.state !== 'quoted' || !o.compliant)

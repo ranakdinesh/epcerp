@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { createRecordId } from "@/lib/record-id";
+import { TenderEligibilitySection } from "./tender-eligibility-verdict";
 import { TSCWorkspace } from "./tsc-workspace";
 import { ValidatedInput, ValidatedSelect, ValidatedTextarea, ValidatedLabel } from "@/components/ui/validated-controls";
 import type { Answer, Question, Source, Snapshot } from "@/server/tenders/tsc/types";
@@ -44,6 +45,13 @@ type Cost = {
 
 type Options = {
   engine?: string;
+  clarifications?: {
+    id: string;
+    clause_reference: string;
+    query_description: string;
+    client_response: string;
+    corrigendum_reference: string;
+  }[];
   upload_batches?: { id: string; state: string; error_code: string | null; blocked_path: string | null }[];
   formats: { id: string; version: number; name: string; question_count: number }[];
   sources: (Source & { reference_document: boolean })[];
@@ -108,7 +116,7 @@ export function CloudTSCWorkspace(props: {
   readyForGeneration?: boolean;
   onDone?: () => void;
   onDirty?: (value: boolean) => void;
-  onProceedToStep3?: () => void;
+  onProceedToBidding?: () => void;
 }) {
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
@@ -156,6 +164,20 @@ export function CloudTSCWorkspace(props: {
           </button>
         </p>
       )}
+      {Boolean(options.clarifications?.length) && (
+        <details className="rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-900">
+          <summary className="cursor-pointer font-semibold">Pre-bid replies and corrigenda</summary>
+          <ul className="mt-3 space-y-3">
+            {options.clarifications?.map(reply => (
+              <li key={reply.id}>
+                <p className="font-semibold">{[reply.clause_reference, reply.query_description].filter(Boolean).join(" · ")}</p>
+                {reply.client_response && <p className="whitespace-pre-wrap">{reply.client_response}</p>}
+                {reply.corrigendum_reference && <p>Corrigendum {reply.corrigendum_reference}</p>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <NativeTSC
         key={props.draftID}
         {...props}
@@ -163,7 +185,7 @@ export function CloudTSCWorkspace(props: {
         refreshOptions={refresh}
         onDone={props.onDone}
         onDirty={props.onDirty}
-        onProceedToStep3={props.onProceedToStep3}
+        onProceedToBidding={props.onProceedToBidding}
       />
     </>
   );
@@ -175,7 +197,7 @@ function NativeTSC({
   options,
   refreshOptions,
   onDirty,
-  onProceedToStep3,
+  onProceedToBidding,
 }: {
   draftID: string;
   sourceVersion: number;
@@ -183,11 +205,12 @@ function NativeTSC({
   refreshOptions: () => Promise<void>;
   onDone?: () => void;
   onDirty?: (value: boolean) => void;
-  onProceedToStep3?: () => void;
+  onProceedToBidding?: () => void;
 }) {
   const user = useAuthenticatedUser();
   const has = (p: string) => user.permissions.includes("system:admin") || user.permissions.includes(p);
-  const canWrite = has("tenders.tsc.write") && has("tenders.register.write") && has("tenders.processing.write");
+  const canVerifyEligibility = has("tenders.register.write") && has("tenders.processing.write");
+  const canWrite = has("tenders.tsc.write") && canVerifyEligibility;
   const canCloud = canWrite && has("tenders.tsc.originals.write");
   const base = `drafts/${draftID}/tsc`;
 
@@ -453,8 +476,8 @@ function NativeTSC({
 
   async function handleProceed() {
     await saveQueue.current;
-    if (onProceedToStep3) {
-      onProceedToStep3();
+    if (onProceedToBidding) {
+      onProceedToBidding();
     }
   }
 
@@ -483,7 +506,7 @@ function NativeTSC({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-                  Step 2 · Technical Scrutiny Checklist (TSC / TMC)
+                  Step 3 · Technical Scrutiny Checklist (TSC / TMC)
                 </span>
               </div>
               <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
@@ -611,7 +634,7 @@ function NativeTSC({
                 {pdfSources.length === 0 && (
                   <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
                     <ExclamationTriangleIcon className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-                    <span>No PDF documents verified in Step 1. Upload PDFs in Step 1 to run AI scrutiny, or choose manual entry below.</span>
+                    <span>No PDF documents verified in Step 2. Upload PDFs in Step 2 to run AI scrutiny, or choose manual entry below.</span>
                   </div>
                 )}
               </div>
@@ -764,16 +787,6 @@ function NativeTSC({
                     <ArrowDownTrayIcon className="h-4 w-4" />
                     Download Word
                   </a>
-                )}
-                {onProceedToStep3 && (
-                  <button
-                    type="button"
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
-                    onClick={() => void handleProceed()}
-                  >
-                    Save & Continue to Step 3
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </button>
                 )}
               </div>
             </div>
@@ -1071,18 +1084,15 @@ function NativeTSC({
                 </span>
               </div>
 
-              {onProceedToStep3 && (
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
-                  onClick={() => void handleProceed()}
-                >
-                  Submit Questionnaire & Continue to Step 3
-                  <ArrowRightIcon className="h-4 w-4" />
-                </button>
-              )}
             </div>
           </div>
+          <TenderEligibilitySection
+            key={job.id}
+            base={base}
+            jobId={job.id}
+            canWrite={canVerifyEligibility}
+            onProceedToBidding={onProceedToBidding ? handleProceed : undefined}
+          />
         </>
       ) : null}
     </section>

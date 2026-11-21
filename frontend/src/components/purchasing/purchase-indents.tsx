@@ -5,7 +5,6 @@ import { useState, useRef, type FormEvent } from "react";
 import { DataGrid, GridAction, GridStatus } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import {FieldValidationError,displayServerErrors} from "@/components/ui/server-field-errors";
-import { ItemHistory } from "../items/item-history";
 import {
   request,
   input,
@@ -464,11 +463,6 @@ function IndentEditor({
               ))}
             </div>
           </>
-        )}
-        {old && (
-          <ItemHistory
-            url={`/api/projects/${project}/purchase-indents/${old.id}/history`}
-          />
         )}
         <button type="button" className={secondary} onClick={close}>
           Close

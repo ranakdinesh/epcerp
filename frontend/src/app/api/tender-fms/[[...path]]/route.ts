@@ -6,7 +6,7 @@ async function route(request: Request, context: Context) {
   const { path = [] } = await context.params;
   const joined = path.join("/");
   const upload = /^receipts\/[0-9a-f-]{36}\/files\/[0-9a-f-]{36}$/.test(joined);
-  const tsc = /^drafts\/[0-9a-f-]{36}\/(?:flow-status|bidding-approval|prebid-queries(?:\/[0-9a-f-]{36})?|bid-items(?:\/[0-9a-f-]{36})?|vendor-quotations(?:\/(?:select-l1|[0-9a-f-]{36}))?|bid-costing|award-project|tsc(?:\/options|\/import(?:\/commit)?|\/[0-9a-f-]{36}(?:\/(?:document|uploaded-document|resume|evidence|history|eligibility(?:\/verify)?)|\/responses\/[0-9a-f-]{36}|\/answers\/[a-zA-Z0-9_.-]{1,80}(?:\/(?:research|originals))?)?)?)$/.test(joined);
+  const tsc = /^drafts\/[0-9a-f-]{36}\/(?:flow-status|bidding-approval(?:\/project)?|prebid-queries(?:\/(?:close|[0-9a-f-]{36}))?|bid-items(?:\/[0-9a-f-]{36})?|vendor-quotations(?:\/(?:select-l1|[0-9a-f-]{36}))?|bid-costing|award-project|tsc(?:\/options|\/import(?:\/commit)?|\/[0-9a-f-]{36}(?:\/(?:document|uploaded-document|resume|evidence|history|eligibility(?:\/verify)?)|\/responses\/[0-9a-f-]{36}|\/answers\/[a-zA-Z0-9_.-]{1,80}(?:\/(?:research|originals))?)?)?)$/.test(joined);
   const draft = /^drafts(?:\/[0-9a-f-]{36}(?:\/batches|\/documents\/[0-9a-f-]{36}(?:\/(?:text|result|original|history|retry))?)?)?$/.test(joined);
   const named = /^records(?:\/[0-9a-f-]{36}(?:\/manager-assignments)?)?$/.test(joined);
   const receipt = /^receipts(?:\/[0-9a-f-]{36}(?:\/seal)?)?$/.test(joined);

@@ -405,15 +405,15 @@ export const catalogueSQL = {
     ],
     "mode": "one"
   },
-  "ItemsNextSerial": {
-    "text": "SELECT (coalesce(max(serial),0)+1)::integer FROM catalogue_items WHERE snapshot->'configuration'->>'category_code'= $1::text;",
+  "ItemsLegacySkuCandidates": {
+    "text": "SELECT * FROM catalogue_items WHERE snapshot->'configuration'->>'category_code'= $1::text AND serial IS NOT NULL;",
     "keys": [
       "category_code"
     ],
-    "mode": "one"
+    "mode": "many"
   },
   "ItemsCreateItem": {
-    "text": "INSERT INTO catalogue_items(id,configuration_id,manufacturer_id,category_id,model,specifications,snapshot,fingerprint,engineering_key,description,sku,serial,status,is_active,created_by_id,updated_by_id)\nVALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'approved',true,$13,$13) RETURNING *;",
+    "text": "INSERT INTO catalogue_items(id,configuration_id,manufacturer_id,category_id,model,specifications,snapshot,fingerprint,engineering_key,description,sku,status,is_active,created_by_id,updated_by_id)\nVALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'approved',true,$12,$12)\nON CONFLICT (sku) DO NOTHING RETURNING *;",
     "keys": [
       "id",
       "configuration_id",
@@ -426,7 +426,6 @@ export const catalogueSQL = {
       "engineering_key",
       "description",
       "sku",
-      "serial",
       "actor_id"
     ],
     "mode": "one"
@@ -463,9 +462,8 @@ export const catalogueSQL = {
     "mode": "many"
   },
   "ItemsIdentityCandidates": {
-    "text": "SELECT * FROM catalogue_items WHERE manufacturer_id= $1 AND specifications= $2::jsonb AND snapshot->'configuration'->>'family_code'= $3::text AND snapshot->'configuration'->>'uom'= $4::text ORDER BY created_at,id;",
+    "text": "SELECT * FROM catalogue_items WHERE specifications= $1::jsonb AND snapshot->'configuration'->>'family_code'= $2::text AND snapshot->'configuration'->>'uom'= $3::text ORDER BY created_at,id;",
     "keys": [
-      "manufacturer_id",
       "specifications",
       "family",
       "uom"

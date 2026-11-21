@@ -19,6 +19,7 @@ export function calculate(q: QuoteInput, d: Document, today: string): Calculatio
         const total = amount(q.total_amount, 20, 2);
         if (total.numerator <= zero)
             invalid('total_amount', 'Overall quotation total must be a positive amount');
+        let allocated = zero;
         for (const source of d.data.lines) {
             const line = mapped.get(source.id);
             if (!line)
@@ -27,9 +28,25 @@ export function calculate(q: QuoteInput, d: Document, today: string): Calculatio
                 invalid('quantity', 'Indent quantity is missing');
             if (amount(source.quantity, 13, 3).numerator <= zero)
                 invalid('quantity', 'Indent quantities must be positive');
-            out.lines.push(row(line, source));
+            if (line.warranty_months === null)
+                invalid('warranty_months', 'Select warranty/guarantee months for every quoted SKU');
+            out.compliant &&= line.compliant;
+            const result = row(line, source);
+            const allocation = d.data.lines.length === 1 ? total :
+                line.line_total === null ? null : amount(line.line_total, 18, 2);
+            if (allocation !== null) {
+                if (allocation.numerator <= zero) invalid('line_total', 'Each internal allocation must be positive');
+                allocated += allocation.round(2);
+                result.pricing_mode = 'line_total';
+                result.base = result.net = result.landed = allocation.fixed();
+                result.discount_amount = result.tax_amount = result.allocated_charges = '0.00';
+            }
+            out.lines.push(result);
         }
-        return { ...out, total: total.fixed(), complete: true, compliant: false };
+        const count = out.lines.filter(line => line.landed !== null).length;
+        if (count && (count !== out.lines.length || allocated !== total.round(2)))
+            invalid('line_total', 'Internal allocations must cover every item and add up to the all-inclusive total');
+        return { ...out, total: total.fixed(), complete: true };
     }
     const priced: number[] = [], weights: bigint[] = [];
     let sumWeights = zero, total = zero;
@@ -107,27 +124,33 @@ export function calculate(q: QuoteInput, d: Document, today: string): Calculatio
         invalid('total', 'Quotation total exceeds supported limit');
     return { ...out, total: format(total, 2), complete: priced.length === out.lines.length };
 }
+export function quoteExclusions(q: Quote, d: Document, today: string, currency: string) {
+    const exclusions: string[] = [];
+    if (!d.data.is_current)
+        exclusions.push('Superseded indent scope — revised quotation required');
+    if (q.currency !== currency)
+        exclusions.push('Quotation currency differs from the project');
+    if (q.amount_mode === 'total_only' && q.calculation.lines.some(line => line.landed === null))
+        exclusions.push('Enter internal item allocations before Finance submission');
+    if (q.amount_mode === 'total_only' && q.calculation.lines.some(line => line.warranty_months == null))
+        exclusions.push('Record warranty or guarantee for every item');
+    if (!q.calculation.complete)
+        exclusions.push('Partial quotation');
+    if (!q.calculation.compliant)
+        exclusions.push('Technical compliance not confirmed for every item');
+    if (!d.vendor_available)
+        exclusions.push('Vendor inactive or unavailable');
+    if (q.valid_until < today)
+        exclusions.push('Quotation expired');
+    return exclusions;
+}
 export function compare(quotes: Quote[], documents: Document[], today: string, currency: string): Comparison[] {
     const out: Comparison[] = [];
     for (const q of quotes) {
         const d = documents.find(d => d.id === q.document_id);
         if (!d)
             continue;
-        const exclusions: string[] = [], expired = q.valid_until < today;
-        if (!d.data.is_current)
-            exclusions.push('Superseded indent scope — revised quotation required');
-        if (q.currency !== currency)
-            exclusions.push('Quotation currency differs from the project');
-        if (q.amount_mode === 'total_only')
-            exclusions.push('Overall quotation total has no item allocation — record item prices before Accounts approval');
-        if (!q.calculation.complete)
-            exclusions.push('Partial quotation');
-        if (!q.calculation.compliant)
-            exclusions.push('Technical compliance not confirmed for every item');
-        if (!d.vendor_available)
-            exclusions.push('Vendor inactive or unavailable');
-        if (expired)
-            exclusions.push('Quotation expired');
+        const exclusions = quoteExclusions(q, d, today, currency), expired = q.valid_until < today;
         out.push({ document_id: q.document_id, amount_mode: q.amount_mode, total_amount: q.total_amount, group_id: d.group_id, group_name: d.data.group_name, scope_revision: d.data.scope_revision, vendor_id: d.vendor_id, vendor: d.data.vendor.name, reference: q.reference, total: q.calculation.total, eligible: !exclusions.length, exclusions, expired, delivery_days: q.delivery_days, payment_terms: q.payment_terms, delivery_terms: q.delivery_terms, lines: structuredClone(q.calculation.lines), rank: null, suggested: false, revision: q.revision, received_date: q.received_date, valid_until: q.valid_until, recorded_at: q.recorded_at, reason: q.reason });
     }
     for (const row of out) {
@@ -137,10 +160,10 @@ export function compare(quotes: Quote[], documents: Document[], today: string, c
         row.rank = lower.size + 1;
         row.suggested = row.rank === 1;
         for (const line of row.lines) {
-            if (line.landed === null)
+            if (row.amount_mode === 'total_only' || line.landed === null)
                 continue;
             const price = amount(line.landed, 20, 2);
-            line.item_lowest = !out.some(other => other.eligible && other.group_id === row.group_id && other.lines.some(candidate => candidate.line_id === line.line_id && candidate.landed !== null && amount(candidate.landed, 20, 2).compare(price) < 0));
+            line.item_lowest = !out.some(other => other.eligible && other.amount_mode !== 'total_only' && other.group_id === row.group_id && other.lines.some(candidate => candidate.line_id === line.line_id && candidate.landed !== null && amount(candidate.landed, 20, 2).compare(price) < 0));
         }
     }
     return out;

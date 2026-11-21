@@ -377,7 +377,7 @@ export function TenderVendorComparison({
                 </div>
               ) : (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="vtpl-data-table w-full text-left text-xs">
                     <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                       <tr>
                         <th className="py-3 px-3">Vendor / Supplier</th>
@@ -493,7 +493,7 @@ export function TenderVendorComparison({
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
             <div>
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                Ready for Step 7 · Project Working Costing & Bid Budget
+                Ready for Project Working Costing & Bid Budget
               </h4>
               <p className="mt-0.5 text-xs text-slate-500">
                 Aggregate all L-1 material costs, factor in freight, civil works, overheads, and target profit margin.
@@ -504,7 +504,7 @@ export function TenderVendorComparison({
               onClick={() => onNavigateStep?.("CV-07")}
               className={primaryBtn + " gap-2 px-5 py-2 text-sm"}
             >
-              Continue to Step 7 · Working Budget
+              Continue to working budget
               <ArrowRightIcon className="h-4 w-4" />
             </button>
           </div>

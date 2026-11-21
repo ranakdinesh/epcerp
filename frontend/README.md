@@ -27,11 +27,19 @@ runtime copies without any backend checkout.
 ## Checks
 
 Run `npm test`, `npm run test:auth`, `npm run typecheck`, `npm run build`, and the
-SQL/template sync checks. `npm run test:native` uses an explicitly provided fresh
-`epcerp_auth_qa_retire_` database and makes no provider calls. Cloud TSC workflow
-verification uses a separate `epcerp_auth_qa_tsc_` database via `npm run test:tsc`.
+SQL/template sync checks. For `npm run test:native`, set `EPCERP_DATABASE_URL` to
+an existing, empty database with a name starting with `epcerp_auth_qa_retire_` on
+an isolated test server. The suite applies migrations and writes test fixtures to
+that database. It creates no databases and makes no provider calls. Cloud TSC
+workflow verification uses a separate `epcerp_auth_qa_tsc_` database via `npm run test:tsc`.
 Never point mutation tests at an application database.
 
 [Optional historical parity checks](scripts/compatibility/README.md) use a frozen
 reference extracted from Git into a temporary directory; normal development and
 builds do not install Go or check out the retired application.
+## UI colors
+
+- Use teal `#007D70` for every action button, including icon-only buttons.
+- Use sage `#588368` for success messages, yellow for warnings, and red for errors. Include a clear text label for each message.
+- Use a solid teal `#007D70` background and white text across every grid header.
+- The shared action color applies across all screens. Use `app-action` for button-styled links.

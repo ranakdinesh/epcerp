@@ -1,3 +1,4 @@
+import type { StageEvidence } from '../core/stage-evidence';
 export type Capabilities = {
     read: boolean;
     write: boolean;
@@ -58,6 +59,7 @@ export type Record = {
     reviewed_by_id: string;
     reviewed_at: string | null;
     payment: Payment | null;
+    payment_evidence?: StageEvidence;
     is_active: boolean;
     created_at: string;
     updated_at: string;

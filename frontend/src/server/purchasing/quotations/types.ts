@@ -2,7 +2,7 @@ import type { Document as Indent } from '../indent-documents/types';
 import type { Line as SourceLine } from '../groups/types';
 export type Document = Pick<Indent, 'id' | 'project_id' | 'bo_id' | 'group_id' | 'vendor_id' | 'version'> & {
     vendor_available: boolean;
-    data: Pick<Indent['data'], 'terms' | 'number' | 'group_name' | 'scope_revision' | 'is_current' | 'sent_date' | 'vendor' | 'lines'>;
+    data: Pick<Indent['data'], 'terms' | 'number' | 'group_name' | 'scope_revision' | 'is_current' | 'sent_date' | 'vendor' | 'lines'> & { indent_category?: string };
 };
 export type LineInput = {
     line_id: string;
@@ -80,6 +80,7 @@ export type QuoteRecord = {
     bo_id: string;
     version: number;
     quotes: Quote[];
+    frozen_document_ids: string[] | null;
     is_active: boolean;
     created_at: string;
     updated_at: string;

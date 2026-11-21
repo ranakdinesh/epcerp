@@ -18,6 +18,7 @@ import { inventory } from '../../src/server/platform/inventory';
 import { encrypt, decrypt } from '../../src/server/platform/storage';
 import { health } from '../../src/server/platform/health';
 import { handleTSC } from '../../src/server/tenders/tsc/http';
+import { tenderSummary } from '../../src/server/tenders/summary';
 import { handleLegacy } from '../../src/server/tenders/tsc/legacy';
 import { encrypt as seal } from '../../src/server/tenders/tsc/crypto';
 import { unzipSync, strFromU8 } from 'fflate';
@@ -25,8 +26,8 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
     assert.match(new URL(process.env.EPCERP_DATABASE_URL!).pathname, /^\/epcerp_auth_qa_retire_/);
     await initializeAuth();
     const sql = pool(), password = process.env.VTPL_BOOTSTRAP_SUPERADMIN_PASSWORD!, token = (await login('superadmin', password)).access_token, admin = (await sql.query("SELECT id FROM auth.users WHERE username='superadmin'")).rows[0].id;
-    const call = async (handler: (r: Request) => Promise<Response>, path: string, method = 'GET', value?: unknown, status = 200, access = token) => {
-        const response = await handler(new Request('http://fixture.invalid/api/v1' + path, { method, headers: { Authorization: 'Bearer ' + access, 'Content-Type': 'application/json' }, body: value === undefined ? undefined : JSON.stringify(value) }));
+    const call = async (handler: (r: Request) => Promise<Response>, path: string, method = 'GET', value?: unknown, status = 200, access = token, key?: string) => {
+        const response = await handler(new Request('http://fixture.invalid/api/v1' + path, { method, headers: { Authorization: 'Bearer ' + access, 'Content-Type': 'application/json', ...(key ? { 'Idempotency-Key': key } : {}) }, body: value === undefined ? undefined : JSON.stringify(value) }));
         const data = response.status === 204 ? undefined : await response.json();
         assert.equal(response.status, status, JSON.stringify(data));
         return data;
@@ -62,6 +63,80 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             await call(handleIntake, path + '/' + id, 'GET', undefined, 404);
             const audit = (await sql.query('SELECT action FROM tender.draft_events WHERE draft_id=$1 ORDER BY created_at', [id])).rows;
             assert.deepEqual(audit.slice(-2).map(row => row.action), ['renamed', 'soft_deleted']);
+        });
+        await t.test('tender dashboard analytics match the register visibility', async () => {
+            const analyst = randomUUID(), role = randomUUID();
+            const username = 'analyst' + analyst.replaceAll('-', '').slice(0, 12);
+            await sql.query(`INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser)
+                SELECT $1,$2::varchar,$2::varchar||'@fixture.invalid',password_hash,true,false FROM auth.users WHERE id=$3`, [analyst, username, admin]);
+            await sql.query("INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,$2,'Tender dashboard',true)", [role, username]);
+            await sql.query(`INSERT INTO auth.role_permissions(role_id,permission_id)
+                SELECT $1,id FROM auth.permissions WHERE code IN ('tenders.register.view','tenders.register.read','tenders.processing.read')`, [role]);
+            await sql.query('INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)', [analyst, role]);
+            for (const [owner, creator] of [[analyst, admin], [admin, analyst], [admin, admin]]) {
+                await sql.query(`INSERT INTO tender.document_drafts(id,name,owner_id,operation_key,created_by_id)
+                    VALUES($1,'Synthetic dashboard tender',$2,$3,$4)`, [randomUUID(), owner, randomUUID(), creator]);
+            }
+            const analystToken = (await login(username, password)).access_token;
+            const summary = await tenderSummary(analystToken);
+            const register = await call(handleIntake, '/tender-fms/drafts', 'GET', undefined, 200, analystToken);
+            assert.equal(summary.processed, 2);
+            assert.equal(summary.processed, register.total);
+            assert.ok((await tenderSummary(token)).processed > summary.processed);
+        });
+        await t.test('pre-bid replies gate TSC sign-off and bidding approval', async () => {
+            const created = await call(handleIntake, '/tender-fms/drafts', 'POST', { name: 'Clarification fixture tender' }, 201, token, randomUUID());
+            const draft = created.id;
+            const tender = (tail: string, method = 'GET', value?: unknown, status = 200) =>
+                call(handleTSC, `/tender-fms/drafts/${draft}/${tail}`, method, value, status);
+            const basic = await call(handleIntake, `/tender-fms/drafts/${draft}`, 'PATCH', {
+                name: created.name, basic_details: { reference: 'QA-REF', authority: 'Issuer', portal_url: 'https://example.test/tender', due_date: '2027-02-01' },
+            });
+            assert.equal(basic.basic_details.reference, 'QA-REF');
+
+            await tender('prebid-queries/close', 'POST');
+            assert.equal((await tender('flow-status')).next_step, 'TS-TSC');
+            const query = await tender('prebid-queries', 'POST', {
+                tender_specification: 'Equipment rating', query_description: 'Confirm minimum rating',
+            }, 201);
+            assert.equal((await tender('flow-status')).next_step, 'LG-03');
+            await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'submitted' });
+            assert.equal((await tender('flow-status')).next_step, 'LG-04');
+            await tender('prebid-queries/close', 'POST', undefined, 409);
+
+            const format = (await tender('tsc/options')).formats[0];
+            const createTSC = (mode: string) => handleTSC(new Request(
+                `http://fixture.invalid/api/v1/tender-fms/drafts/${draft}/tsc`, {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + token, 'Idempotency-Key': randomUUID() },
+                body: JSON.stringify({
+                    expected_version: basic.version, format_id: format.id, format_version: format.version,
+                    source_ids: [], mode, ...(mode === 'manual' ? {} : { original_documents_confirmed: true }),
+                }),
+            }));
+            assert.equal((await createTSC('gemini')).status, 409);
+            const manual = await createTSC('manual');
+            assert.equal(manual.status, 201);
+            const job = await manual.json();
+            await tender(`tsc/${job.id}/eligibility`, 'POST', undefined, 201);
+            const verify = (status: number) => tender(`tsc/${job.id}/eligibility/verify`, 'POST', { decision: 'accepted' }, status);
+            await verify(409);
+            await tender('bidding-approval', 'POST', { decision: 'conditional' }, 409);
+            await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered' }, 422);
+            await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered', client_response: 'Use the rating in Corrigendum 1', corrigendum_reference: '1' });
+            await tender('prebid-queries/close', 'POST');
+            assert.equal((await tender('tsc/options')).clarifications[0].corrigendum_reference, '1');
+            await verify(200);
+            assert.equal((await tender('flow-status')).next_step, 'TS-02');
+            await tender('bidding-approval', 'POST', { decision: 'conditional' }, 201);
+            assert.equal((await tender('flow-status')).next_step, 'CV-01');
+            await tender('prebid-queries', 'POST', {
+                tender_specification: 'Warranty', query_description: 'Confirm warranty period',
+            }, 201);
+            const reopened = await tender('flow-status');
+            assert.equal(reopened.tsc_completed, false);
+            assert.equal(reopened.bidding_authorized, false);
+            assert.equal(reopened.next_step, 'LG-03');
         });
         await t.test('tender costing and award create one project and a reviewable BOQ', async () => {
             const draft = randomUUID(), client = randomUUID(), clientName = 'QA' + client.replaceAll('-', '').slice(0, 12);

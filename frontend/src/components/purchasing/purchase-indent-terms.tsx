@@ -14,7 +14,7 @@ export function PurchaseIndentTerms({terms,supplier}:{terms?:IndentTerms;supplie
   return <section aria-label="Purchase indent terms" className="mb-8 space-y-5 text-[11px] font-sans leading-relaxed text-slate-800">
     <p className="no-print text-xs text-slate-500">{terms.source==="legacy_template_v1"?"Saved historical template terms":"Saved vendor terms"}</p>
     {terms.notes.length>0&&<div><h3 className="mb-2 text-xs font-bold uppercase underline">Important notes</h3><ol className="list-decimal space-y-1 pl-5">{terms.notes.map((note,index)=><li key={index} className="whitespace-pre-wrap">{note}</li>)}</ol></div>}
-    <div><h3 className="mb-2 text-xs font-bold uppercase underline">Terms &amp; conditions</h3>{terms.conditions.length>0?<ol className="list-decimal space-y-1 pl-5">{terms.conditions.map((condition,index)=><li key={index} className="whitespace-pre-wrap">{condition}</li>)}</ol>:<p className="no-print text-amber-800">Configure this vendor&apos;s purchase indent conditions before generation.</p>}</div>
+    <div><h3 className="mb-2 text-xs font-bold uppercase underline">Terms &amp; conditions</h3>{terms.conditions.length>0?<ol className="list-decimal space-y-1 pl-5">{terms.conditions.map((condition,index)=><li key={index} className="whitespace-pre-wrap">{condition}</li>)}</ol>:<p className="no-print text-amber-800">No vendor-specific indent conditions recorded.</p>}</div>
     <dl className="space-y-2"><div><dt className="font-bold">Delivery basis</dt><dd className="whitespace-pre-wrap">{terms.delivery_basis||"Not configured"}</dd></div><div><dt className="font-bold">Payment terms</dt><dd className="whitespace-pre-wrap">{payment||"Not recorded"}</dd></div></dl>
   </section>;
 }

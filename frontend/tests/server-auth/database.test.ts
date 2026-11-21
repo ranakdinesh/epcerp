@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import argon2 from "argon2";
 import { initializeAuth } from "../../src/server/auth/bootstrap";
 import { pool, transaction } from "../../src/server/db";
 import { handleAuth } from "../../src/server/auth/http";
@@ -47,6 +48,45 @@ test("native auth against owned PostgreSQL schema", { skip: !database }, async t
       assert.equal((await me(pair.access_token)).username,prefix);
       await initializeAuth();
       assert.equal((await pool().query("SELECT password_hash FROM auth.users WHERE id=$1",[id])).rows[0].password_hash,before);
+    });
+    await t.test("sign-in rejects a password changed during verification", async subtest => {
+      const verify = argon2.verify;
+      const replacement = await argon2.hash("Concurrent-Replacement1!");
+      const { rows: [original] } = await pool().query<{ password_hash: string }>(
+        "SELECT password_hash FROM auth.users WHERE id=$1", [id],
+      );
+      const change = subtest.mock.method(argon2, "verify", async (...args: Parameters<typeof verify>) => {
+        const valid = await verify(...args);
+        assert.equal(valid, true);
+        await pool().query("UPDATE auth.users SET password_hash=$2 WHERE id=$1", [id, replacement]);
+        return valid;
+      });
+      try {
+        const countSessions = async () => (await pool().query(
+          `SELECT (SELECT count(*) FROM auth.refresh_tokens WHERE user_id=$1) AS refresh_count,
+                  (SELECT count(*) FROM auth.access_sessions WHERE user_id=$1) AS access_count`, [id],
+        )).rows[0];
+        const before = await countSessions();
+        await assert.rejects(login(prefix, fixture.password), { status: 401 });
+        assert.equal(change.mock.callCount(), 1);
+        assert.equal((await pool().query("SELECT password_hash FROM auth.users WHERE id=$1", [id])).rows[0].password_hash, replacement);
+        assert.deepEqual(await countSessions(), before);
+      } finally {
+        await pool().query("UPDATE auth.users SET password_hash=$2 WHERE id=$1", [id, original.password_hash]);
+      }
+    });
+    await t.test("temporary sign-in limits session lifetime and rejects expired credentials", async () => {
+      try {
+        await pool().query(`UPDATE auth.users SET must_change_password=true,
+          temporary_password_expires_at=now()+interval '1 hour' WHERE id=$1`, [id]);
+        const pair = await login(`${prefix.toUpperCase()}@FIXTURE.INVALID`, fixture.password);
+        assert.equal(pair.must_change_password, true);
+        assert.ok(pair.refresh_expires_in > 0 && pair.refresh_expires_in <= 900);
+        await pool().query("UPDATE auth.users SET temporary_password_expires_at=now()-interval '1 hour' WHERE id=$1", [id]);
+        await assert.rejects(login(prefix, fixture.password), { status: 401 });
+      } finally {
+        await pool().query("UPDATE auth.users SET must_change_password=false,temporary_password_expires_at=NULL WHERE id=$1", [id]);
+      }
     });
     await t.test("refresh rotates once, preserves lifetime, and replay revokes replacement access", async () => {
       const p = await login(prefix,fixture.password), rotated = await refresh(p.refresh_token);

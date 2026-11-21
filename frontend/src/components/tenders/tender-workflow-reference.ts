@@ -1,6 +1,7 @@
-// Workflow labels from the uploaded Tender-FMS migration template.
-// This is a reference directory, not persisted tender execution state.
-export const tenderWorkflowReference = [
+import { tenderProcess } from "../processes/process-directory";
+
+// Role and evidence notes from the tender reference template.
+const reference = [
   {
     step_code: "TS-01",
     track: "Tender Selection",
@@ -275,3 +276,28 @@ export const tenderWorkflowReference = [
     is_approval: true,
   },
 ] as const;
+
+
+const metadata = new Map<string, (typeof reference)[number]>(reference.map(step => [step.step_code, step]));
+const intakeDetails: Record<string, string> = {
+  "LG-01": "Record the tender name, reference, issuing authority, portal link, and bid submission date.",
+  "TS-01": "Upload and verify the notice, specifications, drawings, BOQ, and published corrigenda.",
+  "LG-03": "Prepare clarification questions and submit them through the channel specified by the issuer.",
+  "LG-04": "Record replies and corrigenda. Close the review once all queries are resolved, or confirm that no queries are needed.",
+  "TS-TSC": "Prepare and verify the Technical Scrutiny Checklist using the tender documents and recorded clarifications.",
+  "TS-02": "Record the decision to bid after the Technical Scrutiny Checklist is finalized.",
+};
+
+export const tenderWorkflowReference = tenderProcess.steps.map(step => {
+  const details = metadata.get(step.code);
+  return {
+    step_code: step.code,
+    track: step.group,
+    global_order: step.number,
+    task_title: step.label,
+    task_detail: intakeDetails[step.code] ?? details?.task_detail ?? "",
+    role: step.code === "TS-TSC" ? "Reviewer" : details?.role ?? "Coordinator",
+    needs_document: details?.needs_document ?? false,
+    is_approval: step.code === "LG-04" ? false : details?.is_approval ?? false,
+  };
+});

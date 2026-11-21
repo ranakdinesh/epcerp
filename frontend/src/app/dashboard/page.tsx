@@ -14,6 +14,7 @@ import { ProcessNavigation } from "@/components/processes/process-navigation";
 import { processForScreen, availableProcessStep } from "@/components/processes/process-directory";
 
 const loading = () => <p role="status">Loading workspace…</p>;
+const ApplicationSettings = dynamic(()=>import("@/components/settings/application-settings").then(m=>m.ApplicationSettings),{loading});
 const ProcurementDashboard = dynamic(()=>import("@/components/dashboard/procurement-dashboard").then(m=>m.ProcurementDashboard),{loading});
 const PersonalTasks = dynamic(()=>import("@/components/tasks/personal-tasks").then(m=>m.PersonalTasks),{loading});
 const AdvanceRequests = dynamic(()=>import("@/components/purchase-fms/advance-requests").then(m=>m.AdvanceRequests),{loading});
@@ -58,10 +59,11 @@ const navigation = [
   { screen: "industries", label: "Industries", group: "Global masters", permission: "settings.industries.view" },
   { screen: "states", label: "States", group: "Global masters", permission: "settings.locations.view" },
   { screen: "cities", label: "Cities", group: "Global masters", permission: "settings.locations.view" },
+  {screen:"application-settings",label:"Application settings",group:"Settings",permission:"system:admin"},
   { screen: "users", label: "Users", group: "Administration", permission: "admin.users.view" },
   { screen: "roles", label: "Roles & permissions", group: "Administration", permission: "admin.roles.view" },
 ] as const;
-const icons = {"tsc-formats":FolderIcon,offboarding:UsersIcon,organisation:BuildingOfficeIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
+const icons = {"application-settings":ShieldCheckIcon,"tsc-formats":FolderIcon,offboarding:UsersIcon,organisation:BuildingOfficeIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
 function subscribePreference(cb: () => void) { window.addEventListener("epcerp-preference", cb); window.addEventListener("storage", cb); return () => { window.removeEventListener("epcerp-preference", cb); window.removeEventListener("storage", cb); }; }
 function preference(key: string) { try { return localStorage.getItem(key); } catch { return null; } }
 function savePreference(key: string, value: string) { try { localStorage.setItem(key, value); } catch {} window.dispatchEvent(new Event("epcerp-preference")); }
@@ -82,7 +84,10 @@ export default function DashboardPage() {
   const visible = navigation.filter(item => permissions.has("system:admin") || (permissions.has(item.permission) || (item.screen === "suppliers" && permissions.has("accounts.vendor_verification.view")) || (item.screen === "organisation" && (permissions.has("settings.company.view") || permissions.has("settings.company.read") || permissions.has("admin.organisation.view")))));
   const selected = visible.find(item => item.screen === params.get("screen"));
   const screen = selected?.screen ?? "overview";
-  const process = (screen === "purchase-fms" && !params.get("project")) ? undefined : processForScreen(screen);
+  const draftID = params.get("draft") ?? undefined;
+  const process = (screen === "purchase-fms" && !params.get("project")) ||
+    (screen === "tender-fms" && !draftID && params.get("view") !== "map")
+    ? undefined : processForScreen(screen);
   const mapSelected = Boolean(process && (params.get("view") === "map"));
   const workPackages = process?.screen === "purchase-fms" && params.get("work") === "packages";
   const processStep = process ? availableProcessStep(process, params.get("step")) : undefined;
@@ -115,13 +120,14 @@ export default function DashboardPage() {
             {visible.length ? <ul>{visible.map(item => <li key={item.screen}><Link href={`/dashboard?screen=${item.screen}`}>{item.label}<span aria-hidden="true"> →</span></Link><span>{item.group}</span></li>)}</ul> : <p>Your account has no directory workspace access. Contact your administrator.</p>}
           </section>
           {permissions.has("projects.budgets.view")&&<p className="text-sm text-slate-600">Open <Link href="/dashboard?screen=projects" className="text-blue-700 underline">Projects</Link> to review budgets within your assigned Finance responsibility. Supplier reviews appear in My tasks; submitted quotations appear in Quotation approvals.</p>}
-        </> : screen === "projects" ? <Projects />
+        </> : screen === "projects" ? <Projects key={params.get("project") ?? ""} initialProject={params.get("project")} />
+          : screen === "application-settings" ? <ApplicationSettings />
           : screen === "organisation" ? <CompanyProfile />
           : screen === "tsc-formats" ? <TSCFormats />
           : screen === "clients" ? <Clients />
           : screen === "holidays" ? <HolidayCalendar/>
           : screen === "suppliers" ? <Suppliers />
-          : screen === "tender-fms" ? <TenderFMS step={processStep?.code} draftID={params.get("draft") ?? undefined} onSelectStep={step=>{const next=new URLSearchParams(params.toString());next.set("step",step);router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} onSelectDraft={(id,targetStep)=>{const next=new URLSearchParams(params.toString());if(id){next.set("draft",id);next.set("step",targetStep||"TS-01");}else{next.delete("draft");next.delete("step");}router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} />
+          : screen === "tender-fms" ? <TenderFMS step={processStep?.code} draftID={draftID} onSelectStep={step=>{const next=new URLSearchParams(params.toString());next.set("step",step);router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} onSelectDraft={(id,targetStep)=>{const next=new URLSearchParams(params.toString());if(id){next.set("draft",id);next.set("step",targetStep||"LG-01");}else{next.delete("draft");next.delete("step");}router.replace(`/dashboard?${next.toString()}`,{scroll:false});}} />
           : screen === "items" ? <Items />
           : screen === "manufacturers" ? <Manufacturers />
           : screen === "categories" ? <Categories />

@@ -68,8 +68,31 @@ export function apply(base: Record | null, a: Actor, c: Capabilities, raw: Comma
     out.source_snapshot = structuredClone(s);
     out.inspection = blank();
 }
-else
-    out.inspection = inspection(q.inspection!, s, indiaDate(new Date(at))); out.version = q.version + 1; out.updated_at = at; out.updated_by_id = a.id; return out; }
+else {
+    const details = q.inspection!, today = indiaDate(new Date(at));
+    const requestDate = details.request_date ?? '', confirmationDate = details.client_confirmed_date ?? '';
+    if (!isoDate(requestDate) || requestDate < s.date || requestDate > today)
+        invalid('request_date', 'Record when the inspection request was sent to the vendor');
+    details.request_reference = text('request_reference', details.request_reference ?? '', 200);
+    if (details.status !== 'not_scheduled') {
+        if (!isoDate(details.call_date) || details.call_date < requestDate)
+            invalid('call_date', 'Record the vendor inspection call on or after the inspection request');
+        details.call_notice_ref = text('call_notice_ref', details.call_notice_ref, 200);
+    }
+    if (details.status === 'scheduled' || final(details.status)) {
+        if (!isoDate(details.scheduled_date))
+            invalid('scheduled_date', 'Record the inspection date provided by the vendor');
+        if (!isoDate(confirmationDate) || confirmationDate < details.call_date || confirmationDate > today || confirmationDate > details.scheduled_date ||
+            Boolean(details.actual_date && confirmationDate > details.actual_date))
+            invalid('client_confirmed_date', 'Record when the client was informed before the inspection');
+        details.client_confirmation_reference = text('client_confirmation_reference', details.client_confirmation_reference ?? '', 200);
+    }
+    if (final(details.status) && (base?.inspection.status !== 'scheduled' ||
+        base.inspection.scheduled_date !== details.scheduled_date || base.inspection.client_confirmed_date !== confirmationDate ||
+        base.inspection.client_confirmation_reference !== details.client_confirmation_reference))
+        invalid('status', 'Save the confirmed inspection schedule before recording its outcome');
+    out.inspection = inspection(details, s, today);
+} out.version = q.version + 1; out.updated_at = at; out.updated_by_id = a.id; return out; }
 export function cleared(r: Record | null, s: Source) { guard(s); if (!r?.is_active)
     throw missing(); if (!same(r.source_snapshot, s) || r.project_id !== s.project_id || r.package_id !== s.package_id)
     throw stale(); if (r.version < 1 || r.revision < 1 || r.inspection.status !== 'cleared')

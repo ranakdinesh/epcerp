@@ -43,18 +43,18 @@ export function pendingFinanceBudget(raw: Attempt, s: Source) { const a = financ
 export function snapshot(q: ApprovalQuote, s: Source): Attempt {
     if (!q.eligible)
         invalid('quote_key', 'Quotation is not eligible: ' + q.exclusions.join('; '));
-    const v = s.verifications[q.vendor_id];
-    if (v?.state !== 'verified')
-        invalid('vendor', 'Supplier ' + (trim(q.vendor) || q.vendor_id) + ': ' + (trim(v?.message ?? '') || 'Supplier documents require Finance verification'));
     if (!q.lines.length)
         invalid('quote_key', 'Quotation has no eligible items');
-    const a: Attempt = { ...(q.terms ? { terms: q.terms } : {}), ...(q.valid_until ? { valid_until: q.valid_until } : {}), currency: s.currency, id: '', quote_key: q.key, document_id: q.document_id, revision: q.revision, group_id: q.group_id, group_name: q.group_name, vendor_id: q.vendor_id, vendor: q.vendor, reference: q.reference, total: q.total, scope_revision: q.scope_revision, budget_revision: 0, verification_fingerprint: v.fingerprint, lines: q.lines.map(l => ({ price: l.price, ...(l.coverage ? { coverage: l.coverage } : {}), ...(l.months !== null ? { months: l.months } : {}), ...(l.notes ? { executive_item_note: l.notes } : {}), line_id: l.line_id, item: l.item, quantity: l.quantity, quoted: l.quoted, decision: null, comment: '' })), state: '', submitted_by_id: '', submitted_at: '0001-01-01T00:00:00Z', reason: '', reviewed_by_id: null, reviewed_at: null, decision_id: null };
+    const a: Attempt = { ...(q.terms ? { terms: q.terms } : {}), ...(q.valid_until ? { valid_until: q.valid_until } : {}), currency: s.currency, id: '', quote_key: q.key, document_id: q.document_id, revision: q.revision, group_id: q.group_id, group_name: q.group_name, vendor_id: q.vendor_id, vendor: q.vendor, reference: q.reference, total: q.total, scope_revision: q.scope_revision, budget_revision: 0, verification_fingerprint: '', lines: q.lines.map(l => ({ price: l.price, ...(l.coverage ? { coverage: l.coverage } : {}), ...(l.months !== null ? { months: l.months } : {}), ...(l.notes ? { executive_item_note: l.notes } : {}), line_id: l.line_id, item: l.item, quantity: l.quantity, quoted: l.quoted, decision: null, comment: '' })), state: '', submitted_by_id: '', submitted_at: '0001-01-01T00:00:00Z', reason: '', reviewed_by_id: null, reviewed_at: null, decision_id: null };
     return financeBudget(a, s);
 }
-export function staleReason(a: Attempt, s: Source) { if (!s.available)
-    return 'Project purchasing is inactive, held or closed'; if (!s.quotes.some(q => q.key === a.quote_key && q.eligible && q.scope_revision === a.scope_revision))
-    return 'Quotation expired or indent scope changed; finalise a current eligible quotation'; const v = s.verifications[a.vendor_id]; if (v?.state !== 'verified' || v.fingerprint !== a.verification_fingerprint)
-    return 'Vendor verification changed; get verified and resubmit'; return ''; }
+export function staleReason(a: Attempt, s: Source) {
+    if (!s.available)
+        return 'Project purchasing is inactive, held or closed';
+    if (!s.quotes.some(q => q.key === a.quote_key && q.eligible && q.scope_revision === a.scope_revision))
+        return 'Quotation expired, vendor unavailable or indent scope changed; finalise a current eligible quotation';
+    return '';
+}
 export function proposalStaleReason(a: Attempt, s: Source) { if (a.state === 'approved')
     return staleReason(a, s); for (const p of a.proposals ?? []) {
     const reason = staleReason(p.snapshot, s);

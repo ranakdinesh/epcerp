@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { transaction } from '../../db';
 import { AppError } from '../../errors';
+import { requireClosedPrebidReview } from '../flow';
 import { authorizeTender, authorizeWorker, referenceDocument, sourceFingerprint, tenderSources } from '../documents';
 import { digest, encrypt, decrypt } from './crypto';
 import { configured,providerNames } from './providers';
@@ -10,7 +11,11 @@ import { price, reservePaise } from './pricing';
 import { blank, flag, id, integer, invalid, managerAnswer, mode, object, sourceSelection, str } from './validation';
 import { costs, decodeJob, event, getJob } from './repository';
 import type { Answer, JobRow, Question, Snapshot } from './types';
-export function options(token: string, draft: string) { return transaction(async (db) => { const { actor } = await authorizeTender(db, token, draft), sources = await tenderSources(db, draft, actor.id), formats = (await db.query(`SELECT f.id,f.name,f.description,f.version,f.purpose,count(q.*)::int AS question_count FROM tender.tsc_formats f JOIN tender.tsc_format_questions q ON q.format_id=f.id WHERE f.is_active GROUP BY f.id ORDER BY f.name_key LIMIT 500`)).rows; return { engine: 'nextjs', upload_batches: (await db.query(`SELECT r.id,r.state,r.error_code,(SELECT m.path FROM document_package_manifest m WHERE m.receipt_id=r.id AND m.claim_id=r.claim_id AND m.disposition='blocked' ORDER BY m.created_at DESC LIMIT 1) AS blocked_path FROM document_package_receipts r WHERE r.draft_id=$1 ORDER BY r.created_at`,[draft])).rows, formats: formats.map(f => ({ ...f, version: Number(f.version) })), sources: sources.map(s => ({ ...s, reference_document: referenceDocument(s.path) })), providers: ['gemini', 'deepseek', 'groq', 'openai'].map(p => { const provider = p as import('./types').Provider, rate = price(provider); return { name:providerNames[provider],input_method:provider==='deepseek'||provider==='groq'?'text':'pdf',quality_model:provider==='gemini'?price('gemini',true).model:null,quality_reservation_paise:provider==='gemini'?reservePaise(price('gemini',true)):null,quality_minimum_reservation_paise:provider==='gemini'?reservePaise({...price('gemini',true),max_input_tokens:0}):null, mode: p, model: rate.model, available: configured(provider), reservation_paise: reservePaise(rate), pricing: rate }; }), cost: await costs(db, draft) }; }); }
+export function options(token: string, draft: string) { return transaction(async (db) => { const { actor } = await authorizeTender(db, token, draft), sources = await tenderSources(db, draft, actor.id), formats = (await db.query(`SELECT f.id,f.name,f.description,f.version,f.purpose,count(q.*)::int AS question_count FROM tender.tsc_formats f JOIN tender.tsc_format_questions q ON q.format_id=f.id WHERE f.is_active GROUP BY f.id ORDER BY f.name_key LIMIT 500`)).rows; return { engine: 'nextjs', clarifications: (await db.query(
+    `SELECT id, clause_reference, query_description, client_response, corrigendum_reference
+     FROM tender.prebid_queries WHERE draft_id=$1 AND status IN ('answered','accepted','rejected')
+     ORDER BY created_at, id`, [draft]
+)).rows, upload_batches: (await db.query(`SELECT r.id,r.state,r.error_code,(SELECT m.path FROM document_package_manifest m WHERE m.receipt_id=r.id AND m.claim_id=r.claim_id AND m.disposition='blocked' ORDER BY m.created_at DESC LIMIT 1) AS blocked_path FROM document_package_receipts r WHERE r.draft_id=$1 ORDER BY r.created_at`,[draft])).rows, formats: formats.map(f => ({ ...f, version: Number(f.version) })), sources: sources.map(s => ({ ...s, reference_document: referenceDocument(s.path) })), providers: ['gemini', 'deepseek', 'groq', 'openai'].map(p => { const provider = p as import('./types').Provider, rate = price(provider); return { name:providerNames[provider],input_method:provider==='deepseek'||provider==='groq'?'text':'pdf',quality_model:provider==='gemini'?price('gemini',true).model:null,quality_reservation_paise:provider==='gemini'?reservePaise(price('gemini',true)):null,quality_minimum_reservation_paise:provider==='gemini'?reservePaise({...price('gemini',true),max_input_tokens:0}):null, mode: p, model: rate.model, available: configured(provider), reservation_paise: reservePaise(rate), pricing: rate }; }), cost: await costs(db, draft) }; }); }
 export async function create(token: string, draft: string, key: string, value: unknown) {
     id(key);
     const r = object(value, ['expected_version', 'format_id', 'format_version', 'mode', 'source_ids', 'auto_escalate', 'stronger_model', 'recover_overload', 'original_documents_confirmed']), requested = mode(r.mode), version = integer(r.expected_version, 1), formatID = id(r.format_id), formatVersion = integer(r.format_version, 1), escalate = r.auto_escalate == null ? false : flag(r.auto_escalate);
@@ -27,6 +32,7 @@ export async function create(token: string, draft: string, key: string, value: u
             return jobView(db, previous, d.version);
         }
         if (requested !== 'manual') {
+            await requireClosedPrebidReview(db, draft);
             if (!actor.allows('tenders.tsc.originals.write'))
                 throw new AppError(403, 'Permission to send original documents is required');
             if (!configured(requested))
@@ -119,6 +125,7 @@ export function resume(token:string,draft:string,job:string,key:string,value:unk
 export async function enqueueResume(db:Parameters<typeof costs>[0],actorID:string,draft:string,job:string,key:string,version:number){
   id(key);integer(version,1);const actor={id:actorID},permitted=await authorizeWorker(db,actorID,draft),d={...permitted,version:Number(permitted.version)},row=await getJob(db,draft,job,true),{snapshot,answers}=decodeJob(row),hash=digest(JSON.stringify({resume:job,version}));
   const old=(await db.query('SELECT request_hash FROM tender.tsc_workspace_tasks WHERE job_id=$1 AND operation_key=$2',[job,key])).rows[0];if(old){if(old.request_hash!==hash)throw new AppError(409,'Operation key belongs to another request');return jobView(db,row,d.version)}
+  await requireClosedPrebidReview(db, draft);
   if(row.state!=='ready'||Number(row.version)!==version||Number(row.draft_version)!==d.version)throw new AppError(409,'Refresh the current checklist before resuming');
   if(snapshot.mode==='manual'||!configured(snapshot.mode))throw new AppError(503,'Provider is not configured');
   if(!['provider_unavailable','quota_or_rate_limit'].includes(row.error_code))throw new AppError(409,'Only a confirmed provider rejection can be resumed; review unknown outcomes first');
@@ -146,6 +153,7 @@ export function requestProposal(token: string, draft: string, job: string, quest
                 throw new AppError(409, 'Operation key belongs to another question request');
             return { task_id: old.id, state: old.state };
         }
+        await requireClosedPrebidReview(db, draft);
         if (row.state !== 'ready' || Number(row.version) !== version || Number(row.draft_version) !== d.version)
             throw new AppError(409, 'Refresh the current TSC draft before requesting a proposal');
         const q = snapshot.questions.find(q => q.id === question);

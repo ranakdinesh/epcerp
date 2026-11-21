@@ -82,7 +82,9 @@ test("catalogue domain rules, hashes, Unicode models and legacy fingerprints mat
                     break;
                 case "item": {
                     const v = deriveItem(fixture.configuration!, fixture.manufacturer!, fixture.values!, fixture.model!);
-                    Object.assign(actual, { engineering_key: v.engineering_key, fingerprint: v.fingerprint, model: v.model, prefix: v.prefix, description: v.description, specifications: v.specifications });
+                    Object.assign(actual, { engineering_key: v.engineering_key, fingerprint: v.fingerprint, model: v.model, description: v.description, specifications: v.specifications });
+                    // New SKU formatting intentionally differs from the historical Go policy.
+                    delete expected[i].prefix;
                     break;
                 }
                 case "manufacturer": {

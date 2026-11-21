@@ -1,3 +1,4 @@
+import { tenderAwardPending, tenderAwardMessage } from '../core/tender-award';
 import type { DB } from '../../db';
 import { requireAnyPermission } from '../../auth/access';
 import { AppError } from '../../errors';
@@ -24,6 +25,9 @@ export async function access(db: DB, a: Actor, p: string, id: string): Promise<C
     } return caps; }
 export async function source(db: DB, p: string, id: string): Promise<Source> { const { record, current } = await inspect(db, p, id), out: Source = { case_id: '', version: 0, project_id: p, package_id: id, loi_reference: '', supplier_id: '', description: '', quantity: '', currency: '', total: '', financial_reference: '', released_date: '', project_available: false, blockers: [] }; if (!await projectReady(db, p)) {
     out.blockers = ['Finance must clear every current purchase group before technical documents'];
+    return out;
+} if (await tenderAwardPending(db, p)) {
+    out.blockers = [tenderAwardMessage];
     return out;
 } const loi = await released(db, p, id); out.project_available = current.project_available && current.eligible; out.blockers = [...current.blockers]; if (!loi) {
     out.project_available = false;

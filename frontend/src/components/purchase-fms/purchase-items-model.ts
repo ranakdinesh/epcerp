@@ -1,10 +1,14 @@
 import type {Item,Line} from "@/components/purchasing/purchase-bo-workspace";
 export type ItemPreparation={id:string;name?:string;preparer_id:string;version:number;state:string;lines:Line[]};
-export type ItemListing={lists:ItemPreparation[];can_write:boolean;can_complete:boolean};
+export type ItemListMode="single"|"multiple";
+export type ItemListing={item_list_mode:ItemListMode;lists:ItemPreparation[];can_write:boolean;can_complete:boolean;can_manage_lists:boolean};
 export type PurchaseItemRow={id:string;preparation:ItemPreparation;line:Line};
+export function purchaseItemType(line: {item_snapshot: {description?: string}}) {
+ return line.item_snapshot.description?.split(/[·\n]/)[0].trim() || "Unspecified";
+}
 export function itemRows(records:readonly ItemPreparation[]):PurchaseItemRow[]{return records.flatMap(preparation=>preparation.lines.map(line=>({id:`${preparation.id}:${line.id}`,preparation,line})));}
 export function canEditPreparation(record:ItemPreparation,userID:string,superuser:boolean,canWrite:boolean){return canWrite&&record.state==="draft"&&(record.preparer_id===userID||superuser);}
-export function editablePreparation(records:readonly ItemPreparation[],userID:string,superuser:boolean){return records.find(r=>canEditPreparation(r,userID,superuser,true)&&r.lines.length<100);}
+export function editablePreparation(records:readonly ItemPreparation[],userID:string,superuser:boolean,limit=100){return records.find(r=>canEditPreparation(r,userID,superuser,true)&&r.lines.length<limit);}
 export function usedItems(records:readonly ItemPreparation[],current?:PurchaseItemRow){return new Set(itemRows(records).filter(r=>r.id!==current?.id).flatMap(r=>r.line.item_id?[r.line.item_id]:[]));}
 export function itemInputErrors(line:Line,item:Partial<Item>,used:ReadonlySet<string>){
  const errors:Record<string,string>={};
@@ -24,8 +28,16 @@ export function itemSavePayload(record:ItemPreparation,line:Line,adding:boolean,
  lines:lines.map(({id,item_id,quantity,required_date,reference,notes})=>({id,item_id,quantity,required_date,reference,notes}))};
 }
 
-export function nextItemEntry(saved:ItemPreparation,actor:string,recordID:string,lineID:string){
- const record=saved.lines.length<100?saved:{id:recordID,preparer_id:actor,version:0,state:"draft",lines:[]};
+export function nextItemEntry(saved:ItemPreparation,actor:string,recordID:string,lineID:string,mode:ItemListMode="multiple"){
+ const record=mode==="single"||saved.lines.length<100?saved:{id:recordID,preparer_id:actor,version:0,state:"draft",lines:[]};
  const initial:Line={id:lineID,item_id:null,quantity:null,required_date:null,reference:"",notes:"",item_snapshot:{},demand_id:null};
  return {record,initial,adding:true};
+}
+
+const categoryNames: Record<string, string> = {
+  CAB: "Cable", PAN: "Panels / Feeder Pillar", LED: "LED Lighting",
+  CTR: "Cable Trays", EAC: "Electrical Accessories", EAR: "Earthing", POL: "Poles and Mast Structures",
+};
+export function purchaseCategory(code?: string | null) {
+  return code ? categoryNames[code] ?? code : "Unclassified";
 }

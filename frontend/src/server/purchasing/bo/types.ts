@@ -5,6 +5,7 @@ export type Snapshot = {
     engineering_key: string;
     uom: string;
     manufacturer: string;
+    category_code?: string;
     demand_version?: number;
 };
 export type Line = {

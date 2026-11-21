@@ -43,6 +43,7 @@ test('native TSC retains original responses through edits and refinement, with t
     await pool().query("insert into public.document_package_members(id,receipt_id,file_id,path,normalized_path,filename,kind,byte_size,expanded_bytes,sha256,reader_payload,reader_payload_sha256,validation_claim_id,scanner_revision,pages)values($1,$2,$3,'Tender.pdf','tender.pdf','Tender.pdf','pdf',$4,$4,$5,$6,$7,$8,'synthetic-verified',1)", [source, receipt, file, pdf.length, digest(pdf), sealed, digest(sealed), claim]);
     async function req(method: string, path: string, body?: unknown, key: string = randomUUID(), access = token) { return handleTSC(new Request(`http://localhost/api/v1/tender-fms/drafts/${path}`, { method, headers: { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: body === undefined ? undefined : JSON.stringify(body) })); }
     async function json(method: string, path: string, body?: unknown, status = 200, key?: string, access?: string) { const r = await req(method, path, body, key, access), v = await r.json(); assert.equal(r.status, status, JSON.stringify(v)); return v; }
+    for (const id of [draft, other]) await json('POST', `${id}/prebid-queries/close`);
     const options = await json('GET', `${draft}/tsc/options`);
     assert.equal(options.engine, 'nextjs');
     assert.equal(options.sources[0].id, source);

@@ -44,11 +44,6 @@ export type ApprovalQuote = {
     exclusions: string[];
     lines: QuoteLine[];
 };
-export type Verification = {
-    state: string;
-    fingerprint: string;
-    message: string;
-};
 export type Budget = {
     revision: number;
     currency: string;
@@ -60,6 +55,7 @@ export type Budget = {
     }[];
 };
 export type Source = {
+    receipt_frozen?: boolean;
     project_id: string;
     bo_id: string;
     currency: string;
@@ -71,7 +67,6 @@ export type Source = {
     }[];
     quotes: ApprovalQuote[];
     budget: Budget | null;
-    verifications: Record<string, Verification>;
 };
 export type ApprovalLine = {
     price?: CommercialPrice;

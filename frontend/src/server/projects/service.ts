@@ -31,9 +31,8 @@ export async function create(token:string,b:Record<string,unknown>){return trans
     const row=(await db.query('SELECT is_active FROM clients WHERE id=$1 FOR SHARE',[client])).rows[0];if(!row?.is_active)invalid('client_id','Select an active client');
     const user=await assignmentIdentity(db,manager);if(!user?.active||!user.allows('projects.master.read')||!user.allows('projects.master.write'))invalid('project_manager_id','Select an active manager with project read/write permissions');
     c=await calculate(db,c);
-    const project=randomUUID(),columns=repo.captureColumns(c),values=[project,name,lower(name),client,manager,a.id,...columns.map(c=>c.value)];
-    const r=(await db.query(`WITH number AS(SELECT nextval('project_number_sequence') AS value) INSERT INTO projects(id,project_number,name,normalized_name,client_id,project_manager_id,created_by_id,updated_by_id,${columns.map(c=>c.key).join(',')}) SELECT $1,'PRJ-'||CASE WHEN value<1000000 THEN lpad(value::text,6,'0') ELSE value::text END,$2,$3,$4,$5,$6,$6,${columns.map((c,i)=>'$'+(i+7)+'::'+c.cast).join(',')} FROM number RETURNING id`,values)).rows[0];
-    const saved=await repo.get(db,r.id);await repo.assignment(db,saved,null,'Initial project manager assignment',a.id);await initializeProjectPurchase(db,saved.id,procurement,a.id);return repo.owner(db,saved);
+    const saved=await repo.insert(db,{name,nameKey:lower(name),client,manager,actor:a.id,capture:c,reason:'Initial project manager assignment'});
+    await initializeProjectPurchase(db,saved.id,procurement,a.id);return repo.owner(db,saved);
 });}
 export async function transfer(token:string,target:string,b:Record<string,unknown>){return transaction(async db=>{
     const a=await access(db,token,['projects.manager_assignments.write']),project=id(target),manager=id(b.project_manager_id,'project_manager_id'),reason=text(b.reason,'reason',2000,true),expected=version(b.expected_version),before=await repo.get(db,project,true);

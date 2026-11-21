@@ -54,7 +54,7 @@ export type Line = {
   required_date: string | null;
   reference: string;
   notes: string;
-  item_snapshot: Partial<Item>;
+  item_snapshot: Partial<Item> & { category_code?: string };
   demand_id: string | null;
 };
 type BO = {

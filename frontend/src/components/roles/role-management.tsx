@@ -1,122 +1,307 @@
 "use client";
-import { displayServerErrors } from "@/components/ui/server-field-errors";
-import { RequiredSelection, ValidatedForm, ValidatedInput, ValidatedLabel } from "@/components/ui/validated-controls";
 
-import { FormEvent, useEffect, useState } from "react";
-
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
-import { RecordDrawer } from "@/components/ui/record-drawer";
 import { actionButtonClass } from "@/components/ui/action-button";
+import { DataGrid, GridAction, GridStatus } from "@/components/ui/data-grid";
+import { serverErrorMessage } from "@/components/ui/server-field-errors";
+import { ValidatedForm, ValidatedInput, ValidatedLabel } from "@/components/ui/validated-controls";
 import { SecurityHistory } from "@/components/users/security-history";
 import { PermissionCatalogue } from "./permission-catalogue";
-import { groupPermissions, type Permission } from "./permission-groups";
-type Role = { id: string; name: string; description: string; permissions: string[]; is_active: boolean; edit_version: number };
+import type { Permission } from "./permission-groups";
+
+type Role = {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  is_active: boolean;
+  edit_version: number;
+  user_count: number;
+};
+
+const roleStatus = (role: Role) => role.is_active ? "Active" : "Inactive";
+const rolesPage = "/dashboard?screen=roles";
+const endpoint = "/api/administration/roles";
+const fieldClass = "mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal";
+
+async function read<T>(path: string, fallback: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(path, { cache: "no-store", ...options });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(serverErrorMessage(data, fallback));
+  return data as T;
+}
 
 export function RoleManagement() {
- const actor=useAuthenticatedUser();
- const canWrite=actor.is_superuser===true||actor.permissions.includes("admin.roles.write");
- const [editing,setEditing]=useState<Role|null>(null);
- const [busy,setBusy]=useState(false);
- const[conflict,setConflict]=useState(false);
+  const actor = useAuthenticatedUser();
+  const canWrite = actor.is_superuser === true || actor.permissions.includes("admin.roles.write");
   const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
-  const [permissionQuery, setPermissionQuery] = useState("");
-  const [registryQuery, setRegistryQuery] = useState("");
+  const router = useRouter();
+  const params = useSearchParams();
+  const roleId = params.get("role");
+  const view = params.get("roleView");
+  const role = roles.find(item => item.id === roleId);
+  const mayEdit = (role: Role) => canWrite && (role.name !== "superadmin" || actor.is_superuser === true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [permissionError, setPermissionError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
 
-  async function load() {
-    setIsLoading(true);
+  async function loadRoles() {
+    setLoading(true);
+    setError("");
     try {
-      const [rolesResponse, permissionsResponse] = await Promise.all([
-        fetch("/api/administration/roles", { cache: "no-store" }),
-        fetch("/api/administration/roles/permissions", { cache: "no-store" }),
-      ]);
-      if (!rolesResponse.ok || !permissionsResponse.ok) throw new Error("Unable to load roles");
-      setRoles(await rolesResponse.json() as Role[]);
-      setPermissions((await permissionsResponse.json() as Permission[]).filter(p=>p.code!=="system:admin"));
-    } catch {
-      setNotice("Unable to load roles. Please refresh and try again.");
+      setRoles(await read<Role[]>(endpoint, "Unable to load roles."));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to load roles.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void load(); }, 0);
+    const timer = window.setTimeout(() => void loadRoles(), 0);
     return () => window.clearTimeout(timer);
   }, []);
 
-  function togglePermission(code: string) { setPermissionError("");
-    setSelectedCodes((current) => current.includes(code)
-      ? current.filter((item) => item !== code)
-      : [...current, code]);
-  }
-
   async function installFinanceRoles() {
-    setIsLoading(true);
+    setLoading(true);
+    setError("");
+    setNotice("");
     try {
-      const response = await fetch("/api/administration/roles/finance-presets", { method: "POST" });
-      if (!response.ok) throw Error("Unable to create finance roles");
-      setNotice("Finance Viewer, Budget Editor and Approver roles are ready. Assign staff in Users, then grant their project team capabilities. Existing bundles were preserved.");
-      await load();
-    } catch {
-      setNotice("Unable to create finance roles. Check role administration access and retry.");
-    } finally { setIsLoading(false); }
-  }
-
-  async function reloadSavedRole(){
-    if(!editing||busy)return;setBusy(true);try{const r=await fetch("/api/administration/roles",{cache:"no-store"});if(!r.ok)throw Error();const saved=await r.json() as Role[];const role=saved.find(v=>v.id===editing.id);if(!role)throw Error();setRoles(saved);setEditing(role);setSelectedCodes(role.permissions.filter(code=>code!=="system:admin"));setPermissionError("");setConflict(false);}catch{setPermissionError("Unable to reload this role. Please retry.");}finally{setBusy(false);}
-  }
-
-  async function createRole(event: FormEvent<HTMLFormElement>) {
-    const submittedForm = event.currentTarget;
-    event.preventDefault();
-    if (!editing&&!selectedCodes.length) { setPermissionError("Select at least one permission."); return; }
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    if(busy||!canWrite)return;setBusy(true);
-    try {
-    const response = await fetch(editing?`/api/administration/roles/${editing.id}`:"/api/administration/roles", {
-      method: editing?"PATCH":"POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...(editing?{expected_version:editing.edit_version,is_active:form.get("is_active")==="on"}:{name: String(form.get("name") ?? "").trim().toLowerCase()}),
-        description: String(form.get("description") ?? "").trim(),
-        permission_codes: selectedCodes,
-      }),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Unable to create role" }));
-      if(response.status===409)setConflict(true);
-      if (displayServerErrors(submittedForm, error)) return; setPermissionError(typeof error.detail === "string" ? error.detail : "Unable to save role.");
-      return;
+      await read(endpoint + "/finance-presets", "Unable to create finance roles.", { method: "POST" });
+      setNotice("Finance Viewer, Budget Editor and Approver roles are ready. Assign staff in Users, then grant their project team capabilities.");
+      await loadRoles();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to create finance roles.");
+      setLoading(false);
     }
-    setIsDialogOpen(false);
-    setSelectedCodes([]);
-    setNotice(editing?"Role updated. Its permissions apply to subsequent requests immediately.":"Role created with its selected permissions.");
-    await load();
-    }catch{setPermissionError("Unable to save this role. Please retry.");}finally{setBusy(false);}
+  }
+
+  function finish(message: string) {
+    setNotice(message);
+    void loadRoles();
+    router.push(rolesPage);
+  }
+
+  if (view === "history") return <section className="space-y-4">
+    <Link className={actionButtonClass("secondary")} href={rolesPage}>Back to roles</Link>
+    <SecurityHistory />
+  </section>;
+
+  if (view === "presets" && canWrite) return <section className="space-y-4">
+    <Link className={actionButtonClass("secondary")} href={rolesPage}>Back to roles</Link>
+    <h2 className="text-2xl font-bold">Finance role presets</h2>
+    <p className="text-sm">Viewer reads budgets and quote differences. Budget Editor allocates costs. Approver approves budgets and Accounts decisions. Each user also needs project team capabilities.</p>
+    {notice && <p role="status">{notice}</p>}
+    {error && <p role="alert">{error}</p>}
+    <button type="button" disabled={loading} onClick={() => void installFinanceRoles()} className={actionButtonClass("primary")}>Create finance roles</button>
+  </section>;
+
+  if (view === "create" && canWrite) return <RoleEditor key="create" role={null} editable onSaved={() => finish("Role created.")} />;
+  if (roleId) {
+    if (error || loading || !role) return <section className="space-y-4">
+      <Link className={actionButtonClass("secondary")} href={rolesPage}>Back to roles</Link>
+      {loading ? <p role="status">Loading role…</p> : <p role="alert">{error || "Role not found."}</p>}
+    </section>;
+    if (view === "details" && mayEdit(role)) return <RoleDetails key={role.id} role={role} onSaved={() => finish("Role details saved.")} />;
+    return <RoleEditor key={role.id} role={role} editable={mayEdit(role)} onSaved={() => finish("Permissions saved.")} />;
   }
 
   return (
     <section className="mx-auto w-full max-w-[1500px] space-y-5">
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Administration</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Roles & permissions</h2></div>
-        {canWrite&&<button type="button" onClick={() => { setConflict(false);setEditing(null);setSelectedCodes([]); setPermissionQuery(""); setPermissionError(""); setIsDialogOpen(true); }} className={actionButtonClass("primary")}>Create role</button>}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold">Roles</h2>
+        <div className="flex flex-wrap gap-2">
+          <Link className={actionButtonClass("secondary")} href={rolesPage + "&roleView=history"}>Security history</Link>
+          {canWrite && <Link className={actionButtonClass("secondary")} href={rolesPage + "&roleView=presets"}>Finance role presets</Link>}
+          {canWrite && <Link className={actionButtonClass("primary")} href={rolesPage + "&roleView=create"}>Create role</Link>}
+        </div>
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-5"><h3 className="font-bold">Finance access levels</h3><p className="mt-2 text-sm text-slate-600">Viewer reads budgets and quote differences. Budget Editor allocates costs. Approver approves budgets and Accounts decisions. Each user also needs project team access.</p>{canWrite&&<button type="button" disabled={isLoading} onClick={() => void installFinanceRoles()} className={actionButtonClass("secondary")+" mt-3"}>Create finance roles</button>}</div>
-      {isLoading ? <p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">Loading registered permissions...</p> : null}
-      {notice ? <p role="status" className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">{notice}</p> : null}
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_34px_-26px_rgba(15,23,42,0.35)]"><div className="border-b border-slate-100 px-5 py-4"><h3 className="font-bold text-slate-900">Existing roles</h3></div><div className="divide-y divide-slate-100">{roles.map((role) => <article key={role.id} className="p-5"><div className="flex items-start justify-between gap-3"><div><h4 className="font-bold text-slate-900">{role.name} <span className="text-sm font-normal">({role.is_active?"Active":"Inactive"})</span></h4>{canWrite&&(role.name!=="superadmin"||actor.is_superuser===true)&&<button type="button" className={actionButtonClass("secondary")} onClick={()=>{setConflict(false);setEditing(role);setSelectedCodes(role.permissions.filter(p=>p!=="system:admin"));setPermissionQuery("");setPermissionError("");setIsDialogOpen(true);}}>Edit role</button>}<p className="mt-1 text-sm text-slate-500">{role.description || "No description provided."}</p></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{role.permissions.length} permissions</span></div><div className="mt-3 space-y-3">{groupPermissions(role.permissions.map((code) => (permissions.find((permission) => permission.code === code) ?? { code, description: "" }))).map((group) => <div key={group.key}><p className="text-xs font-bold text-slate-700">{group.area} / {group.label}</p><div className="mt-1 flex flex-wrap gap-2">{group.permissions.map(({ code }) => <span key={code} className="max-w-full break-all rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{code}</span>)}</div></div>)}</div></article>)}</div></div>
-        <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="text-xs font-bold uppercase tracking-[0.15em] text-blue-700">Permission registry</p><h3 className="mt-1 text-lg font-bold text-slate-900">{permissions.length} permissions available</h3><p className="mt-2 text-sm leading-6 text-slate-600">Browse by area and capability. View opens a workspace, Read retrieves its records, and other actions allow only their described operations.</p><ValidatedLabel className="mt-4 block text-sm font-bold text-slate-700">Search registry<ValidatedInput type="search" value={registryQuery} onChange={(event) => setRegistryQuery(event.target.value)} placeholder="Search area, capability or description" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-normal" /></ValidatedLabel><div className="mt-4"><PermissionCatalogue permissions={permissions} query={registryQuery} /></div></aside>
-      </div>
-      <SecurityHistory/>
-      {isDialogOpen ? <RecordDrawer title={editing?"Edit role":"Create role"} onClose={()=>{if(!busy)setIsDialogOpen(false);}}><ValidatedForm key={editing?`${editing.id}-${editing.edit_version}`:"create"} onSubmit={createRole} className="space-y-5"><div className="min-h-0 flex-1 overflow-y-auto pr-1"><div className="mt-6 grid gap-4 sm:grid-cols-2"><ValidatedLabel className="text-sm font-bold text-slate-700">Role name<ValidatedInput name="name" defaultValue={editing?.name} readOnly={!!editing} required pattern={"[a-z0-9._\\-]+"} placeholder="project-manager" className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15" /></ValidatedLabel><ValidatedLabel className="text-sm font-bold text-slate-700">Description<ValidatedInput name="description" defaultValue={editing?.description} placeholder="Manages project delivery" className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15" /></ValidatedLabel></div>{editing&&<ValidatedLabel className="user-access-card flex items-center gap-3 rounded-xl border p-3"><ValidatedInput type="checkbox" name="is_active" defaultChecked={editing.is_active}/>Active role (inactive roles grant no permissions)</ValidatedLabel>}<RequiredSelection selectionCount={editing?Math.max(1,selectedCodes.length):selectedCodes.length} onInvalid={() => setPermissionError("Select at least one permission.")} className="mt-5"><legend className="text-sm font-bold text-slate-700">Assign permissions<span aria-hidden="true" className="text-red-600"> *</span></legend><p className="mt-2 text-xs leading-5 text-slate-600">Expand an area to choose permissions by capability. Selecting View does not automatically grant Read or Write.</p><ValidatedLabel className="mt-3 block text-sm font-bold text-slate-700">Find permissions<ValidatedInput type="search" value={permissionQuery} onChange={(event) => setPermissionQuery(event.target.value)} placeholder="Search area, capability, code or description" className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 px-3 font-normal" /></ValidatedLabel><p role="status" className="my-3 text-sm font-semibold text-blue-700">{selectedCodes.length} of {permissions.length} permissions selected</p><PermissionCatalogue permissions={permissions} query={permissionQuery} selectedCodes={selectedCodes} onToggle={togglePermission} />{permissionError ? <p role="alert" className="mt-1 text-sm text-red-600">{permissionError}</p> : null}{conflict&&<button type="button" className={actionButtonClass("secondary")} onClick={()=>void reloadSavedRole()}>Reload saved role (discard unsaved changes)</button>}</RequiredSelection></div><div className="record-drawer-actions sticky bottom-0 flex flex-col-reverse gap-3 py-4 sm:flex-row sm:justify-end"><button type="button" onClick={() => setIsDialogOpen(false)} disabled={busy} className={actionButtonClass("secondary")}>Cancel</button><button type="submit" disabled={busy} className={actionButtonClass("primary")}>{busy?"Saving…":editing?"Save role":"Create role"}</button></div></ValidatedForm></RecordDrawer> : null}
+      {error && <div role="alert" className="flex items-center gap-3 rounded-lg border border-red-200 p-3 text-sm text-red-800">
+        {error}<button type="button" className={actionButtonClass("secondary")} onClick={() => void loadRoles()}>Reload roles</button>
+      </div>}
+      {notice && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</p>}
+      <DataGrid label="Roles" rows={roles} loading={loading} initialSort="name" status={roleStatus} statusOptions={["Active", "Inactive"]} columns={[
+        { key: "name", label: "Role", value: role => role.name, render: role => <strong>{role.name}</strong> },
+        { key: "description", label: "Description", value: role => role.description },
+        { key: "users", label: "Assigned users", value: role => role.user_count },
+        { key: "permissions", label: "Permissions", value: role => role.permissions.length },
+        { key: "status", label: "Status", value: roleStatus, render: role => <GridStatus value={roleStatus(role)} /> },
+      ]} actions={role => {
+        const editable = mayEdit(role);
+        const href = rolesPage + "&role=" + encodeURIComponent(role.id);
+        return <div className="flex justify-end">
+          <GridAction kind={editable ? "edit" : "view"} label={`${editable ? "Edit" : "View"} ${role.name} permissions`} onClick={() => router.push(href)} />
+        </div>;
+      }} />
     </section>
   );
+}
+
+function RoleEditor({ role, editable, onSaved }: {
+  role: Role | null;
+  editable: boolean;
+  onSaved: () => void;
+}) {
+  const [savedRole, setSavedRole] = useState(role);
+  const [permissions, setPermissions] = useState<Permission[] | null>(null);
+  const [selectedCodes, setSelectedCodes] = useState(role?.permissions ?? []);
+  const [assignedOnly, setAssignedOnly] = useState(!editable);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const [catalogueAttempt, setCatalogueAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    read<Permission[]>(endpoint + "/permissions", "Unable to load the permission catalogue.", { signal: controller.signal })
+      .then(permissions => { if (!controller.signal.aborted) setPermissions(permissions); })
+      .catch(error => { if (!controller.signal.aborted) setError(error.message); });
+    return () => controller.abort();
+  }, [catalogueAttempt]);
+
+  const availableCodes = new Set(permissions?.map(permission => permission.code));
+  const selected = selectedCodes.filter(code => availableCodes.has(code));
+  const legacy = selectedCodes.filter(code => !availableCodes.has(code));
+  const visible = permissions?.filter(permission => !assignedOnly || selected.includes(permission.code)) ?? [];
+
+  function toggle(code: string) {
+    setSelectedCodes(current => current.includes(code) ? current.filter(item => item !== code) : [...current, code]);
+  }
+
+  async function reload() {
+    if (!savedRole || busy) return;
+    setBusy(true);
+    try {
+      const current = (await read<Role[]>(endpoint, "Unable to reload roles.")).find(item => item.id === savedRole.id);
+      if (!current) throw new Error("This role is no longer available.");
+      setSavedRole(current);
+      setSelectedCodes(current.permissions);
+      setError("");
+      setConflict(false);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to reload the saved role.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || !editable || !permissions || conflict) return;
+    if (!savedRole && !selected.length) {
+      setError("Select at least one permission.");
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    const previous = savedRole?.permissions.filter(code => availableCodes.has(code)) ?? [];
+    const changed = selected.length !== previous.length || selected.some(code => !previous.includes(code));
+    const responseBody = {
+      ...(savedRole ? { expected_version: savedRole.edit_version } : {
+        name: String(form.get("name") ?? "").trim().toLowerCase().replace(/\s+/g, "-"),
+        description: String(form.get("description") ?? "").trim(),
+      }),
+      ...(!savedRole || changed ? { permission_codes: selected } : {}),
+    };
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(savedRole ? `${endpoint}/${savedRole.id}` : endpoint, {
+        method: savedRole ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(responseBody),
+      });
+      if (!response.ok) {
+        setConflict(Boolean(savedRole) && response.status === 409);
+        throw new Error(serverErrorMessage(await response.json().catch(() => null), "Unable to save the role."));
+      }
+      onSaved();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to save the role.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="mx-auto w-full max-w-[1500px] space-y-5">
+    <Link className={actionButtonClass("secondary")} href={rolesPage}>Back to roles</Link>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-2xl font-bold">{savedRole ? `${savedRole.name} permissions` : "Create role"}</h2>
+      {editable && savedRole && <Link className={actionButtonClass("secondary")} href={rolesPage + "&role=" + encodeURIComponent(savedRole.id) + "&roleView=details"}>Edit role details</Link>}
+      {editable && <button type="submit" form="role-editor-form" className={actionButtonClass("primary")} disabled={busy || !permissions || conflict}>
+        {busy ? "Saving…" : savedRole ? "Save permissions" : "Create role"}
+      </button>}
+    </div>
+    <div className="space-y-2">
+      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {conflict && <button type="button" className={actionButtonClass("secondary")} onClick={() => void reload()} disabled={busy}>Reload saved role and discard changes</button>}
+      {!permissions && error && <button type="button" className={actionButtonClass("secondary")} onClick={() => { setError(""); setCatalogueAttempt(attempt => attempt + 1); }}>Retry loading permissions</button>}
+    </div>
+    <ValidatedForm id="role-editor-form" key={savedRole?.edit_version ?? "new"} className="space-y-4" onSubmit={submit}>
+      {!savedRole && <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
+        <ValidatedLabel className="text-sm font-semibold">Role name
+          <ValidatedInput name="name" required minLength={3} maxLength={64} placeholder="Purchase Manager" className={fieldClass} />
+        </ValidatedLabel>
+        <ValidatedLabel className="text-sm font-semibold">Description
+          <ValidatedInput name="description" maxLength={255} className={fieldClass} />
+        </ValidatedLabel>
+      </fieldset>}
+      {permissions ? <>
+        <PermissionCatalogue permissions={visible} selectedCodes={selected} legacyCodes={legacy} onToggle={editable ? toggle : undefined} disabled={busy}
+          toolbar={<div className="flex flex-wrap items-center gap-4">
+            {editable && <ValidatedLabel className="flex items-center gap-2 text-sm">
+              <ValidatedInput type="checkbox" checked={assignedOnly} onChange={event => setAssignedOnly(event.target.checked)} /> Assigned only
+            </ValidatedLabel>}
+            <span role="status" className="text-sm text-slate-600">{selected.length + legacy.length} permissions {editable ? "selected" : "assigned"}</span>
+          </div>} />
+      </> : !error && <p role="status">Loading permissions…</p>}
+    </ValidatedForm>
+  </section>;
+}
+
+
+function RoleDetails({ role, onSaved }: { role: Role; onSaved: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setError("");
+    try {
+      await read(`${endpoint}/${role.id}`, "Unable to save role details.", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expected_version: role.edit_version,
+          description: String(form.get("description") ?? "").trim(),
+          is_active: form.has("is_active"),
+        }),
+      });
+      onSaved();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to save role details.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="space-y-5">
+    <Link className={actionButtonClass("secondary")} href={rolesPage}>Back to roles</Link>
+    <h2 className="text-2xl font-bold">{role.name} details</h2>
+    {error && <p role="alert" className="text-red-700">{error}</p>}
+    <ValidatedForm onSubmit={submit} className="max-w-xl space-y-4">
+      <ValidatedLabel className="text-sm font-semibold">Description
+        <ValidatedInput name="description" maxLength={255} defaultValue={role.description} disabled={busy} className={fieldClass} />
+      </ValidatedLabel>
+      <ValidatedLabel className="flex items-center gap-2 text-sm">
+        <ValidatedInput type="checkbox" name="is_active" defaultChecked={role.is_active} disabled={busy} /> Active role
+      </ValidatedLabel>
+      <button type="submit" className={actionButtonClass("primary")} disabled={busy}>{busy ? "Saving…" : "Save details"}</button>
+    </ValidatedForm>
+  </section>;
 }

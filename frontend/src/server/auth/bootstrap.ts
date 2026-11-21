@@ -13,13 +13,14 @@ export async function initializeAuth() {
     if (!migration || migration.dirty || Number(migration.version) < 96) throw new Error("Apply the owned Node migrations before starting Next.js Auth");
     await lock(db,"auth.administration");
     for (const p of registry) await db.query("INSERT INTO auth.permissions(id,code,description) VALUES($1,$2,$3) ON CONFLICT(code) DO UPDATE SET description=EXCLUDED.description", [randomUUID(),p.code,p.description]);
-    const procurement = presets.find(p => p.name === "procurement.manager")!;
-    const [procurementRole] = await rows<{ id: string }>(db,
-      "INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,$2,$3,true) ON CONFLICT(name) DO NOTHING RETURNING id",
-      [randomUUID(), procurement.name, procurement.description]);
-    if (procurementRole) {
-      await db.query("INSERT INTO auth.role_permissions(role_id,permission_id) SELECT $1,id FROM auth.permissions WHERE code=ANY($2::text[])",
-        [procurementRole.id, procurement.permission_codes]);
+    for (const procurement of presets.filter(preset => preset.name.startsWith("procurement."))) {
+      const [procurementRole] = await rows<{ id: string }>(db,
+        "INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,$2,$3,true) ON CONFLICT(name) DO NOTHING RETURNING id",
+        [randomUUID(), procurement.name, procurement.description]);
+      if (procurementRole) {
+        await db.query("INSERT INTO auth.role_permissions(role_id,permission_id) SELECT $1,id FROM auth.permissions WHERE code=ANY($2::text[])",
+          [procurementRole.id, procurement.permission_codes]);
+      }
     }
     const [role] = await rows<{ id: string }>(db, "INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,'superadmin','Platform super administrator',true) ON CONFLICT(name) DO UPDATE SET name=roles.name RETURNING id", [randomUUID()]);
     for (const p of registry) await db.query("INSERT INTO auth.role_permissions(role_id,permission_id) SELECT $1,id FROM auth.permissions WHERE code=$2 ON CONFLICT DO NOTHING",[role.id,p.code]);

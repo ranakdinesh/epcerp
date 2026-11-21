@@ -4,6 +4,9 @@ import { AppError } from '../../errors';
 import type { Actor } from '../core/access';
 import { inspect } from '../workflow/reader';
 import { stageAccess } from '../core/stage-access';
+import { get as getAdvance } from '../advances/repository';
+import { source as advanceSource } from '../advances/context';
+import { sameSource as sameAdvance } from '../advances/policy';
 import { released } from '../orders/reader';
 import { acceptedFact } from '../acceptance/service';
 import { clearance } from '../technical/service';
@@ -28,7 +31,14 @@ catch (e) {
 catch (e) {
     return failure(out, e);
 } if (acceptance.order_snapshot.id !== po.id || acceptance.order_snapshot.version !== po.version)
-    return block(out, 'Record current unconditional vendor acceptance for this PO'); out.acceptance_id = acceptance.id; out.acceptance_version = acceptance.version; let approval; try {
+    return block(out, 'Record current unconditional vendor acceptance for this PO'); out.acceptance_id = acceptance.id; out.acceptance_version = acceptance.version;
+    const advance = await getAdvance(db, p, id);
+    if (!advance?.is_active || !['disbursed', 'not_applicable'].includes(advance.state))
+        return block(out, 'Finance must record advance payment or confirm no advance before inspection');
+    const advanceFacts = await advanceSource(db, p, id);
+    if (!advanceFacts.available || advanceFacts.blockers.length || !sameAdvance(advance.source_snapshot, advanceFacts))
+        return block(out, 'Advance disposition no longer matches the current PO and vendor acceptance');
+    let approval; try {
     approval = await clearance(db, p, id);
 }
 catch (e) {

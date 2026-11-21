@@ -18,6 +18,7 @@ import {
   CurrencyRupeeIcon,
 } from "@heroicons/react/24/outline";
 import type { BidCosting } from "./tender-bid-costing";
+import type { BiddingProject, BiddingProjectContext } from "./tender-bidding-project";
 
 const primaryBtn =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white transition hover:bg-blue-800 disabled:opacity-50";
@@ -50,20 +51,24 @@ export function TenderAwardHandoff({
   const [projectTitle, setProjectTitle] = useState("");
   const [contractRef, setContractRef] = useState("");
   const [clientName, setClientName] = useState("");
-  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-  const [projectNumber, setProjectNumber] = useState<string | null>(null);
+  const [project, setProject] = useState<BiddingProject | null>(null);
 
   const loadCosting = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/tender-fms/drafts/${draftId}/bid-costing`, { signal });
+      const [res, projectRes] = await Promise.all([
+        fetch(`/api/tender-fms/drafts/${draftId}/bid-costing`, { signal }),
+        fetch(`/api/tender-fms/drafts/${draftId}/bidding-approval/project`, { signal }),
+      ]);
       if (!res.ok) throw new Error("Failed to load bid costing data");
+      if (!projectRes.ok) throw new Error("Failed to load the linked project");
       const data: BidCosting = await res.json();
+      const projectContext: BiddingProjectContext = await projectRes.json();
       setCosting(data);
+      setProject(projectContext.project);
       if (data.submission_date) setSubmissionDate(data.submission_date.slice(0, 10));
       if (data.portal_reference) setPortalRef(data.portal_reference);
-      if (data.project_id) setCreatedProjectId(data.project_id);
       if (data.contract_reference) setContractRef(data.contract_reference);
     } catch (e) {
       if (!signal?.aborted) setError(e instanceof Error ? e.message : "Error loading data");
@@ -105,7 +110,7 @@ export function TenderAwardHandoff({
 
   async function handleAwardAndCreateProject(e: React.FormEvent) {
     e.preventDefault();
-    if (!contractRef.trim() || !projectTitle.trim() || !clientName.trim() || saving) return;
+    if (!contractRef.trim() || (!project && (!projectTitle.trim() || !clientName.trim())) || saving) return;
     setSaving(true);
     setError("");
     try {
@@ -124,9 +129,6 @@ export function TenderAwardHandoff({
         throw new Error(err.detail || "Award handoff failed");
       }
 
-      const out = await res.json();
-      setCreatedProjectId(out.project_id);
-      if (out.project_number) setProjectNumber(out.project_number);
       await loadCosting();
       window.dispatchEvent(new Event("tender-progress-saved"));
     } catch (e) {
@@ -137,7 +139,7 @@ export function TenderAwardHandoff({
   }
 
   const isSubmitted = costing?.status === "submitted" || costing?.status === "awarded";
-  const isAwarded = costing?.status === "awarded" || Boolean(createdProjectId);
+  const isAwarded = costing?.status === "awarded";
 
   return (
     <div className="space-y-6">
@@ -154,7 +156,7 @@ export function TenderAwardHandoff({
               </h2>
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Record e-procurement portal submission, track award decision, and merge the tender with Projects and Purchase FMS upon contract award.
+              Record portal submission and add the contract award to the linked project.
             </p>
           </div>
 
@@ -190,33 +192,32 @@ export function TenderAwardHandoff({
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-lg font-bold text-emerald-900 dark:text-emerald-200">
-                  Tender Successfully Awarded & Converted to Execution Project!
+                  Tender award recorded
                 </h3>
-                {projectNumber && (
+                {project && (
                   <span className="rounded-md bg-emerald-700 px-2 py-0.5 text-xs font-black uppercase tracking-wide text-white">
-                    {projectNumber}
+                    {project.number}
                   </span>
                 )}
               </div>
               <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
-                Tender FMS has successfully merged with the Projects and Purchase FMS modules.
                 The bid value is recorded on the project. Procurement can match the transferred draft BOQ lines to catalogue items and set required dates.
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
-                  href={`/dashboard?screen=projects${createdProjectId ? `&project=${encodeURIComponent(createdProjectId)}` : ""}`}
+                  href={`/dashboard?screen=projects${project ? `&project=${encodeURIComponent(project.id)}` : ""}`}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs"
                 >
                   <RocketLaunchIcon className="h-4 w-4" />
                   Open in Projects Workspace
                 </Link>
-                <Link
-                  href={`/dashboard?screen=purchase-fms${createdProjectId ? `&project=${encodeURIComponent(createdProjectId)}&step=PUR-01` : ""}`}
+                {project?.purchase_enabled && project.can_open_purchase && <Link
+                  href={`/dashboard?screen=purchase-fms&project=${encodeURIComponent(project.id)}&step=PUR-01`}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-600 bg-white px-4 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 shadow-xs dark:bg-slate-900 dark:text-emerald-200"
                 >
                   <BuildingOfficeIcon className="h-4 w-4" />
-                  Initiate Procurement in Purchase FMS (PUR-01) →
-                </Link>
+                  Open Purchase FMS (PUR-01)
+                </Link>}
               </div>
             </div>
           </div>
@@ -290,12 +291,12 @@ export function TenderAwardHandoff({
           </div>
 
           <p className="mt-2 text-xs text-slate-500">
-            When the client issues the official Letter of Award (LOA) or Contract Order, use this action to generate the execution project, record its contract value, and transfer the costed items to a draft BOQ for procurement review.
+            {project ? `Record the award against ${project.number} · ${project.name}. The project receives the contract reference and value, and the costed items are copied into a draft BOQ.` : "When the client issues the award or order, create the execution project and transfer the costed items to a draft BOQ."}
           </p>
 
           <ValidatedForm onSubmit={handleAwardAndCreateProject} className="mt-4 space-y-4 text-xs">
             <div className="grid gap-4 sm:grid-cols-3">
-              <div>
+              {!project && <div>
                 <ValidatedLabel className="block font-bold uppercase text-slate-600 dark:text-slate-400">
                   Execution Project Title *
                 </ValidatedLabel>
@@ -307,7 +308,7 @@ export function TenderAwardHandoff({
                   onChange={(e) => setProjectTitle(e.target.value)}
                   className={inputClass}
                 />
-              </div>
+              </div>}
 
               <div>
                 <ValidatedLabel className="block font-bold uppercase text-slate-600 dark:text-slate-400">
@@ -323,7 +324,7 @@ export function TenderAwardHandoff({
                 />
               </div>
 
-              <div>
+              {!project && <div>
                 <ValidatedLabel className="block font-bold uppercase text-slate-600 dark:text-slate-400">
                   Client / Authority Name
                 </ValidatedLabel>
@@ -335,16 +336,7 @@ export function TenderAwardHandoff({
                   onChange={(e) => setClientName(e.target.value)}
                   className={inputClass}
                 />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
-              <span className="font-bold text-xs uppercase block">Automatic System Actions on Award:</span>
-              <ul className="mt-1 space-y-1 text-xs">
-                <li>• Creates a persistent execution project record in <strong className="font-semibold">Projects FMS</strong>.</li>
-                <li>• Records the project contract value from the submitted costing sheet (₹{costing?.total_bid_value.toLocaleString("en-IN") || "0"}).</li>
-                <li>• Transfers BOQ items as a draft to <strong className="font-semibold">Purchase FMS</strong> for indenting and purchase order execution.</li>
-              </ul>
+              </div>}
             </div>
 
             {canWrite && (
@@ -353,10 +345,10 @@ export function TenderAwardHandoff({
                   type="submit"
                   disabled={saving || !isSubmitted}
                   className={successBtn + " text-xs"}
-                  title={!isSubmitted ? "Mark the bid as submitted first" : "Create execution project"}
+                  title={!isSubmitted ? "Mark the bid as submitted first" : undefined}
                 >
                   <CheckCircleIcon className="h-5 w-5" />
-                  Award Tender & Create Execution Project
+                  {project ? "Record award on linked project" : "Award Tender & Create Execution Project"}
                 </button>
               </div>
             )}

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { purchaseItemType } from "@/components/purchase-fms/purchase-items-model";
 import { createRecordId } from "@/lib/record-id";
 import { DataGrid } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedTextarea, ValidatedSelect } from "@/components/ui/validated-controls";
+import { currentVendorIndent, type DocumentWorkspace } from "./purchase-indent-documents";
 import type { BOLine, Supplier } from "./purchase-indent-workspace";
 
 export type Invitation = { scope_revision?: number; line_ids?: string[]; vendor_id: string; sent_date: string; channel: string; dispatch_reference: string; vendor_name?: string };
@@ -21,15 +23,16 @@ const button = "min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm fo
 const input = "mt-1 block min-h-11 w-full rounded-lg border border-slate-300 px-3";
 export type Stage = "items" | "vendors" | "report";
 
-export function PurchaseIndentGroups({ lines, suppliers, record, canWrite, canManageVendors, canViewVendors, canViewRegister, busy, history, notice, report, stage, initialVendorGroup,onStageChange, onSave, onPreview }: {
-  lines: BOLine[]; suppliers: Supplier[]; record: GroupRecord | null; canWrite: boolean; canManageVendors: boolean; canViewVendors: boolean; canViewRegister: boolean; busy: boolean;
+export function PurchaseIndentGroups({ lines, suppliers, record, canWrite, canManageVendors, canViewVendors, canViewRegister, documents, busy, notice, report, stage, initialVendorGroup,onStageChange, onSave, onPreview }: {
+  lines: BOLine[]; suppliers: Supplier[]; record: GroupRecord | null; canWrite: boolean; canManageVendors: boolean; canViewVendors: boolean; canViewRegister: boolean; documents: DocumentWorkspace | null; busy: boolean;
   initialVendorGroup?:string;stage: Stage; onStageChange: (stage: Stage) => void;
-  notice: string; history: GroupWorkspace["history"]; report: ItemVendorReport[];
+  notice: string; report: ItemVendorReport[];
   onSave: (command: GroupCommand, form?: HTMLFormElement) => Promise<boolean>; onPreview: (group: string) => void;
 }) {
   const created = record?.state === "created";
   const groupsSaved = record?.state === "grouped" || created;
   const groups = record?.groups ?? [];
+  const [itemType, setItemType] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [editing, setEditing] = useState<IndentGroup | null>(null);
   const [inspecting, setInspecting] = useState<{group: IndentGroup; kind: "items" | "vendors"} | null>(null);
@@ -44,6 +47,8 @@ export function PurchaseIndentGroups({ lines, suppliers, record, canWrite, canMa
   const [vendorError, setVendorError] = useState("");
   const assigned = new Set(groups.flatMap(group => group.line_ids));
   const ready = groupsSaved && groups.length > 0 && groups.every(group => group.vendor_ids.filter(id => suppliers.some(supplier => supplier.id === id && supplier.is_active)).length >= 3);
+  const itemTypes = [...new Set(lines.map(purchaseItemType))].sort();
+  const visibleLines = itemType ? lines.filter(line=>purchaseItemType(line)===itemType) : lines;
   const itemColumns = [
     { key: "sku", label: "SKU & item", value: (line: BOLine) => `${line.item_snapshot.sku || ""} ${line.item_snapshot.description || "BO item"}`, render: (line: BOLine) => <div className="min-w-56 max-w-xl"><p className="break-all text-xs font-semibold text-blue-700">{line.item_snapshot.sku}</p><p className="mt-1 leading-relaxed">{line.item_snapshot.description || "BO item"}</p></div> },
     { key: "quantity", label: "Quantity", value: (line: BOLine) => `${line.quantity || "—"} ${line.item_snapshot.uom || ""}` },
@@ -64,10 +69,10 @@ export function PurchaseIndentGroups({ lines, suppliers, record, canWrite, canMa
       <p className="mt-3 text-sm font-semibold">{assigned.size} items grouped · {groups.length} groups · {created ? "Issued groups — additional items allowed" : groupsSaved ? "Groups saved — choose vendors" : "Grouping in progress"}</p>
     </div>}
     {stage === "items" && <>
-      <DataGrid label="Purchase items" rows={lines} columns={[...itemColumns,
+      <DataGrid label="Purchase items" rows={visibleLines} columns={[...itemColumns,
         {key:"group",label:"Group",value:(line:BOLine)=>groups.find(group=>group.line_ids.includes(line.id))?.name || "Ungrouped"},
       ]}
-        toolbar={canWrite ? <div className="flex flex-wrap items-center gap-2"><button type="button" className={button} disabled={busy} onClick={() => setSelected(lines.filter(line=>!assigned.has(line.id)).map(line => line.id))}>Select all ungrouped</button><button type="button" className={`${button} bg-blue-600 text-white`} disabled={busy || !selected.length} onClick={newGroup}>Group ({selected.length})</button><button type="button" className={button} disabled={busy || !selected.length || !groups.length} onClick={()=>{setTargetGroup(groups[0]?.id||"");setAdding(true);}}>Add to existing group ({selected.length})</button></div> : null}
+        toolbar={<div className="flex flex-wrap items-center gap-2">{itemTypes.length>1&&<ValidatedLabel>Item type<ValidatedSelect className="ml-2 min-h-11 rounded-lg border px-3" value={itemType} onChange={event=>setItemType(event.target.value)}><option value="">All types</option>{itemTypes.map(type=><option key={type}>{type}</option>)}</ValidatedSelect></ValidatedLabel>}{canWrite&&<><button type="button" className={button} disabled={busy} onClick={() => setSelected([...new Set([...selected,...visibleLines.filter(line=>!assigned.has(line.id)).map(line=>line.id)])])}>Select all ungrouped</button><button type="button" className={`${button} bg-blue-600 text-white`} disabled={busy || !selected.length} onClick={newGroup}>Group ({selected.length})</button><button type="button" className={button} disabled={busy || !selected.length || !groups.length} onClick={()=>{setTargetGroup(groups[0]?.id||"");setAdding(true);}}>Add to existing group ({selected.length})</button></>}</div>}
         actions={line => <div className="flex items-center gap-3"><ValidatedLabel className="indent-selection"><ValidatedInput type="checkbox" aria-label={`Select item ${line.item_snapshot.sku || line.id}`} disabled={!canWrite || busy || assigned.has(line.id)} checked={assigned.has(line.id) || selected.includes(line.id)} onChange={event => setSelected(event.target.checked ? [...selected, line.id] : selected.filter(id => id!==line.id))} />{assigned.has(line.id) ? "Grouped" : "Select"}</ValidatedLabel>{assigned.has(line.id) && canWrite && <button type="button" className={button} aria-label={`Reset item ${line.item_snapshot.sku || line.id}`} disabled={busy || created} onClick={()=>void onSave({action:"reset_item",line_id:line.id,reason:"Reset item for regrouping"})}>Reset</button>}</div>} />
       {groups.length > 0 && canViewVendors && <button type="button" className={button} disabled={busy} onClick={()=>onStageChange("vendors")}>Continue to group vendors</button>}
       <p className="text-sm text-slate-600">{created ? "Issued items stay grouped. Add new items to create a revised scope; earlier indents and quotations remain in history." : "Grouped items stay checked and disabled. Use Reset to move an item into another group."}</p>
@@ -79,8 +84,19 @@ export function PurchaseIndentGroups({ lines, suppliers, record, canWrite, canMa
         {key:"items",label:"Items",value:group=>group.line_ids.length,render:group=><button type="button" className={`${button} whitespace-nowrap text-blue-700`} aria-label={`View items in ${group.name}`} onClick={()=>setInspecting({group,kind:"items"})}>View items ({group.line_ids.length})</button>},
         {key:"vendors",label:"Selected vendors",value:group=>group.vendor_ids.map(id=>suppliers.find(supplier=>supplier.id===id)?.name || "Unavailable vendor").join(", ") || "No vendors selected",render:group=><button type="button" className={`${button} whitespace-nowrap text-blue-700`} aria-label={`View vendors in ${group.name}`} onClick={()=>setInspecting({group,kind:"vendors"})}>View vendors ({group.vendor_ids.length})</button>},
         {key:"invitations",label:"Recorded invitations",value:group=>group.invitations?.length ?? 0},
-      ]} actions={group=><div className="flex flex-wrap gap-2">{canManageVendors && <button type="button" className={button} disabled={busy} onClick={()=>chooseVendors(group)}>{created && group.vendor_ids.length ? "Add vendors" : "Choose vendors"}</button>}{created && canViewRegister && <><button type="button" className={button} onClick={()=>onPreview(group.id)}>Generate indent</button></>}</div>} />
-      {ready && canViewRegister && <button type="button" className={`${button} bg-blue-600 text-white`} disabled={busy || !ready} onClick={()=>onPreview(groups[0].id)}>Continue to vendor indent register</button>}
+      ]} actions={group=>{
+        const indents = group.vendor_ids.map(id=>currentVendorIndent(documents,group,id));
+        const action = documents?.can_dispatch && indents.some(indent=>indent && !indent.data.sent_date)
+          ? "Send indent"
+          : documents?.can_generate && indents.some(indent=>!indent)
+            ? "Generate indent"
+            : "View indents";
+        return <div className="flex flex-wrap gap-2">
+          {canManageVendors && <button type="button" className={button} disabled={busy} onClick={()=>chooseVendors(group)}>{created && group.vendor_ids.length ? "Add vendors" : "Choose vendors"}</button>}
+          {created && canViewRegister && <button type="button" className={button} disabled={busy} onClick={()=>onPreview(group.id)}>{action}</button>}
+        </div>;
+      }} />
+      {ready && canViewRegister && <button type="button" className={`${button} bg-blue-600 text-white`} disabled={busy || !ready} onClick={()=>onPreview("")}>Continue to vendor indent register</button>}
       <p className="text-sm text-slate-600">Vendor choices are saved per group. Generate vendor indents to print them and record actual sent dates. You can add vendors later.</p>
     </>}
     {stage === "report" && <>
@@ -92,7 +108,6 @@ export function PurchaseIndentGroups({ lines, suppliers, record, canWrite, canMa
         {key:"invited",label:"Invited vendors / dispatch",value:row=>row.invitations.map(inv=>`${inv.vendor_name} · ${inv.sent_date} · ${inv.channel} · ${inv.dispatch_reference}`).join("; ") || "No invitation recorded"},
       ]} actions={()=>null} />
     </>}
-    {history.length>0 && <details className="rounded-xl border border-slate-200 bg-white p-4"><summary className="cursor-pointer font-semibold">Saved change history ({history.length})</summary><ol className="mt-3 space-y-2 text-sm">{history.map((event,index)=><li key={index}>{new Date(event.created_at).toLocaleString()} · {event.action} · {event.reason}</li>)}</ol></details>}
     {inspecting && <RecordDrawer centered title={`${inspecting.kind === "items" ? "Items" : "Selected vendors"} — ${inspecting.group.name}`} onClose={()=>setInspecting(null)}>
       <p className="text-sm text-slate-600">{inspecting.kind === "items" ? `${inspecting.group.line_ids.length} items in this saved group.` : `${inspecting.group.vendor_ids.length} selected vendors. Invitations appear only when dispatch is recorded.`}</p>
       {inspecting.kind === "items" ? <ul aria-label="Group item details" className="space-y-3">{inspecting.group.line_ids.map(id=>{

@@ -29,7 +29,7 @@ export async function workspaceBound(db: DB, a: Actor, p: string, b: string) {
             if (h.before)
                 h.before.attempts = redact(h.before.attempts);
         }
-    return { drafts: await repo.drafts(db, p, b), project_name: project.name, project_number: project.project_number, version: r?.version ?? 0, attempts: caps.review_read ? evaluated.attempts.map(a => a.state === 'pending_accounts' ? pendingFinanceBudget(a, s) : a) : redact(evaluated.attempts), vendor_statuses: s.verifications, ready: evaluated.ready, can_submit: caps.submit && s.available, can_review_read: caps.review_read, can_review: caps.review, can_read_budget: caps.budget_read, can_update_budget: caps.budget_write && s.available, can_verify: caps.verify, currency: s.currency, history };
+    return { drafts: await repo.drafts(db, p, b), project_name: project.name, project_number: project.project_number, version: r?.version ?? 0, attempts: caps.review_read ? evaluated.attempts.map(a => a.state === 'pending_accounts' ? pendingFinanceBudget(a, s) : a) : redact(evaluated.attempts), ready: evaluated.ready, can_submit: caps.submit && s.available && s.receipt_frozen === true, can_review_read: caps.review_read, can_review: caps.review, can_read_budget: caps.budget_read, can_update_budget: caps.budget_write && s.available, can_verify: caps.verify, currency: s.currency, history };
 }
 export async function workspace(token: string, p: string, b: string) { return transaction(async (db) => { const a = await actor(db, token); id(p); id(b); return workspaceBound(db, a, p, b); }); }
 export async function execute(token: string, p: string, b: string, action: string, raw: Record<string, unknown>) {
@@ -53,6 +53,7 @@ export async function execute(token: string, p: string, b: string, action: strin
         let changed: Attempt;
         const recipients: string[] = [];
         if (action === 'submit') {
+            requireFrozenReceipt(s.receipt_frozen);
             const chosen = s.quotes.find(q => q.key === c.quote_key || c.proposals.length > 0 && q.key === c.proposals[0].quote_key);
             if (!chosen)
                 throw missing();
@@ -122,15 +123,29 @@ export async function execute(token: string, p: string, b: string, action: strin
         r.version++;
         const saved = await repo.save(db, r, a.id), e: repo.Event = { id: randomUUID(), project_id: p, bo_id: b, action: action === 'submit' ? 'submit' : 'accounts_decision', reason: c.reason, before, after: saved, created_by_id: a.id, created_at: now() };
         await repo.event(db, e);
+        if (changed.proposals?.length && changed.state === 'approved' && await projectReady(db, p)) {
+            const { rows } = await db.query<{ owner_id: string; manager_id: string | null }>(`
+                SELECT d.owner_id, a.manager_id FROM tender.bidding_authorizations a
+                JOIN tender.document_drafts d ON d.id=a.draft_id AND d.is_active WHERE a.project_id=$1
+            `, [p]);
+            const authorized = new Set((await assignmentIdentities(db, [])).filter(user =>
+                user.allows('communication.inbox.read')).map(user => user.id));
+            for (const id of new Set(rows.flatMap(row => [row.owner_id, row.manager_id])))
+                if (id && authorized.has(id) && !recipients.includes(id)) recipients.push(id);
+        }
         if (changed.proposals?.length)
             await notify(db, e, changed, recipients, project.project_number + ' · ' + project.name);
         return workspaceBound(db, a, p, b);
     });
 }
+function requireFrozenReceipt(frozen: boolean | undefined) {
+    if (!frozen)
+        invalid('', 'Freeze vendor quotations before preparing or submitting the shortlist');
+}
 export async function saveDraft(token: string, p: string, b: string, raw: Record<string, unknown>) { return transaction(async (db) => { const a = await actor(db, token); id(p); id(b); const { caps } = await actions(db, a, p); if (!caps.read || !caps.submit)
     throw forbidden(); const s = await source(db, p, b); if (!s.available)
     invalid('project', 'Project purchasing is inactive, held or closed'); const r = await repo.get(db, p, b); if (r && !r.is_active)
-    throw missing(); const input = object(raw, ['group_id', 'version', 'proposals', 'comment']); const d = validateDraft({ project_id: p, bo_id: b, group_id: id(input.group_id), version: version(input.version ?? 0), proposals: input.proposals as Draft['proposals'], comment: string(input.comment, 'comment', ''), is_active: true, updated_by: a.id, updated_at: now() }, s, r?.attempts ?? []); await repo.saveDraft(db, d, a.id); return workspaceBound(db, a, p, b); }); }
+    throw missing(); requireFrozenReceipt(s.receipt_frozen); const input = object(raw, ['group_id', 'version', 'proposals', 'comment']); const d = validateDraft({ project_id: p, bo_id: b, group_id: id(input.group_id), version: version(input.version ?? 0), proposals: input.proposals as Draft['proposals'], comment: string(input.comment, 'comment', ''), is_active: true, updated_by: a.id, updated_at: now() }, s, r?.attempts ?? []); await repo.saveDraft(db, d, a.id); return workspaceBound(db, a, p, b); }); }
 export async function approved(db: DB, p: string, b: string, all = true) { const s = await source(db, p, b), r = await repo.get(db, p, b); if (!r?.is_active)
     throw forbidden(); const { latest, ready } = evaluate(r.attempts, s); if (all && !ready)
     invalid('approval', "Accounts must approve every current group's quotation before the next step"); const out = s.groups.map(g => latest.get(g.id)).filter((a): a is Attempt => !!a && a.effective_state === 'approved'); if (!all && !out.length)

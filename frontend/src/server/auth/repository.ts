@@ -1,3 +1,7 @@
+import { and, count, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import type { PoolClient } from "pg";
+import { passwordRecovery, userRoles, users } from "./schema";
 import { randomUUID } from "node:crypto";
 import { actor, lock, rows, type DB } from "../db";
 import { type User, type Role, denied, forbidden, allows, temporaryValid, AuthError } from "./domain";
@@ -10,6 +14,67 @@ export async function loadRoles(db: DB, userID?: string): Promise<Role[]> {
     FROM auth.roles r ${userID ? "JOIN auth.user_roles ur ON ur.role_id=r.id WHERE ur.user_id=$1" : ""} ORDER BY r.name`, userID ? [userID] : []);
   return result.map(r => ({ ...r, edit_version: Number(r.edit_version) }));
 }
+export function countRoleAssignments(client: PoolClient) {
+  return drizzle({ client })
+    .select({ role_id: userRoles.roleId, user_count: count() })
+    .from(userRoles)
+    .groupBy(userRoles.roleId);
+}
+
+const loginColumns = {
+  id: users.id,
+  password_hash: users.password_hash,
+  is_active: users.is_active,
+  must_change_password: users.must_change_password,
+  temporary_password_expires_at: users.temporary_password_expires_at,
+};
+
+export async function findLoginAccount(client: PoolClient, identifier: string) {
+  const matches = await drizzle({ client }).select(loginColumns).from(users)
+    .where(or(eq(users.username, identifier), eq(users.email, sql`lower(${identifier})`)))
+    .limit(2);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+export async function lockLoginAccount(client: PoolClient, id: string) {
+  const [account] = await drizzle({ client })
+    .select({ ...loginColumns, credential_version: users.credential_version })
+    .from(users).where(eq(users.id, id)).for("update");
+  return account ?? null;
+}
+
+export async function lockRecoveryRecipient(client: PoolClient, address: string) {
+  const db = drizzle({ client });
+  const matches = await db.select({ id: users.id }).from(users)
+    .where(sql`lower(${users.email}) = lower(${address})`).limit(2);
+  if (matches.length !== 1) return null;
+  const [recipient] = await db.select({ id: users.id, email: users.email, isActive: users.is_active })
+    .from(users).where(eq(users.id, matches[0].id)).for("update");
+  return recipient?.isActive && recipient.email.toLowerCase() === address.toLowerCase() ? recipient : null;
+}
+
+export async function lockRecoveryAccount(client: PoolClient, tokenHash: string) {
+  const db = drizzle({ client });
+  // Lock the account before the token, matching the reset-request write order.
+  const tokenOwner = db.select({ id: passwordRecovery.userId }).from(passwordRecovery)
+    .where(eq(passwordRecovery.tokenHash, tokenHash));
+  const [account] = await db.select({ id: users.id, passwordHash: users.password_hash })
+    .from(users).where(and(eq(users.id, sql`(${tokenOwner})`), eq(users.is_active, true)))
+    .for("update");
+  if (!account) return null;
+
+  // Use a fresh statement snapshot after acquiring the account lock.
+  const accountUpdatedAt = db.select({ updatedAt: users.updated_at }).from(users)
+    .where(eq(users.id, account.id));
+  const [token] = await db.select({ tokenHash: passwordRecovery.tokenHash })
+    .from(passwordRecovery)
+    .where(and(eq(passwordRecovery.tokenHash, tokenHash), eq(passwordRecovery.userId, account.id),
+      isNull(passwordRecovery.consumedAt), gt(passwordRecovery.expiresAt, sql`clock_timestamp()`),
+      lte(sql`(${accountUpdatedAt})`, passwordRecovery.createdAt)))
+    .for("update");
+  return token ? account : null;
+}
+
 export async function loadUser(db: DB, id: string, forUpdate = false): Promise<User | null> {
   const [u] = await rows<UserRow>(db, `SELECT * FROM auth.users WHERE id=$1 ${forUpdate ? "FOR UPDATE" : ""}`, [id]);
   if (!u) return null;

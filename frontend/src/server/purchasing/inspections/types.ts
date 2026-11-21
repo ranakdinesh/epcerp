@@ -42,6 +42,10 @@ export type Inspection = {
     status: string;
     call_notice_ref: string;
     call_date: string;
+    request_date?: string;
+    request_reference?: string;
+    client_confirmed_date?: string;
+    client_confirmation_reference?: string;
     scheduled_date: string;
     actual_date: string;
     inspection_agency: string;

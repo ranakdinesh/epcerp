@@ -4,6 +4,8 @@ import { pool, transaction } from '../../db';
 import { AppError } from '../../errors';
 import { initializeProjectPurchase } from '../../purchasing/project-registration';
 import { authorizeTender } from '../documents';
+import * as projects from '../../projects/repository';
+import { lower } from '../intake/receipts';
 
 export type BidItem = {
   id: string;
@@ -497,19 +499,17 @@ export async function awardAndCreateProject(
   token: string,
   draftId: string,
   input: { project_title: string; contract_reference: string; client_name: string }
-): Promise<{ project_id: string; project_number: string; costing: BidCosting }> {
+): Promise<{ project_id: string; project_number: string; purchase_enabled: boolean; costing: BidCosting }> {
   const title = typeof input.project_title === 'string' ? input.project_title.trim() : '';
   const reference = typeof input.contract_reference === 'string' ? input.contract_reference.trim() : '';
   const clientName = typeof input.client_name === 'string' ? input.client_name.trim() : '';
-  if (title.length < 3 || title.length > 248 || !reference || reference.length > 255 || !clientName || clientName.length > 255) {
-    throw new AppError(422, 'Enter a project title, contract reference and registered client name');
-  }
+  if (!reference || reference.length > 255) throw new AppError(422, 'Enter the contract reference');
   return transaction(async (client) => {
     const { actor } = await authorizeTender(client, token, draftId, 'write');
     if (!['projects.master.read', 'projects.master.write', 'projects.portfolio.write', 'projects.purchase_assignments.write'].every(permission => actor.allows(permission))) {
       throw new AppError(403, 'Project creation and purchase assignment permissions are required');
     }
-    const managerId = actor.id;
+    await client.query('SELECT pg_advisory_xact_lock_shared(70623124)');
     const costing = (await client.query<BidCosting>(
       `SELECT ${costingColumns} FROM tender.bid_costings WHERE draft_id = $1 FOR UPDATE`,
       [draftId]
@@ -517,87 +517,107 @@ export async function awardAndCreateProject(
     if (!costing) throw new AppError(422, 'Bid costing must be completed before project award handoff');
     if (costing.project_id) {
       if (costing.contract_reference !== reference) throw new AppError(409, 'This tender already has an award project');
-      const project = (await client.query<{ project_number: string }>(
-        'SELECT project_number FROM public.projects WHERE id = $1', [costing.project_id]
-      )).rows[0];
-      return { project_id: costing.project_id, project_number: project.project_number, costing };
+      const project = await projects.get(client, costing.project_id);
+      return { project_id: project.id, project_number: project.project_number, purchase_enabled: project.purchase_enabled, costing };
     }
     if (costing.status !== 'submitted') throw new AppError(422, 'Record portal submission before awarding this tender');
-    const matches = await client.query<{ id: string }>(
-      `SELECT id FROM public.clients WHERE is_active AND
-       (lower(display_name) = lower($1) OR lower(legal_name) = lower($1)) LIMIT 2 FOR SHARE`,
-      [clientName]
-    );
-    if (matches.rows.length !== 1) throw new AppError(422, 'Enter the exact name of one active registered client');
-    const clientId = matches.rows[0].id;
+    const linked = (await client.query<{ project_id: string | null }>(
+      'SELECT project_id FROM tender.bidding_authorizations WHERE draft_id=$1', [draftId]
+    )).rows[0]?.project_id;
+    let project: projects.Project;
+    if (linked) {
+      const before = await projects.get(client, linked, true);
+      if (!before.is_active || before.lifecycle_status === 'closed') throw new AppError(409, 'The linked project is inactive or closed');
+      await client.query(
+        'UPDATE projects SET contract_value=$2, po_number=$3, version=version+1, updated_at=clock_timestamp(), updated_by_id=$4 WHERE id=$1',
+        [linked, costing.total_bid_value, reference, actor.id]
+      );
+      project = await projects.owner(client, await projects.get(client, linked));
+      await projects.recordMetadataChange(client, before, project, lower, 'Contract award recorded from Tender FMS', actor.id);
+    } else {
+      if (title.length < 3 || title.length > 248 || !clientName || clientName.length > 255) {
+        throw new AppError(422, 'Enter a project title and registered client name');
+      }
+      const managerId = actor.id;
+      const matches = await client.query<{ id: string }>(
+        `SELECT id FROM public.clients WHERE is_active AND
+         (lower(display_name) = lower($1) OR lower(legal_name) = lower($1)) LIMIT 2 FOR SHARE`,
+        [clientName]
+      );
+      if (matches.rows.length !== 1) throw new AppError(422, 'Enter the exact name of one active registered client');
+      const clientId = matches.rows[0].id;
 
-    // 4. Ensure unique normalized project name
-    const baseName = title;
-    let name = baseName;
-    let normalizedName = baseName.toLowerCase();
-    const existingProj = await client.query(
-      `SELECT id FROM public.projects WHERE normalized_name = $1`,
-      [normalizedName]
-    );
-    if (existingProj.rowCount && existingProj.rowCount > 0) {
-      const suffix = Date.now().toString(36).slice(-4);
-      name = `${baseName} (${suffix})`;
-      normalizedName = `${normalizedName} (${suffix})`.toLowerCase();
+      // 4. Ensure unique normalized project name
+      const baseName = title;
+      let name = baseName;
+      let normalizedName = baseName.toLowerCase();
+      const existingProj = await client.query(
+        `SELECT id FROM public.projects WHERE normalized_name = $1`,
+        [normalizedName]
+      );
+      if (existingProj.rowCount && existingProj.rowCount > 0) {
+        const suffix = Date.now().toString(36).slice(-4);
+        name = `${baseName} (${suffix})`;
+        normalizedName = `${normalizedName} (${suffix})`.toLowerCase();
+      }
+
+      // 5. Create Project in public.projects
+      const projectId = randomUUID();
+      const projRes = await client.query<{ id: string; project_number: string }>(
+        `WITH number AS (SELECT nextval('project_number_sequence') AS value)
+         INSERT INTO public.projects(
+           id, project_number, name, normalized_name, client_id, project_manager_id,
+           lifecycle_status, is_active, version, created_by_id, updated_by_id,
+           purchase_enabled, contract_value, po_number, currency
+         )
+         SELECT
+           $1,
+           'PRJ-' || CASE WHEN value < 1000000 THEN lpad(value::text, 6, '0') ELSE value::text END,
+           $2,
+           $3,
+           $4,
+           $5,
+           'active',
+           true,
+           1,
+           $6,
+           $6,
+           true,
+           $7,
+           $8,
+           'INR'
+         FROM number
+         RETURNING id, project_number`,
+        [
+          projectId,
+          name,
+          normalizedName,
+          clientId,
+          managerId,
+          managerId,
+          costing.total_bid_value,
+          reference,
+        ]
+      );
+      const createdProject = projRes.rows[0];
+
+      // 6. Project manager history entry
+      const pmHistoryId = randomUUID();
+      await client.query(
+        `INSERT INTO public.project_manager_history(
+           id, project_id, previous_manager_id, project_manager_id, project_version,
+           reason, created_at, created_by_id
+         ) VALUES (
+           $1, $2, NULL, $3, 1, 'Initial project manager assignment upon tender award', clock_timestamp(), $4
+         )`,
+        [pmHistoryId, projectId, managerId, managerId]
+      );
+
+      await initializeProjectPurchase(client, projectId, managerId, actor.id);
+      project = await projects.owner(client, await projects.get(client, createdProject.id));
     }
-
-    // 5. Create Project in public.projects
-    const projectId = randomUUID();
-    const projRes = await client.query<{ id: string; project_number: string }>(
-      `WITH number AS (SELECT nextval('project_number_sequence') AS value)
-       INSERT INTO public.projects(
-         id, project_number, name, normalized_name, client_id, project_manager_id,
-         lifecycle_status, is_active, version, created_by_id, updated_by_id,
-         purchase_enabled, contract_value, po_number, currency
-       )
-       SELECT
-         $1,
-         'PRJ-' || CASE WHEN value < 1000000 THEN lpad(value::text, 6, '0') ELSE value::text END,
-         $2,
-         $3,
-         $4,
-         $5,
-         'active',
-         true,
-         1,
-         $6,
-         $6,
-         true,
-         $7,
-         $8,
-         'INR'
-       FROM number
-       RETURNING id, project_number`,
-      [
-        projectId,
-        name,
-        normalizedName,
-        clientId,
-        managerId,
-        managerId,
-        costing.total_bid_value,
-        reference,
-      ]
-    );
-    const createdProject = projRes.rows[0];
-
-    // 6. Project manager history entry
-    const pmHistoryId = randomUUID();
-    await client.query(
-      `INSERT INTO public.project_manager_history(
-         id, project_id, previous_manager_id, project_manager_id, project_version,
-         reason, created_at, created_by_id
-       ) VALUES (
-         $1, $2, NULL, $3, 1, 'Initial project manager assignment upon tender award', clock_timestamp(), $4
-       )`,
-      [pmHistoryId, projectId, managerId, managerId]
-    );
-
-    await initializeProjectPurchase(client, projectId, managerId, actor.id);
+    const projectId = project.id;
+    const managerId = project.procurement_executive_id ?? project.project_manager_id;
 
     // Transfer source BOQ lines for catalogue and required-date review.
     const boListId = randomUUID();
@@ -691,7 +711,8 @@ export async function awardAndCreateProject(
 
     return {
       project_id: projectId,
-      project_number: createdProject.project_number,
+      project_number: project.project_number,
+      purchase_enabled: project.purchase_enabled,
       costing: updatedCostingRes.rows[0],
     };
   });

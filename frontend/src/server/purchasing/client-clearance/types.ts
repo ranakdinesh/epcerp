@@ -1,3 +1,4 @@
+import type { StageEvidence } from '../core/stage-evidence';
 import type { PackageRecord } from '../core/package-store';
 import type { Source as QualitySource } from '../quality/types';
 export type Source = QualitySource & {
@@ -17,6 +18,7 @@ export type Record = PackageRecord & {
     revision: number;
     source_snapshot: Source;
     clearance: Clearance;
+    clearance_evidence?: StageEvidence;
 };
 export type Command = {
     version: number;

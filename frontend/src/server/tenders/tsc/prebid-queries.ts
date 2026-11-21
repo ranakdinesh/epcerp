@@ -1,5 +1,5 @@
 import 'server-only';
-import { pool, transaction } from '../../db';
+import { pool, type DB } from '../../db';
 import { AppError } from '../../errors';
 
 export type PrebidQuery = {
@@ -33,6 +33,7 @@ export async function listPrebidQueries(draftId: string): Promise<PrebidQuery[]>
 }
 
 export async function createPrebidQuery(
+  db: DB,
   draftId: string,
   input: {
     category: PrebidQuery['category'];
@@ -50,7 +51,6 @@ export async function createPrebidQuery(
     throw new AppError(422, 'Query description is required');
   }
 
-  const db = pool();
   const res = await db.query<PrebidQuery>(
     `INSERT INTO tender.prebid_queries(
        draft_id, category, clause_reference, tender_specification,
@@ -67,10 +67,12 @@ export async function createPrebidQuery(
       actorId,
     ]
   );
+  await reopenPrebidReview(db, draftId);
   return res.rows[0];
 }
 
 export async function updatePrebidQuery(
+  db: DB,
   draftId: string,
   queryId: string,
   input: {
@@ -85,7 +87,6 @@ export async function updatePrebidQuery(
   },
   actorId: string
 ): Promise<PrebidQuery> {
-  const db = pool();
   const existingRes = await db.query<PrebidQuery>(
     `SELECT * FROM tender.prebid_queries WHERE id = $1 AND draft_id = $2`,
     [queryId, draftId]
@@ -101,6 +102,10 @@ export async function updatePrebidQuery(
   const status = input.status ?? existing.status;
   const clientResponse = input.client_response !== undefined ? input.client_response.trim() : existing.client_response;
   const corrigendumRef = input.corrigendum_reference !== undefined ? input.corrigendum_reference.trim() : existing.corrigendum_reference;
+
+  if (['answered', 'accepted', 'rejected'].includes(status) && !clientResponse && !corrigendumRef) {
+    throw new AppError(422, 'Record the issuer reply or corrigendum reference before resolving the query');
+  }
 
   let submittedAt = existing.submitted_at;
   if (status === 'submitted' && !existing.submitted_at) {
@@ -137,15 +142,35 @@ export async function updatePrebidQuery(
       draftId,
     ]
   );
+  await reopenPrebidReview(db, draftId);
   return res.rows[0];
 }
 
-export async function deletePrebidQuery(draftId: string, queryId: string): Promise<{ ok: boolean }> {
-  const db = pool();
+export async function deletePrebidQuery(db: DB, draftId: string, queryId: string): Promise<{ ok: boolean }> {
   const res = await db.query(
     `DELETE FROM tender.prebid_queries WHERE id = $1 AND draft_id = $2`,
     [queryId, draftId]
   );
   if (res.rowCount === 0) throw new AppError(404, 'Pre-bid query not found');
+  await reopenPrebidReview(db, draftId);
   return { ok: true };
+}
+
+async function reopenPrebidReview(db: DB, draftId: string) {
+  await db.query(`
+    UPDATE tender.document_drafts SET prebid_reviewed_at=NULL, prebid_reviewed_by_id=NULL
+    WHERE id=$1 AND prebid_reviewed_at IS NOT NULL
+  `, [draftId]);
+}
+
+export async function closePrebidReview(db: DB, draftId: string, actorId: string) {
+  const { rows: [row] } = await db.query(`
+    SELECT EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status IN ('draft','submitted')) AS open
+  `, [draftId]);
+  if (row.open) throw new AppError(409, 'Resolve all draft queries and outstanding issuer replies before closing pre-bid review.');
+  await db.query(`
+    UPDATE tender.document_drafts SET prebid_reviewed_at=clock_timestamp(), prebid_reviewed_by_id=$2
+    WHERE id=$1 AND prebid_reviewed_at IS NULL
+  `, [draftId, actorId]);
+  return { prebid_review_closed: true };
 }

@@ -121,8 +121,11 @@ Catalogue permissions retain their existing `settings.categories`,
 read/write grants, with separate import grants. Corrections require versions and
 reasons. Template publication appends a revision and retains old field/option
 codes. Issued item identity, snapshots, SKU numbers and audit records stay
-immutable. SKU issuance remains 001–999 per category code, with shared advisory
-and row locks preventing duplicate identities and stale updates.
+immutable. New SKUs use the category, family, specifications and optional model
+token. Creation rejects a duplicate even if the manufacturer differs or the
+matching item has a legacy SKU. PostgreSQL enforces full SKU uniqueness across
+all items, including retired items. Shared advisory and row locks protect item
+creation and lifecycle changes.
 
 Item identity uses Go-compatible NFKC/full-fold model normalization and the
 existing sorted ASCII JSON hash policy. Legacy model candidates are reused without
@@ -275,7 +278,7 @@ Catalogue checks compare native rules/hashes with the actual Go code, including
 imports, Unicode models and template previews. Real SQL checks cover optimistic
 versions, atomic audit failures, revision retention, concurrent deduplication,
 immutable evidence, legacy candidate reuse, JSON/timestamp precision and SKU
-exhaustion. Failure constraints are confined to the guarded QA database.
+conflicts. Failure constraints are confined to the guarded QA database.
 Supplier checks compare 106 validation/import/payment fixtures with Go, exercise
 the alternative Finance read permission, concurrent versions, source provenance,
 immutable history and rollback after audit/journal failure. Profile writes are

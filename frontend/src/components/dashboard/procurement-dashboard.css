@@ -11,3 +11,22 @@ html[data-theme="dark"] .go-procurement-dashboard{--dash-blue:#86b5ff;--dash-tea
 @media(max-width:1150px){.go-dashboard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.go-dashboard-metric{padding:20px}.go-dashboard-charts{grid-template-columns:1.15fr 1fr}.go-dashboard-heading-actions{gap:10px}.go-dashboard-section-heading>span{max-width:145px;text-align:right}}
 @media(max-width:768px){.go-procurement-dashboard{gap:18px}.go-dashboard-heading{align-items:flex-start;flex-direction:column;gap:15px}.go-dashboard-heading-actions{width:100%;justify-content:space-between}.go-dashboard-heading h1{font-size:26px}.go-dashboard-heading p{font-size:14px}.go-dashboard-metrics{gap:12px}.go-dashboard-metric{padding:17px 14px;gap:10px}.go-dashboard-metric>svg{width:21px;height:21px}.go-dashboard-metric strong{font-size:29px}.go-content .go-dashboard-metric h2{font-size:12px;margin-bottom:11px}.go-dashboard-metric p{font-size:12px}.go-dashboard-charts{grid-template-columns:1fr;gap:16px}.go-dashboard-panel{padding:19px 16px}.go-dashboard-section-heading{gap:10px;flex-wrap:wrap}.go-dashboard-section-heading>span{max-width:none;text-align:left}.go-status-chart-row{gap:10px}.go-progress-chart{padding-bottom:6px}.go-dashboard-task{gap:10px;flex-wrap:wrap}.go-task-description{flex-basis:calc(100% - 50px)}.go-task-due{margin-left:46px;align-items:flex-start;flex-direction:row;flex:1}.go-dashboard-updated{margin:0}.go-dashboard-projects .go-dashboard-section-heading>div{flex-basis:100%}}
 @media(prefers-reduced-motion:reduce){.go-refreshing{animation:none}}
+
+.go-dashboard-refresh{background:var(--action-color);color:var(--action-ink);border:0;border-radius:8px}
+.go-dashboard-refresh:disabled{color:#162531;opacity:.7}
+.go-dashboard-refresh:focus-visible{outline:2px solid var(--go-blue);outline-offset:3px}
+.go-tender-band{--tender-won:#396047;--tender-lost:#a52632}
+.go-tender-counts,.go-tender-values{display:grid;gap:12px;margin:0}
+.go-tender-counts{grid-template-columns:repeat(5,minmax(0,1fr))}
+.go-tender-values{grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--go-line);margin-top:14px;padding-top:14px}
+.go-tender-counts>div,.go-tender-values>div{min-width:0;padding:8px 12px;background:var(--go-hover);border-radius:8px}
+.go-tender-band dt,.go-tender-band small{font-size:12px;color:var(--go-muted)}
+.go-tender-band dd{font-size:clamp(16px,1.8vw,24px);font-weight:700;font-variant-numeric:tabular-nums;margin:2px 0 0;overflow-wrap:anywhere}
+.go-tender-won dd{color:var(--tender-won)}
+.go-tender-lost dd{color:var(--tender-lost)}
+.go-tender-result-bar{display:flex;height:8px;border-radius:6px;overflow:hidden;margin-top:12px}
+.go-tender-result-bar span:first-child{background:#588368}
+.go-tender-result-bar span:last-child{background:#c53543}
+html[data-theme="dark"] .go-tender-band{--tender-won:#a7d5b4;--tender-lost:#fda4af}
+@media(max-width:700px){.go-tender-counts,.go-tender-values{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:380px){.go-tender-values{grid-template-columns:1fr}}

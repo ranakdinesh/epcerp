@@ -42,34 +42,52 @@ export async function handleTSC(request: Request): Promise<Response> {
             return json(await getTenderFlowStatus(draft));
         }
         if (parts[3] === 'bidding-approval') {
+            if (parts.length === 5 && job === 'project') {
+                const { biddingProject, startBiddingPurchase } = await import('./bidding-project');
+                if (method === 'GET') return json(await biddingProject(token, draft));
+                if (method === 'POST') return json(await startBiddingPurchase(token, draft));
+            }
             const { getBiddingApproval, saveBiddingApproval } = await import('./bidding-approval');
-            if (method === 'GET') {
+            if (parts.length === 4 && method === 'GET') {
                 await transaction(async (db) => authorizeTender(db, token, draft, 'read'));
                 return json(await getBiddingApproval(draft));
             }
-            if (method === 'POST') {
-                const { actor } = await transaction(async (db) => authorizeTender(db, token, draft, 'write'));
+            if (parts.length === 4 && method === 'POST') {
                 const b = await body(request);
-                return json(await saveBiddingApproval(draft, b, actor.id), 201);
+                return json(await saveBiddingApproval(draft, b, token), 201);
             }
         }
         if (parts[3] === 'prebid-queries') {
-            const { listPrebidQueries, createPrebidQuery, updatePrebidQuery, deletePrebidQuery } = await import('./prebid-queries');
-            if (method === 'GET') {
+            const { listPrebidQueries, createPrebidQuery, updatePrebidQuery, deletePrebidQuery, closePrebidReview } = await import('./prebid-queries');
+            if (parts.length === 4 && method === 'GET') {
                 await transaction(async (db) => authorizeTender(db, token, draft, 'read'));
                 return json(await listPrebidQueries(draft));
             }
-            if (method === 'POST') {
-                const { actor } = await transaction(async (db) => authorizeTender(db, token, draft, 'write'));
-                return json(await createPrebidQuery(draft, await body(request), actor.id), 201);
+            if (parts.length === 5 && job === 'close' && method === 'POST') {
+                return json(await transaction(async (db) => {
+                    const { actor } = await authorizeTender(db, token, draft, 'write');
+                    return closePrebidReview(db, draft, actor.id);
+                }));
             }
-            if (method === 'PATCH' && parts[4]) {
-                const { actor } = await transaction(async (db) => authorizeTender(db, token, draft, 'write'));
-                return json(await updatePrebidQuery(draft, parts[4], await body(request), actor.id));
+            if (parts.length === 4 && method === 'POST') {
+                const input = await body(request);
+                return json(await transaction(async (db) => {
+                    const { actor } = await authorizeTender(db, token, draft, 'write');
+                    return createPrebidQuery(db, draft, input, actor.id);
+                }), 201);
             }
-            if (method === 'DELETE' && parts[4]) {
-                await transaction(async (db) => authorizeTender(db, token, draft, 'write'));
-                return json(await deletePrebidQuery(draft, parts[4]));
+            if (parts.length === 5 && uuid.test(job ?? '') && method === 'PATCH') {
+                const input = await body(request);
+                return json(await transaction(async (db) => {
+                    const { actor } = await authorizeTender(db, token, draft, 'write');
+                    return updatePrebidQuery(db, draft, job, input, actor.id);
+                }));
+            }
+            if (parts.length === 5 && uuid.test(job ?? '') && method === 'DELETE') {
+                return json(await transaction(async (db) => {
+                    await authorizeTender(db, token, draft, 'write');
+                    return deletePrebidQuery(db, draft, job);
+                }));
             }
         }
         if (parts[3] === 'bid-items') {
@@ -164,10 +182,11 @@ export async function handleTSC(request: Request): Promise<Response> {
                 return json(verdict, 201);
             }
             if (method === 'POST' && tail[1] === 'verify') {
-                const { actor } = await transaction(async (db) => authorizeTender(db, token, draft, 'write'));
                 const b = await body(request);
-                const verdict = await verifyEligibilityDecision(draft, job, b.decision, b.remarks, actor.id);
-                return json(verdict);
+                return json(await transaction(async (db) => {
+                    const { actor } = await authorizeTender(db, token, draft, 'write');
+                    return verifyEligibilityDecision(db, draft, job, b.decision, b.remarks, actor.id);
+                }));
             }
         }
         if (tail[0] === 'responses' && uuid.test(tail[1] ?? '') && method === 'GET') {

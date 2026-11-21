@@ -6,7 +6,7 @@ import { invalid } from '../core/validation';
 import { id } from '../sourcing/values';
 import { now } from '../core/time';
 import { input } from './validation';
-import { accessGuard, forbidden, missing, stale, currentReady, currentGuard, guard, apply } from './policy';
+import { accessGuard, forbidden, missing, stale, currentReady, currentGuard, kitReceived, guard, apply } from './policy';
 import * as context from './context';
 import * as repo from './repository';
 export async function workspaceBound(db: DB, a: Actor, p: string, id: string) { const caps = await context.access(db, a, p, id); if (!caps.read)
@@ -32,7 +32,7 @@ catch {
         continue;
     }
     const state = record.state;
-    if (action === 'document' && ['draft', 'revision_required'].includes(state) || action === 'submit' && state === 'draft' || action === 'team_review' && state === 'submitted' && record.submission && record.submission.submitted_by_id !== a.id || action === 'client_approval' && ['under_review', 'approved', 'approved_with_comments'].includes(state) || action === 'revise' && state !== 'draft')
+    if (action === 'document' && ['draft', 'revision_required'].includes(state) || action === 'submit' && state === 'draft' && record.team_review?.approved && record.team_review.revision === record.revision && record.team_review.reviewer_id !== a.id || action === 'team_review' && (state === 'draft' && !record.team_review?.approved && kitReceived(record, files) || state === 'submitted' && record.submission && record.submission.submitted_by_id !== a.id) || action === 'client_approval' && ['under_review', 'approved', 'approved_with_comments'].includes(state) || action === 'revise' && state !== 'draft')
         out.actions.push(action);
 } return out; }
 export async function workspace(token: string, p: string, record: string) { return transaction(async (db) => { const a = await context.actor(db, token); id(a.id); id(p); id(record); return workspaceBound(db, a, p, record); }); }

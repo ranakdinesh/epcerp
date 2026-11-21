@@ -1,3 +1,5 @@
+import { recordPurchaseActivity } from '../../activity/repository';
+import type { PoolClient } from 'pg';
 import type { DB } from '../../db';
 import { timestamp, timeSQL } from '../../inbox/repository';
 import type { Record, Line } from './types';
@@ -9,8 +11,12 @@ async function view(db: DB, row: Omit<Record, 'lines'>): Promise<Record> {
     const lines = (await db.query("SELECT id,item_id,quantity::text,required_date::text,reference,notes,item_snapshot,demand_id FROM purchase_bo_lines WHERE bo_id=$1 AND is_active ORDER BY sort_order,id", [row.id])).rows as Line[];
     return { ...row, created_at: timestamp(row.created_at)!, updated_at: timestamp(row.updated_at)!, completed_at: timestamp(row.completed_at), lines };
 }
-export async function list(db: DB, project: string) { const rows = (await db.query(`SELECT ${fields} FROM purchase_bo_lists WHERE project_id=$1 ORDER BY created_at,id`, [project])).rows, out: Record[] = []; for (const row of rows)
+export async function list(db: DB, project: string) { const rows = (await db.query(`SELECT ${fields} FROM purchase_bo_lists WHERE project_id=$1 AND is_active ORDER BY created_at,id`, [project])).rows, out: Record[] = []; for (const row of rows)
     out.push(await view(db, row)); return out; }
+export async function mergedListAliases(db: DB, project: string) {
+    const result = await db.query('SELECT id, merged_into_id FROM purchase_bo_lists WHERE project_id=$1 AND merged_into_id IS NOT NULL', [project]);
+    return Object.fromEntries(result.rows.map(row => [row.id as string, row.merged_into_id as string]));
+}
 export async function get(db: DB, project: string, id: string) { const row = (await db.query(`SELECT ${fields} FROM purchase_bo_lists WHERE project_id=$1 AND id=$2`, [project, id])).rows[0]; return row ? view(db, row) : null; }
 export const stale = () => new PurchaseError(409, 'BO list or linked material requirement changed; reload the saved version');
 export async function save(db: DB, record: Record, actor: string) {
@@ -25,8 +31,19 @@ export async function save(db: DB, record: Record, actor: string) {
     await db.query('UPDATE purchase_bo_lines SET is_active=false,updated_at=clock_timestamp(),updated_by_id=$2 WHERE bo_id=$1 AND is_active AND NOT(id=ANY($3::uuid[]))', [record.id, actor, record.lines.map(l => l.id)]);
     return (await get(db, record.project_id, record.id))!;
 }
-export async function event(db: DB, before: Record | null, after: Record, action: string, reason: string, actor: string) { const id = randomUUID(); await db.query('INSERT INTO purchase_bo_events(id,subject_id,action,reason,before_snapshot,after_snapshot,created_by_id)VALUES($1,$2,$3,$4,$5,$6,$7)', [id, after.id, action, reason, JSON.stringify(before), JSON.stringify(after), actor]); await journal(db, { id, module: 'purchase_bo', type: 'purchase_bo_list', entity: after.id, version: after.version, action, actor, project: after.project_id, at: after.updated_at }); }
-export async function history(db: DB, project: string, id: string) { return (await db.query(`SELECT e.id,e.subject_id,e.action,e.reason,e.before_snapshot AS before,e.after_snapshot AS after,e.created_by_id,${timeSQL('e.created_at')} AS created_at FROM purchase_bo_events e JOIN purchase_bo_lists b ON b.id=e.subject_id WHERE b.project_id=$1 AND e.subject_id=$2 ORDER BY e.created_at DESC,e.id`, [project, id])).rows.map(row => ({ ...row, created_at: timestamp(row.created_at), created_by_id: row.created_by_id ?? '00000000-0000-0000-0000-000000000000' })); }
+export async function event(db: PoolClient, before: Record | null, after: Record, action: string, reason: string, actor: string) {
+    const id = randomUUID();
+    await db.query('INSERT INTO purchase_bo_events(id,subject_id,action,reason,before_snapshot,after_snapshot,created_by_id)VALUES($1,$2,$3,$4,$5,$6,$7)', [id, after.id, action, reason, JSON.stringify(before), JSON.stringify(after), actor]);
+    await journal(db, { id, module: 'purchase_bo', type: 'purchase_bo_list', entity: after.id, version: after.version, action, actor, project: after.project_id, at: after.updated_at });
+    if (action === 'save_draft' || action === 'complete_bo_list') {
+        await recordPurchaseActivity(db, {
+            id, project: after.project_id, actor,
+            action: action === 'save_draft' ? 'purchase_started' : 'requirements_published',
+            source: { entity: after.id, version: after.version, at: after.updated_at, reason },
+        });
+    }
+}
+export async function history(db: DB, project: string, id: string) { return (await db.query(`SELECT e.id,e.subject_id,e.action,e.reason,e.before_snapshot AS before,e.after_snapshot AS after,e.created_by_id,${timeSQL('e.created_at')} AS created_at FROM purchase_bo_events e JOIN purchase_bo_lists b ON b.id=e.subject_id WHERE b.project_id=$1 AND (e.subject_id=$2 OR b.merged_into_id=$2) ORDER BY e.created_at DESC,e.id`, [project, id])).rows.map(row => ({ ...row, created_at: timestamp(row.created_at), created_by_id: row.created_by_id ?? '00000000-0000-0000-0000-000000000000' })); }
 // Transaction-bound linkage for sourcing; only a unique active completed BO is authority.
 export async function demandLink(db: DB, project: string, demand: string) { const rows = (await db.query("SELECT b.id AS bo_id,b.version AS bo_version,l.id AS line_id,l.demand_id,l.item_id,l.quantity::text AS quantity FROM purchase_bo_lists b JOIN purchase_bo_lines l ON l.bo_id=b.id WHERE b.project_id=$1 AND b.is_active AND b.state='completed' AND l.is_active AND l.demand_id=$2 ORDER BY b.id,l.id LIMIT 2", [project, demand])).rows; if (!rows.length)
     return null; if (rows.length !== 1)

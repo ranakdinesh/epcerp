@@ -1,4 +1,7 @@
 import 'server-only';
+import { readStageEvidence, saveStageEvidence, type StageUpload } from '../core/stage-evidence';
+import { assignmentIdentities } from '../../auth/access';
+import { purchaseAdvanceNotice } from '../../inbox/purchasing-notices';
 import { randomUUID } from 'node:crypto';
 import { transaction, type DB } from '../../db';
 import { AppError } from '../../errors';
@@ -33,14 +36,33 @@ export async function workspaceBound(db: DB, a: Actor, p: string, id: string) { 
     }
     catch { } return { record, source, actions, history: record && caps.scoped ? await repo.history(db, record.id) : [], task_only: !caps.scoped }; }
 export async function workspace(token: string, p: string, record: string) { return transaction(async (db) => { const a = await context.actor(db, token); id(p); id(record); return workspaceBound(db, a, p, record); }); }
-export async function execute(token: string, p: string, record: string, raw: Record<string, unknown>) { return transaction(async (db) => { const a = await context.actor(db, token); id(p); id(record); const q = input(raw), caps = await context.access(db, a, p, record); accessGuard(a, caps, q.action); const before = await repo.get(db, p, record); if (q.version !== (before?.version ?? 0))
+export async function execute(token: string, p: string, record: string, raw: Record<string, unknown>, evidence?: StageUpload) { return transaction(async (db) => { const a = await context.actor(db, token); id(p); id(record); const q = input(raw), caps = await context.access(db, a, p, record); accessGuard(a, caps, q.action); const before = await repo.get(db, p, record); if (q.version !== (before?.version ?? 0))
     throw stale(); const source = await context.source(db, p, record); if (source.project_id !== p || source.package_id !== record)
     invalid('source', 'Advance source belongs to another project/package'); can(before, a, caps, q.action, source); const at = now(); let decision = ''; if (['approve', 'reject'].includes(q.action)) {
     if (!before)
         throw missing();
     financeReady(before, source, indiaDate(new Date(at)));
     decision = await decide(db, a, before, q.action === 'approve' ? 'approved' : 'rejected', q.reason);
-} const next = apply(before, a, caps, q, source, at, randomUUID(), decision), saved = await repo.save(db, next); await repo.event(db, before, saved, q.action, q.reason, a.id); return workspaceBound(db, a, p, record); }); }
+} if (q.action === 'disburse' && !evidence)
+    invalid('file', 'Upload a payment confirmation screenshot before recording disbursement');
+if (evidence && (q.action !== 'disburse' || !['image/png', 'image/jpeg'].includes(evidence.mime)))
+    invalid('file', 'Upload a PNG or JPEG screenshot for an actual disbursement');
+const next = apply(before, a, caps, q, source, at, randomUUID(), decision);
+if (evidence) next.payment_evidence = await saveStageEvidence(p, record, 'advance-payment', evidence);
+const saved = await repo.save(db, next); const event = await repo.event(db, before, saved, q.action, q.reason, a.id);
+if (q.action === 'submit') {
+    const reviewers = [];
+    for (const reviewer of await assignmentIdentities(db, [])) {
+        if (reviewer.id === a.id || !reviewer.allows('communication.inbox.read') ||
+            !reviewer.allows('accounts.purchase_advances.write')) continue;
+        if ((await context.access(db, reviewer, p, record)).review) reviewers.push(reviewer.id);
+    }
+    if (!reviewers.length) invalid('finance', 'Assign a Finance reviewer with inbox access before submitting this advance');
+    const link = `/dashboard?screen=purchase-advances&project=${p}&package=${record}`;
+    for (const reviewer of reviewers)
+        await purchaseAdvanceNotice(db, event, reviewer, `Advance request ready for Finance review · ${saved.details.request_no}`, link);
+}
+return workspaceBound(db, a, p, record); }); }
 export async function queue(token: string, offset = 0) { return transaction(async (db) => { const a = await context.actor(db, token); if (!a.allows('accounts.purchase_advances.view') || !a.allows('accounts.purchase_advances.read'))
     throw forbidden(); if (!Number.isInteger(offset) || offset < 0 || offset > 1000000)
     invalid('offset', 'Offset must be between 0 and 1000000'); const candidates = await repo.queue(db, offset), rows = []; for (const r of candidates) {
@@ -56,3 +78,14 @@ export async function queue(token: string, offset = 0) { return transaction(asyn
     const p = await project(db, r.project_id);
     rows.push({ id: r.id, project_id: r.project_id, package_id: r.package_id, project_name: p.name, project_number: p.project_number, po_number: r.source_snapshot.number, request_no: r.details.request_no, state: r.state, amount: r.amount, currency: r.source_snapshot.currency, updated_at: r.updated_at });
 } return { rows, next_offset: candidates.length === 50 && offset <= 999950 ? offset + 50 : null }; }); }
+
+export async function downloadEvidence(token: string, p: string, pkg: string) {
+    return transaction(async db => {
+        const a = await context.actor(db, token);
+        id(p); id(pkg);
+        accessGuard(a, await context.access(db, a, p, pkg), 'read');
+        const r = await repo.get(db, p, pkg);
+        if (!r?.is_active || !r.payment_evidence) throw missing();
+        return readStageEvidence(p, pkg, 'advance-payment', r.payment_evidence);
+    });
+}

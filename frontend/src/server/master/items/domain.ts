@@ -57,7 +57,7 @@ export type Item = {
     engineering_key: string;
     description: string;
     sku: string;
-    serial: number;
+    serial: number | null;
     status: string;
     is_active: boolean;
     version: number;
@@ -75,6 +75,17 @@ const modelFold = new Map<number, string>((fullFold as [
 ][]).map(([key, value]) => [key, value]));
 export function normalizeModel(value: string) { return spacedName([...value.normalize("NFKC")].map(c => modelFold.get(c.codePointAt(0)!) ?? c).join("").replace(/[\u001c-\u001f]/g, " ")); }
 export function eligible(c: ItemConfiguration, m: ItemMake) { return c.is_active && m.is_active && (m.data.eligible ?? []).some(code => code === c.code || code === c.data.family_code || code === c.data.category_code); }
+export function buildItemSku(config: ItemDefinition, specifications: Record<string, string>, model: string) {
+    const tokens = [config.category_code, config.family_code];
+    for (const field of config.fields ?? []) {
+        if (specifications[field.code])
+            tokens.push(field.code + specifications[field.code]);
+    }
+    const modelToken = upper(model).replace(/[^A-Z0-9]/g, "").slice(0, 24);
+    if (modelToken)
+        tokens.push(modelToken);
+    return tokens.join("-");
+}
 export function deriveItem(c: ItemConfiguration, m: ItemMake, spec: Record<string, string>, rawModel: string) {
     if (!c.is_active || c.data.kind !== "type")
         fieldError("configuration_id", "Choose an active configuration with an active category and unit");
@@ -86,7 +97,7 @@ export function deriveItem(c: ItemConfiguration, m: ItemMake, spec: Record<strin
     for (const key of Object.keys(spec))
         if (!known.has(key))
             fieldError("specifications", "Unknown or inactive specification field");
-    const values: Record<string, string> = Object.create(null), tokens = [c.data.category_code, c.data.family_code], labels = [c.name];
+    const values: Record<string, string> = Object.create(null), labels = [c.name];
     for (const f of c.data.fields) {
         const v = upper(trim(spec[f.code] ?? ""));
         if (!v) {
@@ -99,22 +110,16 @@ export function deriveItem(c: ItemConfiguration, m: ItemMake, spec: Record<strin
             fieldError(f.code, "Choose a valid active option");
         labels.push(f.label + ": " + option!.label);
         values[f.code] = v;
-        tokens.push(f.code + v);
     }
     const model = lower(spacedName(normalizeModel(rawModel)));
     if (runeLength(model) > 120)
         fieldError("model", "Model must be at most 120 characters");
     if (c.data.model_required && !model)
         fieldError("model", "Model or part number is required");
-    tokens.push(m.code);
     labels.push(m.name);
-    if (model) {
-        const mt = upper(model).replace(/[^A-Z0-9]/g, "").slice(0, 24);
-        if (mt)
-            tokens.push(mt);
+    if (model)
         labels.push(model);
-    }
-    const prefix = tokens.join("-");
+    const prefix = buildItemSku(c.data, values, model);
     if (byteLength(prefix) > 900)
         fieldError("specifications", "Specifications produce a SKU prefix longer than 900 characters");
     const base = { family: c.data.family_code, uom: c.data.uom, specifications: sortedMap(values) }, engineering_key = itemHash(base), fingerprint = itemHash({ ...base, manufacturer: m.id, model });

@@ -1,0 +1,62 @@
+.choose-vendors {
+  --vendor-teal: #007d70;
+  --vendor-group: #e3f3f1;
+  --vendor-heading-text: #142438;
+  --vendor-badge: #d2eeea;
+}
+
+html[data-theme="dark"] .choose-vendors {
+  --vendor-group: #173d3b;
+  --vendor-heading-text: #e6f4f5;
+  --vendor-badge: #205551;
+}
+
+.choose-vendors input[type="checkbox"] {
+  accent-color: var(--vendor-teal);
+}
+
+.vendor-assignment-grid .vtpl-data-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border: 0;
+}
+
+:is(.vendor-assignment-grid, .purchase-items-grid) .vtpl-data-table > thead > tr > th {
+  overflow-wrap: anywhere;
+}
+
+:is(.vendor-assignment-grid, .purchase-items-grid) .vtpl-data-table > thead > tr > th > button {
+  white-space: normal;
+}
+
+.vendor-assignment-grid th:nth-child(1) { width: 24%; }
+.vendor-assignment-grid th:nth-child(2) { width: 25%; }
+.vendor-assignment-grid th:nth-child(4) { width: clamp(85px, 14%, 180px); }
+
+:is(.vendor-assignment-grid, .purchase-items-grid) .vtpl-data-table > tbody > tr[data-grid-group] > th {
+  background: var(--vendor-group);
+  color: var(--vendor-heading-text);
+  border-color: var(--surface-line);
+}
+
+:is(.vendor-assignment-grid, .purchase-items-grid) .vtpl-data-table > tbody > tr:not([data-grid-group]):not([data-grid-group-spacer]) > td {
+  background: var(--go-panel);
+  overflow-wrap: anywhere;
+}
+
+.vendor-spec-detail::before {
+  content: "•";
+  color: var(--vendor-teal);
+  margin-right: 0.45em;
+}
+
+.vendor-spec-make {
+  display: inline-block;
+  border-radius: 0.375rem;
+  padding: 0.15rem 0.45rem;
+  background: var(--vendor-badge);
+  color: var(--vendor-heading-text);
+}
+
+.purchase-items-grid .vtpl-data-table > thead > tr > th:nth-child(-n+2) { width: 30%; }

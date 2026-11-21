@@ -230,7 +230,7 @@ export function TenderBidCosting({
                 Direct Materials Cost (L-1 Sourced) (₹)
               </ValidatedLabel>
               <p className="text-[11px] text-slate-400">
-                Auto-aggregated from Step 6 L-1 vendor rates. You may also adjust for manual contingencies.
+                Auto-aggregated from selected L-1 vendor rates. You may also adjust for manual contingencies.
               </p>
               <ValidatedInput
                 type="number"
@@ -418,7 +418,7 @@ export function TenderBidCosting({
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
         <div>
           <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-            Ready for Step 8 · Tender Submission & Project Handoff
+            Ready for Tender Submission & Project Handoff
           </h4>
           <p className="mt-0.5 text-xs text-slate-500">
             Record online portal submission and execute one-click project creation upon tender award.
@@ -429,7 +429,7 @@ export function TenderBidCosting({
           onClick={() => onNavigateStep?.("CV-08")}
           className={primaryBtn + " gap-2 px-5 py-2 text-sm"}
         >
-          Continue to Step 8 · Submission & Award
+          Continue to submission & Award
           <ArrowRightIcon className="h-4 w-4" />
         </button>
       </div>

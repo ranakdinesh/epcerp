@@ -20,6 +20,10 @@ const blank = (p: string, id: string): Source => ({ project_id: p, package_id: i
 const block = (s: Source, message: string) => { s.available = false; s.blockers.push(message); return s; };
 const failure = (s: Source, e: unknown) => { if (e instanceof AppError && e.status === 422)
     return block(s, e.message); throw e; };
+export async function supplierVerification(db: DB, supplier: string) {
+    const repo = new VerificationRepository(db);
+    return evaluate(await repo.snapshot(supplier), await repo.review(supplier));
+}
 export async function source(db: DB, p: string, id: string): Promise<Source> {
     const { record, current } = await inspect(db, p, id), out: Source = { ...blank(p, id), project_name: current.project_name, site: current.site, description: current.description, quantity: current.quantity, uom: current.uom, available: current.project_available && current.eligible, blockers: [...current.blockers] };
     for (const s of record.steps)
@@ -42,10 +46,6 @@ export async function source(db: DB, p: string, id: string): Promise<Source> {
         return block(out, 'The selected supplier is no longer active');
     const field = (key: string) => typeof supplier.data[key] === 'string' ? supplier.data[key] as string : '';
     out.supplier = { id: supplier.id, name: supplier.name, code: supplier.code, address: field('location'), contact: field('contact'), email: field('email'), phone: field('phone'), tax_reference: field('gst_number'), registration: field('registration_reference') };
-    const repo = new VerificationRepository(db), verified = evaluate(await repo.snapshot(supplier.id), await repo.review(supplier.id));
-    if (!verified.can_generate_purchase_order)
-        return block(out, verified.message);
-    out.supplier_verification = verified.fingerprint;
     let technical;
     try {
         technical = await clearance(db, p, id);

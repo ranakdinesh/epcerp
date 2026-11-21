@@ -140,8 +140,10 @@ export async function packageFacts(db: DB, p: string, id: string, includeClientP
         else if (acceptance.response.status !== 'pending') {
             if (!check(() => acceptanceValidate({ version: acceptance.version, action: 'record', reason: 'Validate stored reporting evidence', response: acceptance.response })) || acceptance.response.accepted_date < acceptance.order_snapshot.date)
                 af = blocked(10, 'Recorded vendor acknowledgement evidence is incomplete');
+            else if (acceptance.response.status === 'accepted')
+                af = fact(10, 'completed', acceptance.response.document_reference);
             else
-                af = fact(10, 'completed', acceptance.response.status === 'accepted' ? acceptance.response.document_reference : 'Acknowledged with exceptions: ' + acceptance.response.remarks);
+                af = blocked(10, 'Vendor acknowledgement has unresolved exceptions');
         }
     }
     out.push(af);
@@ -166,6 +168,8 @@ export async function packageFacts(db: DB, p: string, id: string, includeClientP
                 f = blocked(11, 'Actual payment evidence is missing');
             else if (advance.state === 'disbursed' && !advance.payment?.voucher_ref.trim())
                 f = blocked(11, 'Actual payment voucher is missing');
+            else if (advance.state === 'requested' || advance.state === 'approved')
+                f = fact(11, 'in_progress', advance.state === 'requested' ? 'Awaiting Finance review' : 'Awaiting payment evidence');
             else
                 f = fact(11, advance.state === 'not_applicable' ? 'not_applicable' : 'completed', advance.state === 'not_applicable' ? advance.details.notes : advance.details.request_no);
         }

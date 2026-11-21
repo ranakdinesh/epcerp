@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { actor, lock, rows, transaction, type DB } from "../db";
 import { denied, forbidden, identity, temporaryValid, uuid, type User, AuthError } from "./domain";
 import { config, issueAccess, loginAttemptKey, opaqueToken, sha256, verifyAbsent, verifyPassword } from "./security";
-import { loadUser, resolve, revokeFamily, revokeUser } from "./repository";
+import { findLoginAccount, loadUser, lockLoginAccount, resolve, revokeFamily, revokeUser } from "./repository";
 
 type Refresh = { user_id: string; family_id: string; expires_at: Date; revoked_at: Date | null };
 export type TokenPair = { access_token: string; refresh_token: string; token_type: string; expires_in: number; refresh_expires_in: number; must_change_password: boolean };
-async function pair(db: DB, user: User, raw: string, expiry: Date, family: string): Promise<TokenPair> {
+async function pair(db: DB, user: Pick<User, "id" | "credential_version" | "must_change_password">, raw: string, expiry: Date, family: string): Promise<TokenPair> {
   const now = Math.floor(Date.now()/1000), sessionExpiry = Math.floor(expiry.getTime()/1000);
   const access = issueAccess(user.id, sessionExpiry, user.credential_version, now);
   await db.query("INSERT INTO auth.access_sessions(token_hash,user_id,family_id,expires_at) VALUES($1,$2,$3,$4)", [sha256(access.token), user.id, family, new Date((now + access.seconds)*1000)]);
@@ -18,8 +18,7 @@ async function insertRefresh(db: DB, user: string, raw: string, family: string, 
 }
 export async function login(identifier: string, password: string) {
   const result = await transaction(async db => {
-    const users = await rows<{ id: string }>(db, "SELECT id FROM auth.users WHERE username=$1 OR email=lower($1) LIMIT 2", [identifier]);
-    const found = users.length === 1 ? await loadUser(db, users[0].id) : null;
+    const found = await findLoginAccount(db, identifier);
     const key = loginAttemptKey(found?.id ?? identifier.trim().toLowerCase());
     const [attempt] = await rows<{ blocked: boolean }>(db, `WITH stale AS (DELETE FROM auth.login_attempts WHERE identifier_hash IN (SELECT identifier_hash FROM auth.login_attempts WHERE window_started_at<clock_timestamp()-interval '1 day' LIMIT 100))
       INSERT INTO auth.login_attempts(identifier_hash) VALUES($1) ON CONFLICT(identifier_hash) DO UPDATE SET identifier_hash=EXCLUDED.identifier_hash
@@ -32,7 +31,7 @@ export async function login(identifier: string, password: string) {
         window_started_at=CASE WHEN window_started_at<clock_timestamp()-interval '15 minutes' THEN clock_timestamp() ELSE window_started_at END WHERE identifier_hash=$1`, [key]);
       return null;
     }
-    const user = await loadUser(db, found.id, true);
+    const user = await lockLoginAccount(db, found.id);
     if (!user || !user.is_active || user.password_hash !== found.password_hash || !temporaryValid(user)) throw denied();
     const raw = opaqueToken(), family = randomUUID();
     const expiry = new Date(Date.now() + Math.min(config().sessionSeconds, user.must_change_password ? 900 : Infinity)*1000);

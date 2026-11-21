@@ -55,6 +55,27 @@ async function generate(db: DB, a: Actor, p: Project, bo: string, b: Command): P
         throw new PurchaseError(401, 'Invalid or expired credentials');
     return { terms: terms(selected), vendor: selected, lines: record.source_lines.filter(l => g.line_ids.includes(l.id)), project_name: p.name, generated_by_name: user.name, group_name: g.name, scope_revision: g.scope_revision, number: '', generated_at: indiaInstant(), generated_by_id: a.id, print_requests: [], sent_date: null, channel: '', dispatch_reference: '', sent_recorded_at: null, sent_by_id: null, is_current: false };
 }
+export async function recordDispatch(db: DB, a: Actor, p: Project, d: Document, b: Pick<Command, 'sent_date' | 'channel' | 'dispatch_reference'>) {
+    const bo = d.bo_id;
+    const today = indiaDate(new Date()), generated = indiaDate(new Date(d.data.generated_at));
+    if (!b.sent_date || b.sent_date < generated || b.sent_date > today)
+        invalid('sent_date', 'Sent date must be between generation date and today');
+    if (d.data.sent_date !== null)
+        invalid('sent_date', 'Dispatch is already recorded');
+    const record = await groups.get(db, p.id, bo);
+    if (!record)
+        throw missing();
+    const command = groupInput({ action: 'invite', version: record.version, group_id: d.group_id, vendor_id: d.vendor_id, sent_date: b.sent_date, channel: b.channel, dispatch_reference: b.dispatch_reference, reason: 'Record vendor indent dispatch' });
+    command.invitation_scope_revision = d.data.scope_revision;
+    command.invitation_line_ids = d.data.lines.map(l => l.id);
+    await groupCommand(db, a, p.id, bo, command);
+    d.data.sent_date = b.sent_date;
+    d.data.channel = b.channel;
+    d.data.dispatch_reference = b.dispatch_reference;
+    d.data.sent_recorded_at = indiaInstant();
+    d.data.sent_by_id = a.id;
+    await repo.resolve(db, d.id, a.id);
+}
 export async function execute(token: string, target: string, bo: string, raw: Record<string, unknown>) {
     const b = input(raw), permission = 'projects.purchase_indent_documents.' + (b.action === 'send' ? 'dispatch' : b.action);
     return transaction(async (db) => {
@@ -90,24 +111,7 @@ export async function execute(token: string, target: string, bo: string, raw: Re
             }
             else {
                 reason = 'Record vendor indent dispatch';
-                const today = indiaDate(new Date()), generated = indiaDate(new Date(d.data.generated_at));
-                if (!b.sent_date || b.sent_date < generated || b.sent_date > today)
-                    invalid('sent_date', 'Sent date must be between generation date and today');
-                if (d.data.sent_date !== null)
-                    invalid('sent_date', 'Dispatch is already recorded');
-                const record = await groups.get(db, p.id, bo);
-                if (!record)
-                    throw missing();
-                const command = groupInput({ action: 'invite', version: record.version, group_id: d.group_id, vendor_id: d.vendor_id, sent_date: b.sent_date, channel: b.channel, dispatch_reference: b.dispatch_reference, reason: 'Record vendor indent dispatch' });
-                command.invitation_scope_revision = d.data.scope_revision;
-                command.invitation_line_ids = d.data.lines.map(l => l.id);
-                await groupCommand(db, a, p.id, bo, command);
-                d.data.sent_date = b.sent_date;
-                d.data.channel = b.channel;
-                d.data.dispatch_reference = b.dispatch_reference;
-                d.data.sent_recorded_at = indiaInstant();
-                d.data.sent_by_id = a.id;
-                await repo.resolve(db, d.id, a.id);
+                await recordDispatch(db, a, p, d, b);
             }
             d.version++;
         }

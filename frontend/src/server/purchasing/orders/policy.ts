@@ -15,8 +15,8 @@ export function value(field: string, s: string, precision: number, positive = fa
     invalid(field, 'Use the permitted decimal precision and a positive quantity'); return r; }
 export function guard(s: Source) { if (!s.available || s.blockers.length)
     invalid('source', 'Resolve current supplier, Finance, technical and project blockers before preparing or releasing the PO'); for (const v of [s.project_id, s.package_id, s.sourcing_id, s.supplier.id, s.technical.case_id, s.technical.approval_file_id, s.item_id])
-    id(v); if (s.sourcing_version < 1 || s.technical.version < 1 || s.technical.revision < 1 || !s.technical.qap_approved || !s.technical.conditions_closed || !s.loi_reference || !s.financial_reference || !s.supplier_verification || !isoDate(s.loi_date) || !isoDate(s.technical.approval_date) || !s.technical.reference || !s.supplier.name || !s.supplier.address || !s.description || !s.uom || !/^[A-Z]{3}$/.test(s.currency))
-    invalid('source', 'Actual released commercial, verified supplier and approved technical evidence is incomplete'); if (s.delivery_days < 1 || s.delivery_days > 3650 || !s.payment_terms || !s.warranty || !s.loi_terms)
+    id(v); if (s.sourcing_version < 1 || s.technical.version < 1 || s.technical.revision < 1 || !s.technical.qap_approved || !s.technical.conditions_closed || !s.loi_reference || !s.financial_reference || !isoDate(s.loi_date) || !isoDate(s.technical.approval_date) || !s.technical.reference || !s.supplier.name || !s.supplier.address || !s.description || !s.uom || !/^[A-Z]{3}$/.test(s.currency))
+    invalid('source', 'Actual released commercial, supplier and approved technical evidence is incomplete'); if (s.delivery_days < 1 || s.delivery_days > 3650 || !s.payment_terms || !s.warranty || !s.loi_terms)
     invalid('terms', 'Actual approved delivery, payment, warranty and LOI terms are required'); const q = value('quantity', s.quantity, 4, true), base = value('base', s.base, 2); if (s.pricing_mode === 'unit_price') {
     const rate = value('unit_price', s.unit_price, 4);
     if (q.multiply(rate).fixed() !== base.fixed())
@@ -30,6 +30,14 @@ export function sameSource<T extends {
     available: boolean;
     blockers: string[];
 }>(a: T, b: T) { const facts = (s: T) => { const { available, blockers, ...facts } = s; void available; void blockers; return facts; }; return isDeepStrictEqual(facts(a), facts(b)); }
+// Finance verification is release evidence. Changes to it do not alter the client-signed draft.
+export function sameOrderSource(a: Source, b: Source) {
+    return sameSource({ ...a, supplier_verification: '' }, { ...b, supplier_verification: '' });
+}
+export function guardRelease(verification: string) {
+    if (!verification)
+        invalid('supplier', 'Finance must verify the supplier documents before PO release');
+}
 export function accessGuard(a: Actor, c: Capabilities, action: string) { if (!a.active || !a.id)
     throw new PurchaseError(401, 'Authentication required'); if (!c.read)
     throw forbidden(); if (action === 'read')
@@ -79,7 +87,7 @@ export function apply(base: Order | null, a: Actor, caps: Capabilities, raw: Com
     else {
         if (!base)
             invalid('order', 'Prepare the complete order before client submission or release');
-        if (!sameSource(out.source_snapshot, s))
+        if (!sameOrderSource(out.source_snapshot, s))
             throw stale();
         details(out.details, s, today);
         if (q.action === 'submit_client') {
@@ -115,11 +123,12 @@ export function apply(base: Order | null, a: Actor, caps: Capabilities, raw: Com
             Object.assign(out.client_approval, { status: d.status, decision: d, recorded_by_id: a.id, recorded_at: at });
         }
         else if (q.action === 'release') {
+            guardRelease(s.supplier_verification);
             if (!clientCleared(out))
                 invalid('client_approval', 'Record client stamp/sign approval for the current draft before PO release');
             if (!number)
                 invalid('number', 'Allocate an owned PO number before release');
-            Object.assign(out, { state: 'released', number, released_by_id: a.id, released_at: at });
+            Object.assign(out, { state: 'released', number, released_by_id: a.id, released_at: at, supplier_verification_at_release: s.supplier_verification });
         }
     }
     out.updated_at = at;

@@ -18,7 +18,7 @@ export type DB = Pick<PoolClient, "query">;
 export async function rows<T extends QueryResultRow>(db: DB, sql: string, values: unknown[] = []): Promise<T[]> {
   return (await db.query<T>(sql, values)).rows;
 }
-export async function transaction<T>(work: (db: DB) => Promise<T>): Promise<T> {
+export async function transaction<T>(work: (db: PoolClient) => Promise<T>): Promise<T> {
   const db = await pool().connect();
   try {
     await db.query("BEGIN");

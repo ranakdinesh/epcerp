@@ -1,4 +1,5 @@
 import 'server-only';
+import { tenderAwardPending, tenderAwardMessage } from '../core/tender-award';
 import { randomUUID } from 'node:crypto';
 import { transaction } from '../../db';
 import { invalid, object, string, isoDate } from '../core/validation';
@@ -54,6 +55,7 @@ export async function execute(token: string, p: string, raw: Record<string, unkn
         const a = await context.authorize(db, token, p, true), q = object(raw, ['attempt_id', 'doer_id', 'resolver_id', 'planned_date', 'reason']), attempt = id(q.attempt_id), doer = id(q.doer_id), resolver = id(q.resolver_id), reason = text('reason', string(q.reason, 'reason', ''), 2000), planned = string(q.planned_date, 'planned_date', '');
         if (!isoDate(planned))
             invalid('planned_date', 'Choose a valid planned date');
+        if (await tenderAwardPending(db, p)) invalid('tender_award', tenderAwardMessage);
         await db.query("SELECT pg_advisory_xact_lock(hashtextextended('purchase-award:'||$1::text,0))", [p]);
         const c = (await context.candidates(db, p)).find(c => c.attempt.id === attempt);
         if (!c)

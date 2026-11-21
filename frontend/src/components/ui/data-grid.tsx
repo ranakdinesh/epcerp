@@ -21,11 +21,13 @@ export function DataGrid<T extends { id: string }>({
   loading = false,
   searchable = true,
   status,
+  statusOptions,
   initialSort,
   toolbar,
   onRowClick,
   stateKey,
   grouping,
+  fitContent = false,
   paginate = true,
   remote,
 }: {
@@ -38,12 +40,14 @@ export function DataGrid<T extends { id: string }>({
   loading?: boolean;
   searchable?: boolean;
   paginate?: boolean;
+  fitContent?: boolean;
   status?: (row: T) => string;
+  statusOptions?: readonly string[];
   initialSort?: string;
   toolbar?: ReactNode;
   onRowClick?: (row: T) => void;
   stateKey?: string;
-  grouping?: { columnKey: string; key: (row: T) => string; label: (row: T) => string };
+  grouping?: { columnKey: string; key: (row: T) => string; label: (row: T) => string; spacerRow?: boolean; itemSpacerRow?: boolean; header?: (row: T) => ReactNode };
 }) {
   const params = useSearchParams();
   function saved(key: string, fallback: string) { return stateKey ? params.get(`${stateKey}_${key}`) ?? fallback : fallback; }
@@ -93,7 +97,7 @@ export function DataGrid<T extends { id: string }>({
   const current = remote ? page : Math.min(page, count);
   const visible = paginate && !remote ? filtered.slice((current - 1) * size, current * size) : filtered;
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="app-data-grid w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
       {(searchable || status || toolbar || paginate) && <div className="data-grid-toolbar flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 p-4">
         <div className="data-grid-toolbar-main flex flex-wrap items-end gap-3">
           {searchable && (
@@ -125,7 +129,7 @@ export function DataGrid<T extends { id: string }>({
                 }}
               >
                 <option value="">All statuses</option>
-                {(remote ? ["Active", "Inactive"] : [...new Set(rows.map(status))].sort()).map((s) => (
+                {(statusOptions ?? (remote ? ["Active", "Inactive"] : [...new Set(rows.map(status))].sort())).map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
@@ -159,17 +163,17 @@ export function DataGrid<T extends { id: string }>({
         aria-label={`${label} grid`}
       >
         <table
-          className="vtpl-data-table w-full min-w-[800px] text-left text-sm"
+          className={`vtpl-data-table text-left text-sm ${fitContent ? "w-max" : "w-full min-w-[800px]"}`}
           aria-label={label}
           aria-busy={loading}
         >
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="text-xs uppercase">
             <tr>
               {columns.map((c) => (
                 <th
                   key={c.key}
                   scope="col"
-                  className={`px-4 py-3 ${c.headerClassName ?? ""}`}
+                  className={`px-4 py-3 ${fitContent ? "!px-[5px]" : ""} ${c.headerClassName ?? ""}`}
                   aria-sort={
                     c.sortable === false ? undefined : sort === c.key
                       ? direction === "asc"
@@ -211,10 +215,20 @@ export function DataGrid<T extends { id: string }>({
           <tbody className="divide-y divide-slate-100">
             {visible.map((row, index) => (
               <Fragment key={row.id}>
+              {grouping?.itemSpacerRow && index > 0 && grouping.key(visible[index - 1]) === grouping.key(row) && (
+                <tr aria-hidden="true" data-grid-item-spacer>
+                  <td colSpan={columns.length + (actions ? 1 : 0)} className="h-[6px] !border-0 !p-0 !bg-[var(--go-panel)]" />
+                </tr>
+              )}
+              {grouping?.spacerRow && index > 0 && grouping.key(visible[index - 1]) !== grouping.key(row) && (
+                <tr aria-hidden="true" data-grid-group-spacer>
+                  <td colSpan={columns.length + (actions ? 1 : 0)} className="h-[12px] !border-0 !p-0 !bg-[var(--go-panel)]" />
+                </tr>
+              )}
               {grouping && (index === 0 || grouping.key(visible[index - 1]) !== grouping.key(row)) && (
                 <tr data-grid-group={grouping.key(row)}>
-                  <th colSpan={columns.length + (actions ? 1 : 0)} scope="rowgroup" className="border-t-2 border-blue-300 bg-blue-100 px-4 py-3 text-sm font-bold text-blue-950">
-                    Group: {grouping.label(row)}
+                  <th colSpan={columns.length + (actions ? 1 : 0)} scope="rowgroup" className={`border-t-2 border-blue-300 bg-blue-100 px-4 py-3 text-sm font-bold text-blue-950 ${fitContent ? "!px-[5px]" : ""}`}>
+                    {grouping.header ? grouping.header(row) : <>Group: {grouping.label(row)}</>}
                   </th>
                 </tr>
               )}
@@ -251,7 +265,7 @@ export function DataGrid<T extends { id: string }>({
                 {columns.map((c) => (
                   <td
                     key={c.key}
-                    className={`px-4 py-3 align-top ${c.className ?? ""}`}
+                    className={`px-4 py-3 align-top ${fitContent ? "!px-[5px]" : ""} ${c.className ?? ""}`}
                   >
                     {c.render ? c.render(row) : c.value(row)}
                   </td>
@@ -288,7 +302,7 @@ export function DataGrid<T extends { id: string }>({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="min-h-10 rounded-lg border px-3 disabled:opacity-40"
+            className="grid-page-action min-h-10 rounded-lg px-3 disabled:opacity-40"
             disabled={loading || current === 1}
             onClick={() => { setPage(current - 1); remember("page", String(current - 1)); }}
           >
@@ -299,7 +313,7 @@ export function DataGrid<T extends { id: string }>({
           </span>
           <button
             type="button"
-            className="min-h-10 rounded-lg border px-3 disabled:opacity-40"
+            className="grid-page-action min-h-10 rounded-lg px-3 disabled:opacity-40"
             disabled={loading || current >= count}
             onClick={() => { setPage(current + 1); remember("page", String(current + 1)); }}
           >
@@ -325,7 +339,7 @@ export function GridAction({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="grid min-h-11 min-w-11 place-items-center rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-500"
+      className="grid-page-action grid min-h-11 min-w-11 place-items-center rounded-lg focus-visible:outline-2"
     >
       <svg
         aria-hidden="true"

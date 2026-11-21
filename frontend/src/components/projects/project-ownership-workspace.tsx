@@ -36,23 +36,23 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   if (!response.ok) throw new Error(message(body, "Unable to load project records."));
   return body as T;
 }
-export function ProjectOwnershipWorkspace() {
+export function ProjectOwnershipWorkspace({ initialProject = null }: { initialProject?: string | null } = {}) {
   const { permissions } = useAuthenticatedUser();
   const can = (code: string) => permitted(permissions, code);
   const purchaseView = canOpen(permissions, "projects.purchase_workflow")
     && can("projects.purchase_portfolio.write") && can("projects.purchase_assignments.write");
   const generalPortfolio = ["projects.portfolio.read", "projects.portfolio.write", "projects.manager_assignments.write"].some(can);
-  const [view, setView] = useState(purchaseView && !generalPortfolio ? "purchase" : "general");
+  const [view, setView] = useState(purchaseView && !generalPortfolio && !initialProject ? "purchase" : "general");
 
   return <div className="space-y-4">
     {purchaseView && <nav aria-label="Project register views" className="flex flex-wrap gap-2">
       <button type="button" className={buttonClass} aria-pressed={view === "general"} onClick={() => setView("general")}>Project ownership</button>
       <button type="button" className={buttonClass} aria-pressed={view === "purchase"} onClick={() => setView("purchase")}>Purchase FMS projects</button>
     </nav>}
-    {purchaseView && view === "purchase" ? <ProjectPurchaseRegister /> : <ProjectRegister />}
+    {purchaseView && view === "purchase" ? <ProjectPurchaseRegister /> : <ProjectRegister initialProject={initialProject} />}
   </div>;
 }
-function ProjectRegister() {
+function ProjectRegister({ initialProject }: { initialProject: string | null }) {
   const user = useAuthenticatedUser();
   const allows = (code: string) => user.permissions.includes("system:admin") || user.permissions.includes(code);
   const canRead = allows("projects.master.read");
@@ -72,7 +72,7 @@ function ProjectRegister() {
   const [budgetID,setBudgetID]=useState<string|null>(null);
   const [teamID,setTeamID]=useState<string|null>(null);
   const canEdit=(p:Project)=>allows("projects.master.write")&&(p.project_manager_id===user.id||allows("projects.portfolio.write"))&&p.lifecycle_status==="draft";
-  const [panel, setPanel] = useState<string | null>(null);
+  const [panel, setPanel] = useState<string | null>(initialProject);
   useEffect(() => {
     if (!canRead) return;
     const controller = new AbortController();
@@ -110,7 +110,7 @@ function ProjectRegister() {
     {budgetID&&<RecordDrawer title="Project budget" onClose={()=>setBudgetID(null)} wide><ProjectBudgetPanel key={budgetID} projectId={budgetID}/></RecordDrawer>}
     {teamID&&<ProjectResponsibilities key={teamID} projectId={teamID} onClose={()=>setTeamID(null)}/>}
     {editID&&<ProjectMetadataEditor id={editID} onClose={()=>setEditID(null)} onSaved={()=>{setReload(v=>v+1);setNotice("Project details saved.")}}/>}
-    {panel && <OwnershipPanel key={panel} id={panel} onEdit={(p)=>{setPanel(null);setEditID(p.id)}} canEdit={canEdit} canTransfer={canTransfer} canProcurement={allows("projects.purchase_workflow.view")&&allows("projects.purchase_workflow.read")} options={options} managerName={manager} onClose={() => setPanel(null)} onSaved={() => setReload(v => v + 1)} />}
+    {canRead && panel && <OwnershipPanel key={panel} id={panel} onEdit={(p)=>{setPanel(null);setEditID(p.id)}} canEdit={canEdit} canTransfer={canTransfer} canProcurement={allows("projects.purchase_workflow.view")&&allows("projects.purchase_workflow.read")} options={options} managerName={manager} onClose={() => setPanel(null)} onSaved={() => setReload(v => v + 1)} />}
   </section>;
 }
 function OwnershipPanel({ id, onEdit,canEdit,canTransfer, canProcurement, options, managerName, onClose, onSaved }: { id: string; onEdit:(p:Project)=>void;canEdit:(p:Project)=>boolean;canTransfer: boolean; canProcurement:boolean; options: Options; managerName: (id: string) => string; onClose: () => void; onSaved: () => void }) {

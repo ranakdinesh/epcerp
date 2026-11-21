@@ -6,7 +6,7 @@ import { assignmentIdentity } from '../auth/access';
 import { AppError } from '../errors';
 type Source={id:string;entity_id:string;entity_version:string|number;source_module:string;entity_type:string;action:string;actor_id:string;scope_kind:string;scope_id:string;visibility:string;at:string};
 async function source(db:DB,event:string){const row=(await db.query(`SELECT *,${timeSQL('occurred_at')} AS at FROM business_events WHERE id=$1 FOR SHARE`,[event])).rows[0] as Source|undefined;if(!row||row.scope_kind!=='project'||!row.scope_id||row.visibility!=='restricted'||Number(row.entity_version)<1)throw new AppError(409,'The financial decision event does not match a valid notice source');return row;}
-async function deliver(db:DB,s:Source,recipient:string,kind:'director'|'quotation',director:{id:string;version:number}|null,title='',link=''){
+async function deliver(db:DB,s:Source,recipient:string,kind:'director'|'quotation'|'purchase_advance',director:{id:string;version:number}|null,title='',link=''){
     const id=randomUUID(),at=timestamp(s.at)!;
     const inserted=(await db.query(`INSERT INTO communication_notices(id,source_event_id,recipient_id,director_designation_id,director_version,decision_id,project_id,source_version,decision_action,created_at,updated_at,created_by_id,updated_by_id,notice_kind,title,link)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10,$11,$11,$12,$13,$14)ON CONFLICT(source_event_id,recipient_id)DO NOTHING RETURNING id`,[id,s.id,recipient,director?.id??null,director?.version??0,s.entity_id,s.scope_id,s.entity_version,s.action,at,s.actor_id,kind,title,link])).rows[0];
     if(!inserted)return;
@@ -87,4 +87,11 @@ export async function procurementManagerProjectNotice(db: DB, eventId: string, p
             await db.query(`INSERT INTO business_events(id,source_module,entity_type,entity_id,entity_version,delivery_count,action,actor_id,actor_kind,correlation_id,causation_id,scope_kind,scope_id,visibility,occurred_at)VALUES($1,'communication_inbox','director_notice',$2,1,0,'delivered',$3,'user',$4,$4,'project',$5,'restricted',$6)`, [event, id, s.actor_id, s.id, projectId, at]);
         }
     }
+}
+
+export async function purchaseAdvanceNotice(db: DB, event: string, recipient: string, title: string, link: string) {
+    const e = await source(db, event);
+    if (e.source_module !== 'purchase_advances' || e.entity_type !== 'purchase_advance' || e.action !== 'submit')
+        throw new AppError(409, 'Advance notice requires its saved submitted request');
+    await deliver(db, e, recipient, 'purchase_advance', null, [...title].slice(0, 300).join(''), link);
 }

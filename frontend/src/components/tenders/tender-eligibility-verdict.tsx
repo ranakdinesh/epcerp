@@ -25,12 +25,12 @@ export function TenderEligibilitySection({
   base,
   jobId,
   canWrite,
-  onProceedToStep3,
+  onProceedToBidding,
 }: {
   base: string;
   jobId: string;
   canWrite: boolean;
-  onProceedToStep3?: () => void;
+  onProceedToBidding?: () => void;
 }) {
   const [verdict, setVerdict] = useState<EligibilityVerdict | null>(null);
   const [loading, setLoading] = useState(false);
@@ -214,7 +214,7 @@ export function TenderEligibilitySection({
 
           {/* Criteria Matcher Matrix */}
           <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-sm">
+            <table className="vtpl-data-table w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 <tr>
                   <th className="p-3">Category</th>
@@ -294,7 +294,7 @@ export function TenderEligibilitySection({
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900/60 dark:bg-blue-950/40">
+                {onProceedToBidding && <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900/60 dark:bg-blue-950/40">
                   <div className="flex items-center gap-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xs font-bold text-white shadow-sm">
                       3
@@ -304,25 +304,19 @@ export function TenderEligibilitySection({
                         Tender Selection Pipeline · Next Step
                       </p>
                       <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                        Formal verification recorded ({verdict.human_decision.toUpperCase()}). Proceed to Step 3 for Executive Bidding Approval &amp; Manager Assignment.
+                        Formal verification recorded ({verdict.human_decision.toUpperCase()}). Proceed to Step 4 for Executive Bidding Approval &amp; Manager Assignment.
                       </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
-                    onClick={() => {
-                      if (onProceedToStep3) {
-                        onProceedToStep3();
-                      } else {
-                        window.dispatchEvent(new CustomEvent("tender-navigate-step", { detail: "TS-02" }));
-                      }
-                    }}
+                    onClick={onProceedToBidding}
                   >
-                    Proceed to Step 3 · Approval for Bidding
+                    Proceed to Step 4 · Approval for Bidding
                     <ArrowRightIcon className="h-4 w-4" />
                   </button>
-                </div>
+                </div>}
               </div>
             ) : canWrite ? (
               <ValidatedForm className="mt-4 space-y-4" onSubmit={submitVerification}>

@@ -7,12 +7,18 @@ import {
   PlusIcon,
   ArrowPathIcon,
   ArrowLeftIcon,
+  ArrowUpRightIcon,
   ArrowRightIcon,
   CheckCircleIcon,
   DocumentCheckIcon,
   PencilSquareIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
+import { processMapHref, tenderProcess } from "../processes/process-directory";
+import { TenderPerformanceBand } from "../dashboard/tender-performance-band";
+import { useDashboardSource } from "../dashboard/use-dashboard-source";
+import type { TenderSummary } from "@/server/tenders/summary";
+import "../dashboard/procurement-dashboard.css";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { DataGrid, type GridQuery } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
@@ -32,6 +38,8 @@ import { TenderBidCosting } from "./tender-bid-costing";
 import { TenderAwardHandoff } from "./tender-award-handoff";
 
 type Stage =
+  | "details"
+  | "replies"
   | "documents"
   | "tsc"
   | "bidding"
@@ -42,9 +50,11 @@ type Stage =
   | "award";
 
 function stageForStep(step?: string): Stage {
-  if (step === "TS-02") return "bidding";
+  if (step === "LG-01") return "details";
+  if (step === "LG-04") return "replies";
+  if (step === "TS-02" || step === "LG-02") return "bidding";
   if (step === "TS-TSC") return "tsc";
-  if (step === "LG-03" || step === "LG-04") return "queries";
+  if (step === "LG-03") return "queries";
   if (step === "CV-01" || step === "CV-02") return "boq";
   if (step === "CV-03" || step === "CV-04" || step === "CV-05") return "quotes";
   if (step === "CV-07") return "costing";
@@ -54,6 +64,8 @@ function stageForStep(step?: string): Stage {
 
 function stepForStage(stage: Stage): string {
   switch (stage) {
+    case "details": return "LG-01";
+    case "replies": return "LG-04";
     case "documents": return "TS-01";
     case "tsc": return "TS-TSC";
     case "bidding": return "TS-02";
@@ -102,6 +114,14 @@ type Batch = {
   }[];
   sources: Source[];
 };
+const basicFields = [
+  { key: "reference", label: "Tender reference", type: "text", maxLength: 255 },
+  { key: "authority", label: "Issuing authority", type: "text", maxLength: 255 },
+  { key: "portal_url", label: "Tender portal URL", type: "url", maxLength: 2048 },
+  { key: "due_date", label: "Bid submission date", type: "date", maxLength: 10 },
+] as const;
+type BasicDetails = Partial<Record<(typeof basicFields)[number]["key"], string>>;
+
 type Draft = {
   engine?: string;
   id: string;
@@ -113,6 +133,10 @@ type Draft = {
   next_step?: string;
   status_label?: string;
   completed_steps?: number[];
+  basic_details?: BasicDetails;
+  prebid_review_closed?: boolean;
+  tsc_completed?: boolean;
+  bidding_authorized?: boolean;
   created_by_id?: string;
   owner_id?: string;
   can_delete?: boolean;
@@ -120,22 +144,8 @@ type Draft = {
 };
 
 function stepName(code: string): string {
-  switch (code) {
-    case "TS-01": return "1. Read documents";
-    case "TS-TSC": return "2. Prepare TSC";
-    case "TS-02": return "3. Approval for Bidding";
-    case "LG-03": return "6. Submit Pre-Bid Query";
-    case "LG-04": return "7. Query Decisions";
-    case "CV-01": return "8. BOQ & Specifications";
-    case "CV-02": return "9. Float RFQs to Vendors";
-    case "CV-03": return "10. Vendor Quotation Matrix";
-    case "CV-04": return "11. Quotation Verification";
-    case "CV-05": return "12. Negotiate & Select L-1";
-    case "CV-07": return "14. Final Working Costing";
-    case "CV-08": return "15. Portal Bid Submission";
-    case "AWARD": return "Award & Project Setup";
-    default: return code;
-  }
+  const entry = tenderProcess.steps.find(step => step.code === code);
+  return entry ? `${entry.number}. ${entry.label}` : code;
 }
 
 const primary =
@@ -197,6 +207,11 @@ export function TenderReadingWorkspace({
   const [editingTender, setEditingTender] = useState<Draft | null>(null);
   const [deletingTender, setDeletingTender] = useState<Draft | null>(null);
   const [selected, setSelected] = useState<Draft | null>(null);
+  const [summaryRevision, setSummaryRevision] = useState(0);
+  const onDashboard = !draftID && !selected;
+  const summary = useDashboardSource<TenderSummary>(
+    canRead && onDashboard ? "/api/tender-fms/summary" : null, summaryRevision
+  );
   const [page, setPage] = useState({
     page: 1,
     size: 20,
@@ -227,14 +242,14 @@ export function TenderReadingWorkspace({
   );
 
   useEffect(() => {
-    if (!canRead) return;
+    if (!canRead || !onDashboard) return;
     const c = new AbortController();
     const initial = setTimeout(() => void refresh(c.signal), 0);
     return () => {
       clearTimeout(initial);
       c.abort();
     };
-  }, [canRead, refresh]);
+  }, [canRead, onDashboard, refresh]);
 
   const onPage = useCallback(
     (q: GridQuery) =>
@@ -269,11 +284,17 @@ export function TenderReadingWorkspace({
     return true;
   }, [markDetailDirty]);
 
+  function refreshDashboard() {
+    setLoading(true);
+    setSummaryRevision(value => value + 1);
+    void refresh();
+  }
+
   function closeDetail() {
     if (!mayLeaveDetail()) return;
     setSelected(null);
     onSelectDraft?.(null);
-    void refresh();
+    setLoading(true);
   }
 
   const stage = stageForStep(step);
@@ -331,6 +352,7 @@ export function TenderReadingWorkspace({
         draft={selected}
         canWrite={canWrite}
         initialStage={stage}
+        activeStep={step}
         onSelectStep={onSelectStep}
         onDone={closeDetail}
         onDirty={markDetailDirty}
@@ -339,177 +361,181 @@ export function TenderReadingWorkspace({
     );
   }
 
-  // --- Screen 1: Tender FMS Directory List (When no draft is selected) ---
   return (
-    <section className="space-y-6">
-      <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between dark:border-slate-800">
+    <div className="go-procurement-dashboard">
+      <header className="go-dashboard-heading">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-              Project Delivery
-            </span>
-            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-              Tender Intake & Scrutiny
-            </span>
-          </div>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
-            Tender FMS
-          </h1>
-          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-            Step 1: Upload & verify documents. Step 2: Prepare & review Technical Scrutiny Checklist (TSC).
-          </p>
+          <h1>Tender FMS</h1>
+          <p>Track tender performance and continue work from the register.</p>
         </div>
-
-        {canWrite && (
-          <button
-            type="button"
-            className={primary}
-            onClick={() => setAdd(true)}
-          >
-            <PlusIcon className="h-4 w-4" />
-            Add Tender
+        <div className="go-dashboard-heading-actions">
+          <button type="button" className="ui-action ui-action--secondary" onClick={refreshDashboard}
+            disabled={loading || summary.loading}>
+            <ArrowPathIcon className="h-4 w-4" aria-hidden="true" />
+            Refresh
           </button>
-        )}
+          {canWrite && (
+            <button type="button" className="ui-action ui-action--primary" onClick={() => setAdd(true)}>
+              <PlusIcon className="h-4 w-4" aria-hidden="true" />
+              Add Tender
+            </button>
+          )}
+        </div>
       </header>
 
-      {error && (
-        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300">
-          <span>{error}</span>
-          <button
-            type="button"
-            className={secondary}
-            onClick={() => void refresh()}
-          >
-            Retry
-          </button>
-        </div>
-      )}
+      <TenderPerformanceBand data={summary.data} error={summary.error} />
 
-      <DataGrid
-        stateKey="tender_drafts"
-        label="Tenders"
-        rows={rows}
-        loading={loading}
-        searchable
-        remote={{ total, onChange: onPage }}
-        onRowClick={(d) => openDraft(d, d.next_step)}
-        columns={[
-          {
-            key: "name",
-            label: "Tender Name",
-            value: (d) => d.name,
-            sortable: true,
-            render: (d) => (
-              <div>
+      <section className="go-dashboard-panel go-dashboard-projects" aria-labelledby="tender-register-heading">
+        <div className="go-dashboard-section-heading">
+          <div>
+            <h2 id="tender-register-heading">Tender register</h2>
+            <p>Open a tender to continue at its current stage.</p>
+          </div>
+          <Link className="go-dashboard-text-link" href={processMapHref(tenderProcess)}>
+            Reference process map <ArrowUpRightIcon aria-hidden="true" />
+          </Link>
+        </div>
+        {error && (
+          <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300">
+            <span>{error}</span>
+            <button
+              type="button"
+              className={secondary}
+              onClick={() => void refresh()}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        <DataGrid
+          stateKey="tender_drafts"
+          label="Tenders"
+          rows={rows}
+          loading={loading}
+          searchable
+          remote={{ total, onChange: onPage }}
+          onRowClick={(d) => openDraft(d, d.next_step)}
+          columns={[
+            {
+              key: "name",
+              label: "Tender Name",
+              value: (d) => d.name,
+              sortable: true,
+              render: (d) => (
+                <div>
+                  <Link
+                    href={`/dashboard?screen=tender-fms&draft=${encodeURIComponent(d.id)}&step=${encodeURIComponent(d.next_step || "TS-01")}`}
+                    className="font-bold text-blue-700 hover:underline dark:text-blue-400"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDraft(d, d.next_step);
+                    }}
+                  >
+                    {d.name}
+                  </Link>
+                  {(d.basic_details?.reference || d.basic_details?.authority) && (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {[d.basic_details.reference, d.basic_details.authority].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: "stage",
+              label: "Current Stage",
+              value: (d) => d.status_label || "Step 2 · Read & verify documents",
+              sortable: false,
+              render: (d) => (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+                  {d.status_label || "Step 2 · Read & verify documents"}
+                </span>
+              ),
+            },
+            {
+              key: "next",
+              label: "Active Action",
+              value: (d) => d.next_step || "TS-01",
+              sortable: false,
+              render: (d) => (
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  {stepName(d.next_step || "TS-01")}
+                </span>
+              ),
+            },
+            {
+              key: "created",
+              label: "Created Date",
+              value: (d) => d.created_at,
+              sortable: true,
+              render: (d) => (
+                <span className="text-xs text-slate-600 dark:text-slate-400">
+                  {new Date(d.created_at).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              ),
+            },
+          ]}
+          actions={(d) => {
+            const canManage =
+              user.permissions.includes("system:admin") ||
+              (d.created_by_id && user.id === d.created_by_id) ||
+              (d.owner_id && user.id === d.owner_id) ||
+              Boolean(d.can_delete) ||
+              Boolean(d.can_edit);
+            return (
+              <div className="flex items-center gap-1">
                 <Link
                   href={`/dashboard?screen=tender-fms&draft=${encodeURIComponent(d.id)}&step=${encodeURIComponent(d.next_step || "TS-01")}`}
-                  className="font-bold text-blue-700 hover:underline dark:text-blue-400"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                  title={`Continue ${d.name} at ${stepName(d.next_step || "TS-01")}`}
+                  aria-label={`Continue ${d.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     openDraft(d, d.next_step);
                   }}
                 >
-                  {d.name}
+                  <ArrowRightIcon className="h-5 w-5" />
                 </Link>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {d.batches?.length || 0} batch{(d.batches?.length || 0) === 1 ? "" : "es"} ·{" "}
-                  {d.batches?.flatMap((b) => b.documents ?? []).length || 0} document(s)
-                </p>
+                {canManage && (
+                  <button
+                    type="button"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                    title={`Edit ${d.name}`}
+                    aria-label={`Edit ${d.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingTender(d);
+                    }}
+                  >
+                    <PencilSquareIcon className="h-5 w-5" />
+                  </button>
+                )}
+                {canManage && (
+                  <button
+                    type="button"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/60"
+                    title={`Delete ${d.name}`}
+                    aria-label={`Delete ${d.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingTender(d);
+                    }}
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                )}
               </div>
-            ),
-          },
-          {
-            key: "stage",
-            label: "Current Stage",
-            value: (d) => d.status_label || "Step 1 · Read documents",
-            sortable: false,
-            render: (d) => (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-                {d.status_label || "Step 1 · Read documents"}
-              </span>
-            ),
-          },
-          {
-            key: "next",
-            label: "Active Action",
-            value: (d) => d.next_step || "TS-01",
-            sortable: false,
-            render: (d) => (
-              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                {stepName(d.next_step || "TS-01")}
-              </span>
-            ),
-          },
-          {
-            key: "created",
-            label: "Created Date",
-            value: (d) => d.created_at,
-            sortable: true,
-            render: (d) => (
-              <span className="text-xs text-slate-600 dark:text-slate-400">
-                {new Date(d.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-            ),
-          },
-        ]}
-        actions={(d) => {
-          const canManage =
-            user.permissions.includes("system:admin") ||
-            (d.created_by_id && user.id === d.created_by_id) ||
-            (d.owner_id && user.id === d.owner_id) ||
-            Boolean(d.can_delete) ||
-            Boolean(d.can_edit);
-          return (
-            <div className="flex items-center gap-1">
-              <Link
-                href={`/dashboard?screen=tender-fms&draft=${encodeURIComponent(d.id)}&step=${encodeURIComponent(d.next_step || "TS-01")}`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
-                title={`Continue ${d.name} at ${stepName(d.next_step || "TS-01")}`}
-                aria-label={`Continue ${d.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openDraft(d, d.next_step);
-                }}
-              >
-                <ArrowRightIcon className="h-5 w-5" />
-              </Link>
-              {canManage && (
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                  title={`Edit ${d.name}`}
-                  aria-label={`Edit ${d.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingTender(d);
-                  }}
-                >
-                  <PencilSquareIcon className="h-5 w-5" />
-                </button>
-              )}
-              {canManage && (
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/60"
-                  title={`Delete ${d.name}`}
-                  aria-label={`Delete ${d.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingTender(d);
-                  }}
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
-              )}
-            </div>
-          );
-        }}
-      />
+            );
+          }}
+        />
+
+      </section>
 
       {add && (
         <RecordDrawer
@@ -519,8 +545,7 @@ export function TenderReadingWorkspace({
           <CreateDraft
             saved={(d) => {
               setAdd(false);
-              openDraft(d);
-              void refresh();
+              openDraft(d, "LG-01");
             }}
           />
         </RecordDrawer>
@@ -535,7 +560,7 @@ export function TenderReadingWorkspace({
             draft={editingTender}
             saved={() => {
               setEditingTender(null);
-              void refresh();
+              refreshDashboard();
             }}
             onCancel={() => setEditingTender(null)}
           />
@@ -551,13 +576,13 @@ export function TenderReadingWorkspace({
             draft={deletingTender}
             deleted={() => {
               setDeletingTender(null);
-              void refresh();
+              refreshDashboard();
             }}
             onCancel={() => setDeletingTender(null)}
           />
         </RecordDrawer>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -615,7 +640,7 @@ function CreateDraft({ saved }: { saved: (d: Draft) => void }) {
       </ValidatedLabel>
 
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        After creation, you will upload tender documents, verify files, and initiate the TSC evaluation.
+        Save the tender name to open its basic details.
       </p>
 
       {error && (
@@ -639,10 +664,11 @@ function EditDraft({
   onCancel,
 }: {
   draft: Draft;
-  saved: () => void;
-  onCancel: () => void;
+  saved: (draft: Draft) => void;
+  onCancel?: () => void;
 }) {
   const [name, setName] = useState(draft.name);
+  const [details, setDetails] = useState<BasicDetails>(draft.basic_details ?? {});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -660,12 +686,12 @@ function EditDraft({
         setBusy(true);
         setError("");
         try {
-          await api<Draft>(`drafts/${draft.id}`, {
+          const updated = await api<Draft>(`drafts/${draft.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: trimmed }),
+            body: JSON.stringify({ name: trimmed, basic_details: details }),
           });
-          saved();
+          saved(updated);
         } catch (e) {
           setError(failure(e));
         } finally {
@@ -693,6 +719,23 @@ function EditDraft({
         />
       </ValidatedLabel>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        {basicFields.map(field => (
+          <ValidatedLabel key={field.key} className="text-xs font-bold text-slate-700 dark:text-slate-300">
+            {field.label}
+            <ValidatedInput
+              name={field.key}
+              type={field.type}
+              maxLength={field.maxLength}
+              value={details[field.key] ?? ""}
+              disabled={busy}
+              onChange={event => setDetails(previous => ({ ...previous, [field.key]: event.target.value }))}
+              className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-800"
+            />
+          </ValidatedLabel>
+        ))}
+      </div>
+
       {error && (
         <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">
           {error}
@@ -700,18 +743,18 @@ function EditDraft({
       )}
 
       <div className="flex justify-end gap-3 pt-3">
-        <button
+        {onCancel && <button
           type="button"
           className={secondary}
           disabled={busy}
           onClick={onCancel}
         >
           Cancel
-        </button>
+        </button>}
         <button
           type="submit"
           className={primary}
-          disabled={busy || !name.trim() || name.trim() === draft.name}
+          disabled={busy || !name.trim() || (name.trim() === draft.name && basicFields.every(field => (details[field.key] ?? "") === (draft.basic_details?.[field.key] ?? "")))}
         >
           {busy ? "Saving…" : "Save changes"}
         </button>
@@ -786,84 +829,15 @@ function DeleteDraft({
   );
 }
 
-export const TENDER_STAGES: {
-  key: Stage;
-  code: string;
-  stepNumber: number;
-  title: string;
-  shortLabel: string;
-  description: string;
-}[] = [
-  {
-    key: "documents",
-    code: "TS-01",
-    stepNumber: 1,
-    title: "Read & Verify Source Documents",
-    shortLabel: "Upload Documents",
-    description: "Upload and verify source tender documents (NIT, technical specifications, drawings, and BOQ).",
-  },
-  {
-    key: "tsc",
-    code: "TS-TSC",
-    stepNumber: 2,
-    title: "Prepare Tender Summary & Checklist (TSC)",
-    shortLabel: "Prepare TSC",
-    description: "Select technical and commercial checklist formats, answer scrutiny questions, and generate AI proposals.",
-  },
-  {
-    key: "bidding",
-    code: "TS-02",
-    stepNumber: 3,
-    title: "Company Eligibility & Bidding Approval",
-    shortLabel: "Eligibility & Approval",
-    description: "Review automated qualification checks against company profile and record formal Go / No-Go decision.",
-  },
-  {
-    key: "queries",
-    code: "LG-03",
-    stepNumber: 4,
-    title: "Pre-Bid Queries & Addenda Tracking",
-    shortLabel: "Pre-Bid Queries",
-    description: "Prepare and submit technical, commercial, or BOQ clarification queries and log corrigenda.",
-  },
-  {
-    key: "boq",
-    code: "CV-01",
-    stepNumber: 5,
-    title: "Working BOQ Items & Approved Makes",
-    shortLabel: "BOQ & Make List",
-    description: "Extract and baseline bill-of-quantities line items, units, quantities, and client-approved makes.",
-  },
-  {
-    key: "quotes",
-    code: "CV-03",
-    stepNumber: 6,
-    title: "Vendor Quotations & L-1 Sourcing",
-    shortLabel: "Vendor Quotes & L-1",
-    description: "Capture vendor quotations, evaluate technical compliance and delivery schedules, and select L-1 rates.",
-  },
-  {
-    key: "costing",
-    code: "CV-07",
-    stepNumber: 7,
-    title: "Working Costing Sheet & Bid Budget",
-    shortLabel: "Working Budget",
-    description: "Consolidate equipment, civil/erection, freight, contingency, overheads, and target gross margin.",
-  },
-  {
-    key: "award",
-    code: "CV-08",
-    stepNumber: 8,
-    title: "Portal Submission & Project Award Handoff",
-    shortLabel: "Submission & Award",
-    description: "Record e-procurement submission and merge the won tender with Projects and Purchase FMS.",
-  },
+const workspaceStages: readonly Stage[] = [
+  "details", "documents", "queries", "replies", "tsc", "bidding", "boq", "quotes", "costing", "award",
 ];
 
 function DraftDetail({
   draft,
   canWrite,
   initialStage,
+  activeStep,
   onSelectStep,
   onDone,
   onDirty,
@@ -872,6 +846,7 @@ function DraftDetail({
   draft: Draft;
   canWrite: boolean;
   initialStage: Stage;
+  activeStep?: string;
   onDone?: () => void;
   onDirty?: (value: boolean) => void;
   onBeforeLeave?: () => boolean;
@@ -883,6 +858,7 @@ function DraftDetail({
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState(initialStage);
   const [native, setNative] = useState(draft.engine === "nextjs");
+  const stageHeading = useRef<HTMLHeadingElement>(null);
 
   const [previousInitialStage, setPreviousInitialStage] = useState(initialStage);
   if (initialStage !== previousInitialStage) {
@@ -891,13 +867,11 @@ function DraftDetail({
   }
 
   useEffect(() => {
-    const handleStepNav = (e: Event) => {
-      const custom = e as CustomEvent<string>;
-      changeStage(stageForStep(custom.detail));
-    };
-    window.addEventListener("tender-navigate-step", handleStepNav);
-    return () => window.removeEventListener("tender-navigate-step", handleStepNav);
-  }, []);
+    if (stage === "bidding" || stage === "tsc") {
+      window.scrollTo(0, 0);
+      stageHeading.current?.focus({ preventScroll: true });
+    }
+  }, [stage]);
 
   useEffect(() => {
     const c = new AbortController();
@@ -950,10 +924,14 @@ function DraftDetail({
   ).length;
   const totalBatches = data.batches.length;
 
-  const currentIndex = TENDER_STAGES.findIndex((s) => s.key === stage);
-  const currentStageInfo = TENDER_STAGES[currentIndex] || TENDER_STAGES[0];
-  const prevStage = currentIndex > 0 ? TENDER_STAGES[currentIndex - 1] : null;
-  const nextStage = currentIndex < TENDER_STAGES.length - 1 ? TENDER_STAGES[currentIndex + 1] : null;
+  const currentIndex = workspaceStages.indexOf(stage);
+  const currentCode = activeStep && stageForStep(activeStep) === stage ? activeStep : stepForStage(stage);
+  const workStep = tenderProcess.steps.find(item => item.code === currentCode);
+  const prevStage = workspaceStages[currentIndex - 1];
+  const nextStage = workspaceStages[currentIndex + 1];
+  const canContinue = stage === "replies" ? data.prebid_review_closed
+    : stage === "tsc" ? data.tsc_completed
+    : stage === "bidding" ? data.bidding_authorized : true;
 
   return (
     <div className="space-y-6">
@@ -974,11 +952,8 @@ function DraftDetail({
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-700 text-[11px] font-bold text-white">
-                {currentStageInfo.stepNumber}
-              </span>
               <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-                Tender FMS · Step {currentStageInfo.stepNumber} ({currentStageInfo.code})
+                {workStep ? `Step ${workStep.number} · ${workStep.label}` : stepName(currentCode)}
               </span>
               {totalBatches > 0 && (
                 <span
@@ -993,21 +968,26 @@ function DraftDetail({
                 </span>
               )}
             </div>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 ref={stageHeading} tabIndex={-1} className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
               {data.name}
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
-            Step {currentStageInfo.stepNumber} of 8
-          </span>
-        </div>
       </div>
 
-      {/* Dedicated Workspace Screen for Active Step */}
-      {stage === "documents" ? (
+      {stage === "details" ? (
+        <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="mb-4 text-lg font-semibold">Tender details</h2>
+          {canWrite ? (
+            <EditDraft draft={data} saved={updated => { setData(updated); void refresh(); }} />
+          ) : (
+            <dl className="grid gap-4 sm:grid-cols-2">
+              {basicFields.map(field => <div key={field.key}><dt>{field.label}</dt><dd>{data.basic_details?.[field.key] || "—"}</dd></div>)}
+            </dl>
+          )}
+        </section>
+      ) : stage === "documents" ? (
         <TenderDocumentIntake
           draft={data}
           canWrite={canWrite}
@@ -1016,31 +996,42 @@ function DraftDetail({
           onViewArtifact={(title, text) => setArtifact({ title, text })}
         />
       ) : stage === "tsc" ? (
-        <CloudTSCWorkspace
-          onDone={onDone}
-          onDirty={onDirty}
-          onProceedToStep3={() => changeStage("bidding")}
-          draftID={data.id}
-          sourceVersion={data.version}
-          readyForGeneration={
-            data.batches.length > 0 &&
-            data.batches.every(
-              (b) =>
-                b.state === "consumed" &&
-                b.sources.length > 0 &&
-                b.sources.every((s) => s.status === "ready")
-            )
-          }
-        />
+        data.prebid_review_closed ? (
+          <CloudTSCWorkspace
+            onDone={onDone}
+            onDirty={onDirty}
+            onProceedToBidding={() => changeStage("bidding")}
+            draftID={data.id}
+            sourceVersion={data.version}
+            readyForGeneration={
+              data.batches.length > 0 &&
+              data.batches.every(
+                (b) =>
+                  b.state === "consumed" &&
+                  b.sources.length > 0 &&
+                  b.sources.every((s) => s.status === "ready")
+              )
+            }
+          />
+        ) : (
+          <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <p>Close the pre-bid review before preparing or finalizing the TSC.</p>
+            <button type="button" className={primary} onClick={() => changeStage("replies")}>Review pre-bid replies</button>
+          </section>
+        )
       ) : stage === "bidding" ? (
         <TenderBiddingApproval
           draftId={data.id}
           canWrite={canWrite}
+          intakeDueDate={data.basic_details?.due_date}
           onNavigateStep={(st) => changeStage(stageForStep(st))}
           onDone={onDone}
         />
-      ) : stage === "queries" ? (
+      ) : stage === "queries" || stage === "replies" ? (
         <TenderPrebidQueries
+          reviewing={stage === "replies"}
+          closed={Boolean(data.prebid_review_closed)}
+          onRefresh={refresh}
           draftId={data.id}
           canWrite={canWrite}
           onNavigateStep={(st) => changeStage(stageForStep(st))}
@@ -1077,10 +1068,10 @@ function DraftDetail({
             <button
               type="button"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-100/90 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
-              onClick={() => changeStage(prevStage.key)}
+              onClick={() => changeStage(prevStage)}
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Previous: Step {prevStage.stepNumber} · {prevStage.shortLabel}
+              Previous · {stepName(stepForStage(prevStage))}
             </button>
           ) : (
             <button
@@ -1099,9 +1090,10 @@ function DraftDetail({
             <button
               type="button"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800 active:scale-[0.99] disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-500"
-              onClick={() => changeStage(nextStage.key)}
+              disabled={!canContinue}
+              onClick={() => changeStage(nextStage)}
             >
-              Continue to Step {nextStage.stepNumber} · {nextStage.shortLabel}
+              Continue · {stepName(stepForStage(nextStage))}
               <ArrowRightIcon className="h-4 w-4" />
             </button>
           ) : (

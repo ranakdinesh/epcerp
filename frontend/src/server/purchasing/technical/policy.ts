@@ -35,6 +35,19 @@ catch {
     invalid('file_id', 'Upload actual evidence first');
 } if (!files.some(f => f.id === idValue && f.case_id === caseID && f.is_active && f.purpose === purpose && f.size > 0 && ['application/pdf', 'image/png', 'image/jpeg'].includes(f.media_type)))
     invalid('file_id', 'Evidence must be an active file owned by this technical package and purpose'); }
+export function kitReceived(c: Case, files: File[]) {
+    const required = c.documents.filter(document => document.is_active && document.required);
+    if (!required.length) return false;
+    try {
+        for (const document of required) {
+            if (document.status !== 'received') return false;
+            fileGuard(files, document.file_id, c.id, 'document');
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
 export function ready(c: Case) { if (!c.is_active || !c.submission || !c.team_review || !c.approval || c.submission.revision !== c.revision || c.team_review.revision !== c.revision || c.approval.revision !== c.revision || !c.team_review.approved || !c.approval.qap_approved)
     return false; if (!['approved', 'approved_with_comments'].includes(c.state) || c.approval.status !== c.state)
     return false; if (c.submission.submitted_by_id === c.team_review.reviewer_id || !c.submission.submitted_by_id || !c.team_review.reviewer_id || !isDeepStrictEqual(c.documents, c.submission.documents))
@@ -139,36 +152,31 @@ export function apply(base: Case | null, a: Actor, caps: Capabilities, q: Comman
             invalid('state', 'Only a draft technical package can be submitted');
         if (!q.submission)
             invalid('submission', 'Supply transmittal details');
-        for (const d of c.documents)
-            if (d.is_active && d.required) {
-                try {
-                    if (d.status !== 'received')
-                        throw new Error('Not received');
-                    fileGuard(files, d.file_id, c.id, 'document');
-                }
-                catch {
-                    invalid('documents', 'Receive actual evidence for every required document before submission');
-                }
-            }
+        if (!kitReceived(c, files))
+            invalid('documents', 'Receive actual evidence for every required document before submission');
+        if (!c.team_review?.approved || c.team_review.revision !== c.revision || c.team_review.reviewer_id === a.id)
+            invalid('verification', 'Have another authorised user verify the current kit before sending it to the client');
         const s = q.submission;
         text('reference', s.reference, 200);
         text('authority', s.authority, 300);
-        if (!isoDate(s.date) || !isoDate(s.target_date) || s.date < c.source_snapshot.released_date || s.date > today || s.target_date < s.date)
+        if (!isoDate(s.date) || !isoDate(s.target_date) || s.date < c.source_snapshot.released_date || s.date < indiaDate(new Date(c.team_review.reviewed_at)) || s.date > today || s.target_date < s.date)
             invalid('date', 'Use submission after LOI release, not future, and target on/after submission');
         fileGuard(files, s.file_id, c.id, 'transmittal');
         c.submission = { ...s, revision: c.revision, documents: structuredClone(c.documents), submitted_by_id: a.id, submitted_at: at };
-        c.state = 'submitted';
+        c.state = 'under_review';
     }
     else if (q.action === 'team_review') {
-        if (c.state !== 'submitted' || c.submission?.revision !== c.revision)
-            invalid('state', 'Review the current submitted technical revision');
-        if (c.submission.submitted_by_id === a.id)
+        if (c.state !== 'draft' && (c.state !== 'submitted' || c.submission?.revision !== c.revision))
+            invalid('state', 'Verify the current technical kit');
+        if (!kitReceived(c, files))
+            invalid('documents', 'Receive the complete technical kit before verification');
+        if (c.submission?.submitted_by_id === a.id)
             invalid('reviewer', 'Project-team review must be independent of submission');
         if (q.approve === null)
             invalid('approve', 'Record explicit approval or rejection');
         const remarks = text('remarks', q.remarks, 4000);
         c.team_review = { revision: c.revision, approved: q.approve, remarks, reviewer_id: a.id, reviewed_at: at };
-        c.state = q.approve ? 'under_review' : 'revision_required';
+        c.state = q.approve ? (c.submission ? 'under_review' : 'draft') : 'revision_required';
     }
     else if (q.action === 'client_approval') {
         if (!['under_review', 'approved', 'approved_with_comments'].includes(c.state) || !c.submission || !c.team_review?.approved || c.submission.revision !== c.revision || c.team_review.revision !== c.revision)
@@ -206,6 +214,8 @@ export function uploadGuard(c: Case, a: Actor, caps: Capabilities, source: Sourc
     invalid('purpose', 'Select document, transmittal, client approval or condition closure evidence'); accessGuard(a, caps, action); if (!c.is_active)
     throw missing(); if (c.version !== q.version)
     throw stale(); currentGuard(c, source); if (['document', 'submit'].includes(action)) {
+    if (action === 'submit' && (!c.team_review?.approved || c.team_review.revision !== c.revision || c.team_review.reviewer_id === a.id))
+        invalid('verification', 'Obtain independent kit verification before uploading the transmittal');
     if (c.state !== 'draft' && !(action === 'document' && c.state === 'revision_required'))
         invalid('state', 'Revise the kit before uploading new technical documents');
 }

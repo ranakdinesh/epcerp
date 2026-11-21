@@ -8,7 +8,7 @@ const areas: Record<string, string> = {
 };
 const areaOrder = Object.values(areas);
 const resources: Record<string, string> = {
-  purchase_bo: "Purchase BO / BOM", purchase_indent_groups: "Purchase item grouping",
+  purchase_bo: "Items to purchase", purchase_indent_groups: "Purchase item grouping",
   purchase_group_vendors: "Group vendor selection", purchase_indent_register: "Vendor indent register",
   group_comparisons: "Group price comparison", group_awards: "Group award approval (reserved)",
   o2te: "O2TE contractual readiness", contractor_work: "Contractor work orders",
@@ -19,11 +19,14 @@ export function permissionLabel(value: string): string {
   return resources[value] ?? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 export function permissionAction(code: string): string {
+  if (code === "projects.purchase_bo.complete") return "Finalise and reopen purchase item lists";
+  if (code === "projects.purchase_bo.write") return "Prepare purchase item lists";
+  if (code === "projects.purchase_bo.read") return "View purchase item lists";
   return code === "system:admin" ? "Full administration" : permissionLabel(code.split(".").at(-1) ?? code);
 }
 export function groupPermissions(permissions: Permission[], query = ""): PermissionGroup[] {
   const groups = new Map<string, PermissionGroup>();
-  const search = query.trim().toLowerCase();
+  const search = query.toLowerCase().split(/\s+/).filter(Boolean);
   for (const permission of permissions) {
     const parts = permission.code.split(".");
     const fallback = permission.code === "system:admin" ? "system" : parts.length >= 3 ? parts[0] : "other";
@@ -31,7 +34,8 @@ export function groupPermissions(permissions: Permission[], query = ""): Permiss
     const area = areas[areaCode] ?? permissionLabel(areaCode);
     const resource = parts.length >= 3 ? parts.slice(1, -1).join(".") : "general";
     const label = resource === "general" ? "General permissions" : permissionLabel(resource);
-    if (search && !`${area} ${label} ${permission.code} ${permission.description}`.toLowerCase().includes(search)) continue;
+    const searchable = `${area} ${label} ${permissionAction(permission.code)} ${permission.code} ${permission.description}`.toLowerCase();
+    if (!search.every(term => searchable.includes(term))) continue;
     const key = `${areaCode}.${resource}`;
     const group = groups.get(key) ?? { key, area, label, permissions: [] };
     group.permissions.push(permission);

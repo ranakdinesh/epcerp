@@ -1,7 +1,7 @@
 import { invalid, uuid, reason, version, object, isoDate, string, trim } from '../core/validation';
 import { quantity } from '../core/decimal';
 import type { Save, InputLine, Line } from './types';
-export function input(raw: Record<string, unknown>): Save {
+export function input(raw: Record<string, unknown>, maxLines = 100): Save {
     const b = object(raw, ['name', 'version', 'reason', 'lines']);
     if (b.lines === null)
         invalid('lines', 'This field must not be null');
@@ -14,8 +14,8 @@ export function input(raw: Record<string, unknown>): Save {
         invalid('name', 'BO name must contain 1–128 characters');
     if (b.lines !== undefined && !Array.isArray(b.lines))
         invalid('lines', 'Expected item row objects');
-    if (Array.isArray(b.lines) && b.lines.length > 100)
-        invalid('lines', 'Use at most 100 item rows');
+    if (Array.isArray(b.lines) && b.lines.length > maxLines)
+        invalid('lines', `Use at most ${maxLines} item rows`);
     const seen = new Set<string>();
     for (const row of b.lines as unknown[] ?? []) {
         const r = object(row, ['id', 'item_id', 'quantity', 'required_date', 'reference', 'notes']);

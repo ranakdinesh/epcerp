@@ -1,4 +1,6 @@
 "use client";
+
+import { CategoryThumbnail } from "./category-thumbnail";
 import { displayServerErrors } from "@/components/ui/server-field-errors";
 import { ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedSelect } from "@/components/ui/validated-controls";
 import { useEffect, useState, type SubmitEvent } from "react";
@@ -79,7 +81,7 @@ export function ItemBank() {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
-  const issued = items.filter((i) => i.serial).length;
+  const issued = items.filter((i) => i.sku).length;
   async function transition(item: Item, status: string, form: HTMLFormElement) {
     setBusy(true);
     setError("");
@@ -122,7 +124,7 @@ export function ItemBank() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-blue-50 p-4">
             <strong className="text-2xl">{issued}</strong>
-            <p className="text-sm">SKUs issued · separate 001–999 sequence per category</p>
+            <p className="text-sm">SKUs issued</p>
           </div>
           <div className="rounded-xl bg-amber-50 p-4">
             <strong className="text-2xl">
@@ -235,6 +237,7 @@ export function ItemBank() {
             key: "description",
             label: "Item name",
             value: (r) => itemName(r),
+            render: (r) => <div className="flex items-center gap-2"><CategoryThumbnail code={r.snapshot.configuration.category_code} />{itemName(r)}</div>,
             className: "min-w-64 max-w-lg font-semibold",
           },
           {

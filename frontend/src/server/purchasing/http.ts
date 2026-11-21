@@ -1,9 +1,11 @@
 import 'server-only';
 import { AppError } from '../errors';
-import { PurchaseError, invalid, version } from './core/validation';
+import { PurchaseError, invalid, object, uuid, version } from './core/validation';
 import { json, body, query, binary, multipart } from './http-input';
 import * as materials from './materials/service';
 import * as bo from './bo/service';
+import { chooseProjectVendors, typeIndentDocument, typeIndents } from './type-indents/service';
+import { purchaseSettings } from './application-settings';
 import * as groups from './groups/service';
 import * as indentDocuments from './indent-documents/service';
 import * as indents from './indents/service';
@@ -47,6 +49,10 @@ export async function handlePurchasing(request: Request) {
             if (n === 1 && m === 'GET')
                 return json(await workspace.dashboard(token, q));
             query(q);
+            if (n === 2 && parts[1] === 'application-settings') {
+                if (m === 'GET') return json(await purchaseSettings(token));
+                if (m === 'PATCH') return json(await purchaseSettings(token, await body(request, ['item_list_mode'], 4096)));
+            }
             if (parts[1] === 'projects') {
                 const p = parts[2];
                 if (n === 3 && m === 'GET')
@@ -111,6 +117,13 @@ export async function handlePurchasing(request: Request) {
                 return json(await loiDocuments.completeReview(token, p, id, parts[5], await body(request, ['details_correct', 'prices_correct', 'format_correct'])));
         }
         if (area === 'purchase-bo') {
+            if (n === 4 && id === 'activity') {
+                if (m === 'GET') return json(await bo.activity(token, p));
+                if (m === 'POST') {
+                    const payload = await body(request, ['visit_id'], 1024);
+                    return json(await bo.activity(token, p, uuid(payload.visit_id)));
+                }
+            }
             if (n === 3 && m === 'GET')
                 return json(await bo.list(token, p));
             if (n === 4 && id === 'pdf' && m === 'GET') {
@@ -142,6 +155,9 @@ export async function handlePurchasing(request: Request) {
                     return json(await quotations.workspace(token, p, id, q.get('section') || 'receipt'));
                 if (n === 5 && m === 'POST')
                     return json(await quotations.execute(token, p, id, await body(request, ['version', 'reason', 'quote'], 512 * 1024)));
+                const negotiationAction = parts[5];
+                if (n === 6 && m === 'POST' && (negotiationAction === 'freeze' || negotiationAction === 'unfreeze'))
+                    return json(await quotations.setNegotiationFreeze(token, p, id, negotiationAction, await body(request, ['version'])));
                 if (n === 7 && parts[6] === 'attachments' && m === 'POST') {
                     await quotations.uploadAuthority(token, p, id, parts[5]);
                     const f = await multipart(request);
@@ -187,6 +203,42 @@ export async function handlePurchasing(request: Request) {
                 return json(await materials.save(token, p, id, await body(request, ['item_id', 'quantity', 'required_date', 'allocations', 'alternatives', 'is_active', 'version', 'reason'])), m === 'POST' ? 201 : 200);
         }
         if (area === 'purchase-indents') {
+            if (n === 5 && id === 'by-type' && sub === 'pdf' && m === 'GET') {
+                query(q, ['category', 'document']);
+                const document = q.get('document');
+                if (document) {
+                    const { renderIndentDraft } = await import('./type-indents/pdf');
+                    return binary(await renderIndentDraft(await typeIndentDocument(token, p, document)), `purchase-indent-${document}.pdf`);
+                }
+                const category = q.get('category');
+                if (!category) invalid('category', 'Select an item type.');
+                const data = await typeIndents(token, p);
+                if (!('drafts' in data) || !data.drafts) throw new PurchaseError(404, 'Indent draft not found.');
+                if (!data.vendors_ready) throw new PurchaseError(409, 'Save vendor assignments before previewing an indent.');
+                const draft = data.drafts.find(row => row.category === category);
+                if (!draft) throw new PurchaseError(404, 'Finalise the indent before generating a PDF.');
+                const items = data.items.filter(item => item.category === category).map(item => ({
+                    description: item.description ?? item.sku ?? '', quantity: item.quantity ?? '', unit: item.unit ?? '',
+                }));
+                if (!items.length) invalid('category', 'Finalise items of this type before generating a PDF.');
+                const { renderIndentDraft } = await import('./type-indents/pdf');
+                return binary(await renderIndentDraft({
+                    category, project: data.projectName, client: data.details.client, site: data.details.site,
+                    date: draft.updatedAt, terms: draft.terms, items,
+                }), `purchase-indent-${category}.pdf`);
+            }
+            if (n === 5 && id === 'by-type' && sub === 'dispatch' && m === 'POST')
+                return json(await typeIndents(token, p, await body(request, ['document_id', 'version', 'sent_date', 'channel', 'dispatch_reference']), true));
+            if (n === 5 && id === 'by-type' && sub === 'dispatch' && m === 'GET')
+                return json(await typeIndents(token, p, undefined, true));
+            if (n === 4 && id === 'project-vendors') {
+                if (m === 'GET') return json(await chooseProjectVendors(token, p));
+                if (m === 'POST') return json(await chooseProjectVendors(token, p, await body(request, ['itemSets', 'version'], 32768)));
+            }
+            if (n === 4 && id === 'by-type') {
+                if (m === 'GET') return json(await typeIndents(token, p));
+                if (m === 'POST') return json(await typeIndents(token, p, await body(request, ['category', 'terms', 'content', 'version', 'reissue'], 524288)));
+            }
             if (n === 3 && m === 'GET')
                 return json(await indents.list(token, p));
             if (n === 4 && id === 'workspace' && m === 'GET')
@@ -242,6 +294,19 @@ export async function handlePurchasing(request: Request) {
                     return json(await service.workspace(token, p, id));
                 if (m === 'POST')
                     return json(await service.execute(token, p, id, await body(request, stageFields[sub])));
+            }
+            if (n === 6 && parts[5] === 'evidence' && (sub === 'advances' || sub === 'client-clearance')) {
+                const stage = sub === 'advances' ? advances : clientClearance;
+                if (m === 'GET') {
+                    const result = await stage.downloadEvidence(token, p, id);
+                    return binary(result.data, result.file.name, result.file.mime, true);
+                }
+                if (m === 'POST') {
+                    const file = await multipart(request, true);
+                    let command: unknown;
+                    try { command = JSON.parse(file.reason); } catch { invalid('body', 'Include a valid evidence command'); }
+                    return json(await stage.execute(token, p, id, object(command, stageFields[sub]), file));
+                }
             }
             if (sub === 'purchase-orders') {
                 if (n === 6 && parts[5] === 'document' && m === 'GET')

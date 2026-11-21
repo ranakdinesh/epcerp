@@ -21,6 +21,8 @@ This module owns the complete purchasing HTTP workflow in Next.js. The existing 
 
 Every write rechecks live authority and optimistic versions. Financial decisions retain their separate project scope and transactional Director notices. Source edits require explicit downstream revisions. Money and quantities use exact integer/rational calculations. File upload authorization precedes buffering; evidence remains encrypted and purpose/revision-bound.
 
+Active, non-suspended vendors can receive indents and quotations before their documents are verified. Finance quotation approval and client PO sign-off remain separate decisions. PO release checks the supplier's current Finance verification and records its fingerprint as release evidence.
+
 No purchasing operation sends mail, bank instructions or cloud-model requests. Dispatch and payment actions record actual evidence supplied by an authorized user.
 
 ## Verification

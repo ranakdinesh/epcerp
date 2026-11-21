@@ -108,6 +108,7 @@ export type Order = {
     details: Details;
     released_at: string | null;
     released_by_id: string;
+    supplier_verification_at_release?: string;
     is_active: boolean;
     created_at: string;
     updated_at: string;

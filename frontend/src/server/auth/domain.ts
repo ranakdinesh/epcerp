@@ -11,7 +11,7 @@ export type User = {
   temporary_password_expires_at: Date | null; credential_version: number;
   edit_version: number; created_at: Date; updated_at: Date; email_status: string; roles: Role[];
 };
-export function temporaryValid(user: User, now = Date.now()) {
+export function temporaryValid(user: Pick<User, "must_change_password" | "temporary_password_expires_at">, now = Date.now()) {
   return !user.must_change_password || !!user.temporary_password_expires_at && user.temporary_password_expires_at.getTime() > now;
 }
 export function effectivePermissions(user: User): string[] {

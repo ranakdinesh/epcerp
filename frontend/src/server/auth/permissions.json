@@ -351,17 +351,17 @@
   },
   {
     "code": "projects.purchase_bo.read",
-    "description": "Read purchase BO lists",
+    "description": "See saved items and their status in Items to purchase.",
     "group": "purchasing"
   },
   {
     "code": "projects.purchase_bo.write",
-    "description": "Prepare purchase BO list drafts",
+    "description": "Add items and edit your draft purchase list. Selecting catalogue items also requires project materials read access.",
     "group": "purchasing"
   },
   {
     "code": "projects.purchase_bo.complete",
-    "description": "Complete own BO list and publish material requirements",
+    "description": "Finalise a purchase item list to publish material requirements, or reopen it for changes. The list preparer or assigned project Purchase Manager can use this with purchase workflow access.",
     "group": "purchasing"
   },
   {

@@ -5,68 +5,19 @@ import { AppError } from '../../errors';
 import { access, admit } from './access';
 import { id, object, str } from '../tsc/validation';
 import { decryptBytes } from '../tsc/crypto';
+import { tenderFlow, tenderFlowColumns } from '../flow';
+
 function view(row: Record<string, unknown>) {
-  const hasVerified = Boolean(row.has_verified);
-  const verdict = row.verdict as { human_verified?: boolean; human_decision?: string } | undefined;
-  const tscCompleted = Boolean(verdict?.human_verified);
-  const biddingDecision = row.bidding_decision as string | undefined;
-  const biddingAuthorized = biddingDecision === 'authorized' || biddingDecision === 'conditional';
-  const hasQueries = Boolean(row.has_queries);
-  const hasAnsweredQueries = Boolean(row.has_answered_queries);
-  const hasItems = Boolean(row.has_items);
-  const hasQuotes = Boolean(row.has_quotes);
-  const hasL1 = Boolean(row.has_l1);
-  const costingStatus = row.costing_status as string | undefined;
-
-  const completedSteps: number[] = [];
-  if (hasVerified) completedSteps.push(1);
-  if (tscCompleted) completedSteps.push(2);
-  if (biddingAuthorized) completedSteps.push(3);
-  if (hasQueries) completedSteps.push(6);
-  if (hasAnsweredQueries) completedSteps.push(7);
-  if (hasItems) { completedSteps.push(8); completedSteps.push(9); }
-  if (hasQuotes) { completedSteps.push(10); completedSteps.push(11); }
-  if (hasL1) completedSteps.push(12);
-  if (costingStatus && ['approved', 'submitted', 'awarded'].includes(costingStatus)) completedSteps.push(14);
-  if (costingStatus && ['submitted', 'awarded'].includes(costingStatus)) completedSteps.push(15);
-
-  let nextStep = 'TS-01';
-  let statusLabel = 'Step 1 · Read documents';
-
-  if (costingStatus === 'awarded') {
-    nextStep = 'CV-08';
-    statusLabel = 'Awarded · Project Setup Ready';
-  } else if (costingStatus === 'submitted') {
-    nextStep = 'CV-08';
-    statusLabel = 'Step 15 · Bid Submitted';
-  } else if (hasL1) {
-    nextStep = 'CV-07';
-    statusLabel = 'Step 14 · Working Costing & Approval';
-  } else if (hasItems) {
-    nextStep = 'CV-03';
-    statusLabel = 'Step 10 · Vendor Quotes & L-1';
-  } else if (biddingAuthorized) {
-    nextStep = 'LG-03';
-    statusLabel = 'Step 6 · Pre-Bid Queries';
-  } else if (tscCompleted) {
-    nextStep = 'TS-02';
-    statusLabel = 'Step 3 · Bidding Approval';
-  } else if (hasVerified) {
-    nextStep = 'TS-TSC';
-    statusLabel = 'Step 2 · Prepare TSC';
-  }
-
   return {
     engine: 'nextjs',
     id: row.id,
     name: row.name,
+    basic_details: row.basic_details ?? {},
     version: Number(row.version),
     created_at: row.created_at,
     updated_at: row.updated_at,
     batches: [] as unknown[],
-    next_step: nextStep,
-    status_label: statusLabel,
-    completed_steps: completedSteps,
+    ...tenderFlow(row),
     can_delete: Boolean(row.can_delete ?? false),
     can_edit: Boolean(row.can_edit ?? false),
     created_by_id: row.created_by_id,
@@ -105,27 +56,7 @@ export async function list(token: string, query: URLSearchParams) {
       SELECT d.*,
              (d.created_by_id = $1 OR d.owner_id = $1 OR $5::boolean) as can_delete,
              (d.created_by_id = $1 OR d.owner_id = $1 OR $5::boolean) as can_edit,
-             EXISTS(
-               SELECT 1 FROM document_package_receipts r
-               WHERE r.draft_id = d.id AND r.state IN ('consumed', 'ready')
-             ) OR EXISTS(
-               SELECT 1 FROM tender.draft_sources s WHERE s.draft_id = d.id
-             ) as has_verified,
-             (
-               SELECT json_build_object('human_verified', v.human_verified, 'human_decision', v.human_decision)
-               FROM tender.tsc_eligibility_verdicts v
-               WHERE v.draft_id = d.id
-               ORDER BY evaluated_at DESC LIMIT 1
-             ) as verdict,
-             (
-               SELECT decision FROM tender.bidding_authorizations b WHERE b.draft_id = d.id
-             ) as bidding_decision,
-             EXISTS(SELECT 1 FROM tender.prebid_queries WHERE draft_id = d.id) as has_queries,
-             EXISTS(SELECT 1 FROM tender.prebid_queries WHERE draft_id = d.id AND status IN ('answered', 'accepted', 'rejected')) as has_answered_queries,
-             EXISTS(SELECT 1 FROM tender.bid_items WHERE draft_id = d.id) as has_items,
-             EXISTS(SELECT 1 FROM tender.vendor_quotations WHERE draft_id = d.id) as has_quotes,
-             EXISTS(SELECT 1 FROM tender.vendor_quotations WHERE draft_id = d.id AND is_l1 = true) as has_l1,
-             (SELECT status FROM tender.bid_costings WHERE draft_id = d.id) as costing_status
+             ${tenderFlowColumns}
       FROM tender.document_drafts d
       WHERE ${filter}
       ORDER BY ${sort === 'name' ? 'd.name' : 'd.created_at'} ${direction === 'asc' ? 'ASC' : 'DESC'}, d.id
@@ -144,27 +75,7 @@ export async function get(token: string, draft: string) {
       SELECT d.*,
              (d.created_by_id = $2 OR d.owner_id = $2 OR $3::boolean) as can_delete,
              (d.created_by_id = $2 OR d.owner_id = $2 OR $3::boolean) as can_edit,
-             EXISTS(
-               SELECT 1 FROM document_package_receipts r
-               WHERE r.draft_id = d.id AND r.state IN ('consumed', 'ready')
-             ) OR EXISTS(
-               SELECT 1 FROM tender.draft_sources s WHERE s.draft_id = d.id
-             ) as has_verified,
-             (
-               SELECT json_build_object('human_verified', v.human_verified, 'human_decision', v.human_decision)
-               FROM tender.tsc_eligibility_verdicts v
-               WHERE v.draft_id = d.id
-               ORDER BY evaluated_at DESC LIMIT 1
-             ) as verdict,
-             (
-               SELECT decision FROM tender.bidding_authorizations b WHERE b.draft_id = d.id
-             ) as bidding_decision,
-             EXISTS(SELECT 1 FROM tender.prebid_queries WHERE draft_id = d.id) as has_queries,
-             EXISTS(SELECT 1 FROM tender.prebid_queries WHERE draft_id = d.id AND status IN ('answered', 'accepted', 'rejected')) as has_answered_queries,
-             EXISTS(SELECT 1 FROM tender.bid_items WHERE draft_id = d.id) as has_items,
-             EXISTS(SELECT 1 FROM tender.vendor_quotations WHERE draft_id = d.id) as has_quotes,
-             EXISTS(SELECT 1 FROM tender.vendor_quotations WHERE draft_id = d.id AND is_l1 = true) as has_l1,
-             (SELECT status FROM tender.bid_costings WHERE draft_id = d.id) as costing_status
+             ${tenderFlowColumns}
       FROM tender.document_drafts d
       WHERE d.id = $1 AND (d.owner_id = $2 OR d.created_by_id = $2 OR $3::boolean) AND d.is_active
     `, [id(draft), actor.id, isSuperuser])).rows;
@@ -200,7 +111,22 @@ export async function artifact(token: string, draft: string, document: string, k
 
 export async function update(token: string, draft: string, value: unknown) {
   await admit(token, 'draft', 'create', true);
-  const r = object(value, ['name']), name = str(r.name, 2048).trim();
+  const r = object(value, ['name', 'basic_details']), name = str(r.name, 2048).trim();
+  const details = r.basic_details === undefined ? null : object(r.basic_details, ['reference', 'authority', 'portal_url', 'due_date']);
+  const basic = details && {
+    reference: str(details.reference ?? '', 255).trim(),
+    authority: str(details.authority ?? '', 255).trim(),
+    portal_url: str(details.portal_url ?? '', 2048).trim(),
+    due_date: str(details.due_date ?? '', 10).trim(),
+  };
+  if (basic?.due_date && (!/^\d{4}-\d{2}-\d{2}$/.test(basic.due_date) ||
+    new Date(basic.due_date).toJSON()?.slice(0, 10) !== basic.due_date))
+    throw new AppError(422, 'Enter a valid bid submission date');
+  if (basic?.portal_url) {
+    const url = URL.parse(basic.portal_url);
+    if (!url || !['https:', 'http:'].includes(url.protocol) || url.username || url.password)
+      throw new AppError(422, 'Enter a valid tender portal URL');
+  }
   if ([...name].length < 2 || [...name].length > 255 || /\p{Cc}/u.test(name))
     throw new AppError(422, 'Tender name must contain 2–255 characters without control characters');
   return transaction(async (db) => {
@@ -213,8 +139,8 @@ export async function update(token: string, draft: string, value: unknown) {
       throw new AppError(403, 'Only superadmin or tender creator can edit this tender');
     }
     const updated = (await db.query(
-      'UPDATE tender.document_drafts SET name=$2, version=version+1, updated_at=clock_timestamp(), updated_by_id=$3 WHERE id=$1 RETURNING *',
-      [row.id, name, actor.id]
+      'UPDATE tender.document_drafts SET name=$2, basic_details=COALESCE($4::jsonb,basic_details), version=version+1, updated_at=clock_timestamp(), updated_by_id=$3 WHERE id=$1 RETURNING *',
+      [row.id, name, actor.id, basic]
     )).rows[0];
     await db.query("INSERT INTO tender.draft_events(id,draft_id,action,created_by_id) VALUES($1,$2,'renamed',$3)", [randomUUID(), row.id, actor.id]);
     return view(updated);

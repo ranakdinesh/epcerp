@@ -31,8 +31,8 @@ export class ItemRepository {
     async get(id: string) { const r = (await query<StoredItem>(this.db, "ItemsGetItem", { id })).rows[0]; if (!r)
         throw new AppError(404, "Item or reference not found"); return r!; }
     async find(fingerprint: string) { return (await query<StoredItem>(this.db, "ItemsFindItem", { fingerprint })).rows[0] ?? null; }
-    async candidates(family: string, uom: string, manufacturer_id: string, specifications: Record<string, string>) { return (await query<StoredItem>(this.db, "ItemsIdentityCandidates", { family, uom, manufacturer_id, specifications })).rows; }
-    async next(category_code: string) { const row = (await query<Record<string, number>>(this.db, "ItemsNextSerial", { category_code })).rows[0]; return Object.values(row)[0]; }
+    async candidates(family: string, uom: string, specifications: Record<string, string>) { return (await query<StoredItem>(this.db, "ItemsIdentityCandidates", { family, uom, specifications })).rows; }
+    async legacySkuCandidates(category_code: string) { return (await query<StoredItem>(this.db, "ItemsLegacySkuCandidates", { category_code })).rows; }
     async configuration(id: string) { const t = await new TemplateRepository(this.db).get(id, true); if (!t)
         fieldError("configuration_id", "Configuration does not exist"); const c = (await query<ItemContext>(this.db, "CategoriesGetItemContext", { id: t!.subcategory_id })).rows[0]; if (!c)
         fieldError("configuration_id", "Configuration parent is missing"); return configurationView(t!, c!); }
@@ -60,7 +60,7 @@ export class ItemRepository {
         const manufacturers = (await new ManufacturerRepository(this.db).list()).map(m => ({ id: m.id, code: m.code, name: m.name, is_active: m.is_active, data: { eligible: m.data.eligible ?? null } }));
         return { catalogue, manufacturers };
     }
-    async create(v: Omit<StoredItem, "version" | "created_at" | "updated_at" | "created_by_id" | "updated_by_id">, actor: string) { return (await query<StoredItem>(this.db, "ItemsCreateItem", { ...v, actor_id: actor })).rows[0]; }
+    async create(v: Omit<StoredItem, "serial" | "version" | "created_at" | "updated_at" | "created_by_id" | "updated_by_id">, actor: string) { return (await query<StoredItem>(this.db, "ItemsCreateItem", { ...v, actor_id: actor })).rows[0] ?? null; }
     async change(old: StoredItem, status: string, actor: string) { const [row] = (await query<StoredItem>(this.db, "ItemsChangeItem", { id: old.id, expected_version: old.version, status, is_active: status === "approved", actor_id: actor })).rows; if (!row)
         throw new AppError(409, "Record changed; reload before saving"); return row!; }
     async event(saved: Item, action: string, reason: string, actor: string, before: Item | null = null) { const id = randomUUID(); await query(this.db, "ItemsRecordItemEvent", { id, subject_id: saved.id, action, reason, before_snapshot: before ? itemView(before) : "null", after_snapshot: itemView(saved), actor_id: actor }); await recordMasterEvent(this.db, "catalogue_items", "item", saved.id, saved.version, action, actor, id, saved.updated_at); }

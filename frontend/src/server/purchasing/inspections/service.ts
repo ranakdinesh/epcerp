@@ -13,7 +13,7 @@ const bool = (v: unknown) => { if (v == null)
     return null; if (typeof v !== 'boolean')
     invalid('witness_points', 'Declare mandatory and cleared flags explicitly'); return v; };
 export function input(raw: Record<string, unknown>): Command { const r = object(raw, ['version', 'action', 'reason', 'inspection']), c: Command = { version: version(r.version ?? 0), action: string(r.action, 'action', ''), reason: string(r.reason, 'reason', ''), inspection: null }; if (r.inspection != null) {
-    const fields = ['status', 'call_notice_ref', 'call_date', 'scheduled_date', 'actual_date', 'inspection_agency', 'inspector_name', 'factory_location', 'no_witness_points_reason', 'findings'], q = object(r.inspection, [...fields, 'witness_points']), out: Record<string, unknown> = {};
+    const fields = ['status', 'request_date', 'request_reference', 'client_confirmed_date', 'client_confirmation_reference', 'call_notice_ref', 'call_date', 'scheduled_date', 'actual_date', 'inspection_agency', 'inspector_name', 'factory_location', 'no_witness_points_reason', 'findings'], q = object(r.inspection, [...fields, 'witness_points']), out: Record<string, unknown> = {};
     for (const k of fields)
         out[k] = string(q[k], k, '');
     if (q.witness_points != null && !Array.isArray(q.witness_points))

@@ -60,7 +60,7 @@ export function RecordDrawer({
         </button>
       </div>
       <div className={`space-y-4 p-4 sm:p-6 ${footer ? "min-h-0 flex-1 overflow-y-auto" : ""}`}>{children}</div>
-      {footer ? <div className="shrink-0 border-t border-slate-200 bg-white p-4 sm:px-6">{footer}</div> : null}
+      {footer ? <div className="record-drawer-footer shrink-0 border-t border-slate-200 bg-white p-4 sm:px-6">{footer}</div> : null}
     </dialog>
   );
 }

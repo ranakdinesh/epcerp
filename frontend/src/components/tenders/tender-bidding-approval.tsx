@@ -19,9 +19,9 @@ import {
   ValidatedSelect,
   ValidatedTextarea,
 } from "@/components/ui/validated-controls";
-import { TenderEligibilitySection } from "./tender-eligibility-verdict";
+import { BiddingProjectFields, BiddingProjectHandoff, type BiddingProject, type BiddingProjectContext } from "./tender-bidding-project";
 
-type Candidate = { id: string; display_name: string; email: string };
+type Candidate = { id: string; display_name: string };
 
 type BiddingAuthorization = {
   id: string;
@@ -39,6 +39,7 @@ type BiddingAuthorization = {
   authorized_by_name?: string;
   authorized_at: string;
   version: number;
+  project?: BiddingProject | null;
 };
 
 type FlowStatus = {
@@ -63,17 +64,21 @@ const inputClass =
 export function TenderBiddingApproval({
   draftId,
   canWrite,
+  intakeDueDate,
   onNavigateStep,
   onDone,
 }: {
   draftId: string;
   canWrite: boolean;
+  intakeDueDate?: string;
   onNavigateStep: (step: string) => void;
   onDone?: () => void;
 }) {
   const [flow, setFlow] = useState<FlowStatus | null>(null);
   const [bidding, setBidding] = useState<BiddingAuthorization | null>(null);
   const [managers, setManagers] = useState<Candidate[]>([]);
+  const [projectContext, setProjectContext] = useState<BiddingProjectContext | null>(null);
+  const [startingPurchase, setStartingPurchase] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -89,7 +94,7 @@ export function TenderBiddingApproval({
   const [feeExemption, setFeeExemption] = useState(false);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
-  const [tscJobId, setTscJobId] = useState<string | null>(null);
+  const projectUrl = `/api/tender-fms/drafts/${encodeURIComponent(draftId)}/bidding-approval/project`;
 
   useEffect(() => {
     let active = true;
@@ -98,7 +103,7 @@ export function TenderBiddingApproval({
     async function load() {
       try {
         setLoading(true);
-        const [flowRes, biddingRes, managersRes, tscRes] = await Promise.all([
+        const [flowRes, biddingRes, managersRes, projectRes] = await Promise.all([
           fetch(`/api/tender-fms/drafts/${encodeURIComponent(draftId)}/flow-status`, {
             cache: "no-store",
             signal: controller.signal,
@@ -111,29 +116,28 @@ export function TenderBiddingApproval({
             cache: "no-store",
             signal: controller.signal,
           }).then((r) => (r.ok ? r.json() : { items: [] })),
-          fetch(`/api/tender-fms/drafts/${encodeURIComponent(draftId)}/tsc`, {
-            cache: "no-store",
-            signal: controller.signal,
-          }).then((r) => (r.ok ? r.json() : { items: [] })),
+          fetch(projectUrl, { cache: "no-store", signal: controller.signal }).then(async response => {
+            if (!response.ok) throw Error("Could not load the tender project. Reload this step to retry.");
+            return await response.json() as BiddingProjectContext;
+          }),
         ]);
 
         if (!active) return;
         setFlow(flowRes);
         setBidding(biddingRes);
         setManagers(managersRes?.items ?? []);
-        if (tscRes?.items?.length) {
-          setTscJobId(tscRes.items[0].id);
-        }
-
+        setProjectContext(projectRes);
+        setEstimatedValue(projectRes.setup?.defaults.estimated_value ?? "");
+        setDueDate(intakeDueDate || projectRes.setup?.defaults.due_date || "");
         if (biddingRes) {
           setDecision(biddingRes.decision);
           setManagerId(biddingRes.manager_id || "");
-          setEstimatedValue(biddingRes.estimated_value ? String(biddingRes.estimated_value) : "");
+          setEstimatedValue(String(biddingRes.estimated_value ?? projectRes.setup?.defaults.estimated_value ?? ""));
           setEmdAmount(biddingRes.emd_amount ? String(biddingRes.emd_amount) : "");
           setEmdExemption(Boolean(biddingRes.emd_exemption_claimed));
           setTenderFee(biddingRes.tender_fee ? String(biddingRes.tender_fee) : "");
           setFeeExemption(Boolean(biddingRes.tender_fee_exemption_claimed));
-          setDueDate(biddingRes.due_date || "");
+          setDueDate(biddingRes.due_date || intakeDueDate || projectRes.setup?.defaults.due_date || "");
           setNotes(biddingRes.approval_notes || "");
         }
       } catch (e) {
@@ -150,9 +154,24 @@ export function TenderBiddingApproval({
       active = false;
       controller.abort();
     };
-  }, [draftId]);
+  }, [draftId, projectUrl, intakeDueDate]);
 
-  async function handleSave(e: React.FormEvent) {
+  async function startPurchase() {
+    setStartingPurchase(true);
+    setError("");
+    try {
+      const response = await fetch(projectUrl, { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw Error(body.detail || "Could not start Purchase FMS");
+      setProjectContext({ project: body, setup: null });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start Purchase FMS");
+    } finally {
+      setStartingPurchase(false);
+    }
+  }
+
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canWrite || saving) return;
 
@@ -161,6 +180,9 @@ export function TenderBiddingApproval({
     setNotice("");
 
     try {
+      const needsProject = decision === "authorized" && !projectContext?.project;
+      if (needsProject && !projectContext?.setup) throw Error("Project creation permission is required to authorize this tender.");
+      const fields = new FormData(e.currentTarget);
       const payload = {
         decision,
         manager_id: managerId || null,
@@ -171,6 +193,16 @@ export function TenderBiddingApproval({
         tender_fee_exemption_claimed: feeExemption,
         due_date: dueDate || null,
         approval_notes: notes.trim(),
+        ...(needsProject ? { project: {
+          name: fields.get("project_name"),
+          client_id: fields.get("project_client_id"),
+          project_manager_id: fields.get("project_manager_id"),
+          site_name: fields.get("project_site_name"),
+          site_city: fields.get("project_site_city"),
+          site_state: fields.get("project_site_state"),
+          project_type: fields.get("project_type"),
+          scope_summary: fields.get("project_scope_summary"),
+        } } : {}),
       };
 
       const res = await fetch(`/api/tender-fms/drafts/${encodeURIComponent(draftId)}/bidding-approval`, {
@@ -186,9 +218,10 @@ export function TenderBiddingApproval({
 
       const saved: BiddingAuthorization = await res.json();
       setBidding(saved);
+      if (saved.project) setProjectContext({ project: saved.project, setup: null });
       setNotice(
         saved.decision === "authorized"
-          ? "Formal Bidding Authorization granted. Tender handed off to Bid Preparation & Costing."
+          ? "Bidding authorized. The linked project is ready."
           : saved.decision === "conditional"
           ? "Conditional Bidding recorded. Pre-bid queries & clarifications required before final submission."
           : "Tender marked as Do Not Bid (No-Go)."
@@ -213,12 +246,12 @@ export function TenderBiddingApproval({
   if (loading) {
     return (
       <div className="flex min-h-64 items-center justify-center p-8 text-slate-500">
-        <span className="text-sm font-medium">Loading Step 3: Bidding Approval…</span>
+        <span className="text-sm font-medium">Loading bidding approval…</span>
       </div>
     );
   }
 
-  const isAuthorized = bidding && (bidding.decision === "authorized" || bidding.decision === "conditional");
+  const isAuthorized = flow?.bidding_authorized;
 
   return (
     <div className="space-y-6">
@@ -228,7 +261,7 @@ export function TenderBiddingApproval({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-                Tender Selection · Step 3 of 3
+                Tender Selection · Step 4
               </span>
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -253,10 +286,10 @@ export function TenderBiddingApproval({
               type="button"
               className={secondaryBtn}
               onClick={() => onNavigateStep("TS-TSC")}
-              title="Return to Step 2"
+              title="Return to Step 3"
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Review Step 2: TSC
+              Review Step 3: TSC
             </button>
           </div>
         </div>
@@ -271,15 +304,15 @@ export function TenderBiddingApproval({
                 ✓
               </span>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Step 1: Document Intake
+                Step 2 · Verified documents
               </h3>
             </div>
             <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-              Verified
+              {flow?.has_documents ? "Verified" : "Pending"}
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            Source documents and tender specifications verified and indexed in cloud document storage.
+            {flow?.has_documents ? "Source documents verified." : "Verification pending."}
           </p>
         </div>
 
@@ -290,15 +323,15 @@ export function TenderBiddingApproval({
                 ✓
               </span>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Step 2: TSC & Eligibility Verdict
+                Step 3 · TSC & eligibility
               </h3>
             </div>
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              {flow?.tsc_decision ? flow.tsc_decision.toUpperCase() : "VERIFIED"}
+              {flow?.tsc_decision ? flow.tsc_decision.toUpperCase() : "PENDING"}
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            Technical Scrutiny Checklist evaluated against Company Profile with human sign-off recorded.
+            {flow?.tsc_completed ? "Human sign-off recorded." : "Close pre-bid review and finalize the TSC before approving this tender."}
           </p>
         </div>
       </div>
@@ -315,6 +348,12 @@ export function TenderBiddingApproval({
           <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-red-600" />
           <span>{error}</span>
         </div>
+      )}
+
+      {projectContext?.project && (
+        <BiddingProjectHandoff project={projectContext.project} authorized={Boolean(isAuthorized && bidding?.decision === "authorized")} canWrite={canWrite}
+          focusOnSave={Boolean(notice) && bidding?.decision === "authorized"} saving={startingPurchase}
+          onStart={() => void startPurchase()} onContinue={() => onNavigateStep("CV-01")} />
       )}
 
       {/* Authorized Summary Card (If already signed off) */}
@@ -395,30 +434,8 @@ export function TenderBiddingApproval({
         </div>
       )}
 
-      {/* Eligibility Verdict Section (Manager Review) */}
-      {tscJobId ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-              Technical & Financial Qualification
-            </span>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Automated Eligibility Evaluation (TS-02)
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Rule-based evaluation against company profile credentials and financial qualifications.
-            </p>
-          </div>
-          <TenderEligibilitySection
-            base={`drafts/${draftId}/tsc`}
-            jobId={tscJobId}
-            canWrite={canWrite}
-          />
-        </div>
-      ) : null}
-
       {/* Authorization Form */}
-      {canWrite && (
+      {canWrite && flow?.tsc_completed && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <h3 className="text-base font-bold text-slate-900 dark:text-white">
             {bidding ? "Update Bidding Decision & Directives" : "Grant Formal Bidding Authorization"}
@@ -457,7 +474,7 @@ export function TenderBiddingApproval({
                     <option value="">Select a Manager</option>
                     {managers.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.display_name} ({m.email})
+                        {m.display_name}
                       </option>
                     ))}
                   </ValidatedSelect>
@@ -559,8 +576,13 @@ export function TenderBiddingApproval({
               </ValidatedLabel>
             </div>
 
+            {decision === "authorized" && !projectContext?.project && (
+              projectContext?.setup
+                ? <BiddingProjectFields setup={projectContext.setup} tenderManager={managerId} />
+                : <p className="text-sm text-slate-600">An authorized project creator must complete this bidding decision.</p>
+            )}
             <div className="flex justify-end pt-3">
-              <button type="submit" disabled={saving} className={primaryBtn}>
+              <button type="submit" disabled={saving || (decision === "authorized" && !projectContext?.project && !projectContext?.setup)} className={primaryBtn}>
                 {saving ? "Recording..." : bidding ? "Update Bidding Decision" : "Authorize & Release for Bidding"}
                 <ArrowRightIcon className="h-4 w-4" />
               </button>
@@ -572,7 +594,7 @@ export function TenderBiddingApproval({
       {/* Downstream FMS Flow Pipeline Card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-          Downstream Tender Execution Pipeline (Post Step 3)
+          Downstream Tender Execution Pipeline (After approval)
         </h3>
         <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
           Once Bidding Authorization is complete, the tender transitions to the subsequent execution phases:
@@ -581,7 +603,7 @@ export function TenderBiddingApproval({
         <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-850">
             <span className="font-bold text-blue-700 dark:text-blue-400">Stage 2: Lead Generation</span>
-            <p className="mt-1 font-semibold text-slate-900 dark:text-white">LG-01 · Share Details & Queries</p>
+            <p className="mt-1 font-semibold text-slate-900 dark:text-white">Approved tender details</p>
             <p className="mt-1 text-[11px] text-slate-500">
               Submit pre-bid queries over portal or email and track client addenda.
             </p>
@@ -608,10 +630,10 @@ export function TenderBiddingApproval({
           <div className="mt-4 flex justify-end">
             <button
               type="button"
-              onClick={() => onNavigateStep("LG-03")}
+              onClick={() => onNavigateStep("CV-01")}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-bold text-white transition hover:bg-blue-800"
             >
-              Continue to Step 4 · Pre-Bid Queries
+              Continue to Step 5 · BOQ & Make List
               <ArrowRightIcon className="h-4 w-4" />
             </button>
           </div>

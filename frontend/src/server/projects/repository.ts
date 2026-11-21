@@ -23,5 +23,27 @@ export async function assignment(db:DB,p:Project,previous:string|null,reason:str
 const captureNames:Record<string,string>={purchase_enabled:'PurchaseEnabled',actual_end_date:'ActualEndDate',short_name:'ShortName',project_type:'ProjectType',site_name:'SiteName',site_state:'SiteState',site_city:'SiteCity',scope_summary:'ScopeSummary',operations_manager_id:'OperationsManagerID',contract_value:'ContractValue',currency:'Currency',loi_number:'LOINumber',po_number:'PONumber',schedule_start_basis:'ScheduleStartBasis',planned_start_date:'PlannedStartDate',planned_completion_date:'PlannedCompletionDate',loi_date:'LOIDate',po_date:'PODate',actual_start_date:'ActualStartDate',site_handover_date:'SiteHandoverDate',planned_duration_days:'PlannedDurationDays',safety_buffer_percent:'SafetyBufferPercent',safety_buffer_days:'SafetyBufferDays',remarks:'Remarks'};
 export function snapshot(p:Project,nameKey:string){return {ProcurementExecutiveID:'',...Object.fromEntries(Object.entries(captureNames).map(([k,v])=>[v,p[k as keyof Project]])),Calculation:p.schedule_calculation,ID:p.id,Number:p.project_number,Name:p.name,NameKey:nameKey,ClientID:p.client_id,ManagerID:p.project_manager_id,Version:p.version,Active:p.is_active,Lifecycle:p.lifecycle_status,CreatedAt:p.created_at,UpdatedAt:p.updated_at,CreatedBy:p.created_by_id??'',UpdatedBy:p.updated_by_id??''};}
 export function fromSnapshot(r:Record<string,unknown>){return view({...Object.fromEntries(Object.entries(captureNames).map(([k,v])=>[k,r[v]])),schedule_calculation:r.Calculation,id:r.ID,project_number:r.Number,name:r.Name,client_id:r.ClientID,project_manager_id:r.ManagerID,version:r.Version,is_active:r.Active,lifecycle_status:r.Lifecycle,created_at:r.CreatedAt,updated_at:r.UpdatedAt,created_by_id:r.CreatedBy||null,updated_by_id:r.UpdatedBy||null});}
+export async function recordMetadataChange(db: DB, before: Project, after: Project, nameKey: (name: string) => string, reason: string, actor: string) {
+    const event = randomUUID();
+    await db.query(
+        'INSERT INTO project_metadata_changes(id,project_id,project_version,reason,before_snapshot,after_snapshot,created_by_id) VALUES($1,$2,$3,$4,$5,$6,$7)',
+        [event, after.id, after.version, reason, snapshot(before, nameKey(before.name)), snapshot(after, nameKey(after.name)), actor]
+    );
+    await journal(db, event, after, 'metadata_updated', actor);
+}
 const textFields=['short_name','project_type','site_name','site_state','site_city','scope_summary','currency','loi_number','po_number','schedule_start_basis','remarks'] as const;
 export function captureColumns(c:Capture){return [...textFields.map(k=>({key:k,value:c[k],cast:'text'})),{key:'operations_manager_id',value:c.operations_manager_id||null,cast:'uuid'},...dates.map(k=>({key:k,value:c[k as keyof Capture]||null,cast:'date'})),...numbers.map(k=>({key:k,value:c[k as keyof Capture]||null,cast:k.includes('percent')||k==='contract_value'?'numeric':'integer'})),{key:'schedule_calculation',value:c.schedule_calculation,cast:'jsonb'},{key:'purchase_enabled',value:c.purchase_enabled,cast:'boolean'}];}
+
+export async function insert(db: DB, input: { name: string; nameKey: string; client: string; manager: string; actor: string; capture: Capture; reason: string }) {
+    const id = randomUUID(), columns = captureColumns(input.capture);
+    const values = [id, input.name, input.nameKey, input.client, input.manager, input.actor, ...columns.map(column => column.value)];
+    await db.query(
+        `WITH number AS (SELECT nextval('project_number_sequence') AS value)
+         INSERT INTO projects(id,project_number,name,normalized_name,client_id,project_manager_id,created_by_id,updated_by_id,${columns.map(column => column.key).join(',')})
+         SELECT $1,'PRJ-'||CASE WHEN value<1000000 THEN lpad(value::text,6,'0') ELSE value::text END,$2,$3,$4,$5,$6,$6,${columns.map((column,i) => '$'+(i+7)+'::'+column.cast).join(',')} FROM number`,
+        values
+    );
+    const project = await get(db, id);
+    await assignment(db, project, null, input.reason, input.actor);
+    return project;
+}

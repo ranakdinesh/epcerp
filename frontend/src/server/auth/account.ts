@@ -1,6 +1,6 @@
 import { actor, lock, rows, transaction, type DB } from "../db";
 import { AuthError, forbidden, invalid, strongPassword, username, type User } from "./domain";
-import { accountEvent, authorize, loadUser, resolve, revokeUser, setPassword } from "./repository";
+import { accountEvent, authorize, loadUser, lockRecoveryAccount, lockRecoveryRecipient, resolve, revokeUser, setPassword } from "./repository";
 import { hashPassword, opaqueToken, sha256, verifyPassword } from "./security";
 import { publicURL, requireMail, sendEmail } from "./mail";
 
@@ -78,10 +78,8 @@ export async function requestRecovery(address: string) {
   requireMail();
   const raw = opaqueToken();
   const recipient = await transaction(async db => {
-    const matches = await rows<{ id: string }>(db, "SELECT id FROM auth.users WHERE lower(email)=lower($1) LIMIT 2", [address]);
-    if (matches.length !== 1) return null;
-    const u = await loadUser(db, matches[0].id, true);
-    if (!u?.is_active || u.email.toLowerCase() !== address.toLowerCase()) return null;
+    const u = await lockRecoveryRecipient(db, address);
+    if (!u) return null;
     const [recent] = await rows<{ found: boolean }>(db, "SELECT EXISTS(SELECT 1 FROM auth.auth_password_recovery WHERE user_id=$1 AND created_at>clock_timestamp()-interval '1 minute') AS found", [u.id]);
     if (recent.found) return null;
     await db.query("UPDATE auth.auth_password_recovery SET consumed_at=clock_timestamp() WHERE user_id=$1 AND consumed_at IS NULL", [u.id]);
@@ -95,14 +93,9 @@ export function completeRecovery(raw: string, password: string) {
   if (raw.length !== 64) bad();
   if (!strongPassword(password)) invalid("Use 8 to 128 characters including uppercase, lowercase, number and symbol.");
   return transaction(async db => {
-    const [initial] = await rows<{ user_id: string }>(db, "SELECT user_id FROM auth.auth_password_recovery WHERE token_hash=$1", [sha256(raw)]);
-    if (!initial) bad();
-    const u = await loadUser(db, initial.user_id, true);
-    if (!u?.is_active) return bad();
-    const [valid] = await rows(db, `SELECT t.token_hash FROM auth.auth_password_recovery t JOIN auth.users u ON u.id=t.user_id
-      WHERE t.token_hash=$1 AND t.consumed_at IS NULL AND t.expires_at>clock_timestamp() AND u.is_active AND u.updated_at<=t.created_at FOR UPDATE OF t`, [sha256(raw)]);
-    if (!valid) bad();
-    if (await verifyPassword(password, u.password_hash)) invalid("Choose a different password.");
+    const u = await lockRecoveryAccount(db, sha256(raw));
+    if (!u) return bad();
+    if (await verifyPassword(password, u.passwordHash)) invalid("Choose a different password.");
     await setPassword(db, u.id, await hashPassword(password), u.id);
     await db.query("UPDATE auth.auth_password_recovery SET consumed_at=clock_timestamp() WHERE user_id=$1 AND consumed_at IS NULL", [u.id]);
     await accountEvent(db, u.id, u.id, "password_reset");

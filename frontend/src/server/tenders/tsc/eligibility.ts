@@ -1,5 +1,6 @@
 import 'server-only';
-import { pool, transaction } from '../../db';
+import { pool, transaction, type DB } from '../../db';
+import { requireClosedPrebidReview } from '../flow';
 import { AppError } from '../../errors';
 import { decrypt } from './crypto';
 import { getCompanyProfile } from '../../company/service';
@@ -338,28 +339,28 @@ export async function getEligibilityVerdict(draftId: string, jobId: string): Pro
 }
 
 export async function verifyEligibilityDecision(
+  db: DB,
   draftId: string,
   jobId: string,
   decision: 'accepted' | 'rejected' | 'overridden',
   remarks: string,
   actorId: string
 ): Promise<EligibilityVerdict> {
-  return transaction(async (db) => {
-    const updated = await db.query<EligibilityVerdict>(
-      `UPDATE tender.tsc_eligibility_verdicts SET
-        human_verified = true,
-        human_decision = $1,
-        human_remarks = $2,
-        verified_by_id = $3,
-        verified_at = clock_timestamp(),
-        version = version + 1
-      WHERE draft_id = $4 AND job_id = $5
-      RETURNING id, draft_id, job_id, verdict, overall_summary, criteria_matrix, gaps_and_risks,
-                model_used, evaluated_at, human_verified, human_decision, human_remarks,
-                verified_by_id, verified_at, version`,
-      [decision, remarks || '', actorId, draftId, jobId]
-    );
-    if (!updated.rows[0]) throw new AppError(404, 'Eligibility verdict not found to verify');
-    return updated.rows[0];
-  });
+  await requireClosedPrebidReview(db, draftId);
+  const updated = await db.query<EligibilityVerdict>(
+    `UPDATE tender.tsc_eligibility_verdicts SET
+      human_verified = true,
+      human_decision = $1,
+      human_remarks = $2,
+      verified_by_id = $3,
+      verified_at = clock_timestamp(),
+      version = version + 1
+    WHERE draft_id = $4 AND job_id = $5
+    RETURNING id, draft_id, job_id, verdict, overall_summary, criteria_matrix, gaps_and_risks,
+              model_used, evaluated_at, human_verified, human_decision, human_remarks,
+              verified_by_id, verified_at, version`,
+    [decision, remarks || '', actorId, draftId, jobId]
+  );
+  if (!updated.rows[0]) throw new AppError(404, 'Eligibility verdict not found to verify');
+  return updated.rows[0];
 }

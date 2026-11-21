@@ -2,10 +2,11 @@ import { backendRequest } from "@/lib/auth/backend-request";
 import "server-only";
 import { NextResponse } from "next/server";
 import { backendApiUrl } from "./backend-config";
+import { hasSameOrigin } from "./request-origin";
 
 export async function recoveryRequest(request: Request, action: "forgot-password" | "reset-password") {
   const headers = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
-  if (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin) {
+  if (!hasSameOrigin(request)) {
     return NextResponse.json({ message: "Invalid request origin." }, { status: 403, headers });
   }
   let payload: Record<string, unknown>;

@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { rows, transaction, type DB } from "../db";
 import { AuthError, forbidden, invalid, publicUser, reason, strongPassword, username, uuid, type User } from "./domain";
-import { accountEvent, assignRoles, authorize, loadRoles, loadUser, revokeUser, setPassword } from "./repository";
+import { accountEvent, assignRoles, authorize, countRoleAssignments, loadRoles, loadUser, revokeUser, setPassword } from "./repository";
 import { config, hashPassword, loginAttemptKey } from "./security";
 import { cancelStaleMail, mailReady, publicURL, queueCredentialMail } from "./mail";
 import { stageEmail, sendVerification } from "./account";
@@ -159,7 +159,15 @@ export function online(token: string) {
     return { items, online_count: items.length };
   });
 }
-export function roles(token: string) { return transaction(async db => { await authorize(db, token, "admin.roles.read"); return loadRoles(db); }); }
+export function roles(token: string) {
+  return transaction(async db => {
+    await authorize(db, token, "admin.roles.read");
+    const roles = await loadRoles(db);
+    const counts = await countRoleAssignments(db);
+    const byRole = new Map(counts.map(({ role_id, user_count }) => [role_id, user_count]));
+    return roles.map(role => ({ ...role, user_count: byRole.get(role.id) ?? 0 }));
+  });
+}
 export function permissions(token: string) {
   return transaction(async db => {
     await authorize(db, token, "admin.roles.read");
@@ -167,11 +175,14 @@ export function permissions(token: string) {
     return registry.filter(p => p.code !== "system:admin" && codes.has(p.code));
   });
 }
+const assignableCodes = registry.map(p => p.code).filter(code => code !== "system:admin");
+const assignableCodeSet = new Set(assignableCodes);
+
 async function validCodes(db: DB, codes: string[]) {
   const registered = new Set((await rows<{ code: string }>(db, "SELECT code FROM auth.permissions")).map(r => r.code));
   for (const code of codes) {
     if (code === "system:admin") invalid("Full platform access is reserved for superadmin accounts; it cannot be granted by a role.");
-    if (!registered.has(code) || !registry.some(p => p.code === code)) invalid("Unknown permission");
+    if (!registered.has(code) || !assignableCodeSet.has(code)) invalid("Unknown permission");
   }
 }
 export type RoleInput = { name: string; description: string; permission_codes: string[] };
@@ -187,11 +198,15 @@ async function saveRole(db: DB, by: User, input: RoleInput | RoleUpdate, id?: st
     await db.query("UPDATE auth.roles SET description=COALESCE($2,description),is_active=COALESCE($3,is_active),updated_at=now(),updated_by_id=$4 WHERE id=$1", [id, input.description, change.is_active, by.id]);
   } else {
     id = randomUUID();
-    await db.query("INSERT INTO auth.roles(id,name,description,is_active,created_by_id,updated_by_id) VALUES($1,$2,$3,true,$4,$4)", [id, (input as RoleInput).name, input.description, by.id]);
+    const inserted = await db.query("INSERT INTO auth.roles(id,name,description,is_active,created_by_id,updated_by_id) VALUES($1,$2,$3,true,$4,$4) ON CONFLICT(name) DO NOTHING", [id, (input as RoleInput).name, input.description, by.id]);
+    if (!inserted.rowCount) throw new AuthError(409, "A role with this name already exists.");
   }
   if (input.permission_codes !== undefined) {
-    await db.query("DELETE FROM auth.role_permissions WHERE role_id=$1", [id]);
-    for (const code of input.permission_codes) await db.query("INSERT INTO auth.role_permissions(role_id,permission_id) SELECT $1,id FROM auth.permissions WHERE code=$2 ON CONFLICT DO NOTHING", [id, code]);
+    await db.query(`DELETE FROM auth.role_permissions rp USING auth.permissions p
+      WHERE rp.role_id=$1 AND rp.permission_id=p.id AND p.code=ANY($2::text[]) AND NOT (p.code=ANY($3::text[]))`,
+      [id, assignableCodes, input.permission_codes]);
+    await db.query(`INSERT INTO auth.role_permissions(role_id,permission_id)
+      SELECT $1,id FROM auth.permissions WHERE code=ANY($2::text[]) ORDER BY code ON CONFLICT DO NOTHING`, [id, input.permission_codes]);
   }
   return (await loadRoles(db)).find(r => r.id === id)!;
 }

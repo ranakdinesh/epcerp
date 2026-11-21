@@ -33,6 +33,8 @@ export type Source = {
 };
 export type Response = {
     status: string;
+    dispatched_date?: string;
+    dispatch_reference?: string;
     accepted_date: string;
     signatory_name: string;
     document_reference: string;

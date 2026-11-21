@@ -6,7 +6,7 @@ import { limitPublic } from '../../auth/rate-limit';
 import { AppError } from '../../errors';
 export const capturePermissions = ['tenders.register.view','tenders.register.read','tenders.register.write','tenders.processing.write','tenders.register.assign'];
 export const ownerPermissions = ['tenders.register.view','tenders.register.read','tenders.register.write','tenders.processing.read','tenders.processing.write'];
-export const managerPermissions = [...ownerPermissions,'tenders.register.assign','tenders.evaluation.read','tenders.evaluation.write','communication.inbox.read','communication.inbox.write'];
+export const managerPermissions = [...ownerPermissions,'tenders.register.assign','tenders.tsc.read','tenders.tsc.write','communication.inbox.read','communication.inbox.write'];
 export const forbidden = (): never => { throw new AppError(403, 'Permission denied'); };
 export function approvedBundles() {
     const raw = process.env.EPCERP_TENDER_MANAGER_BUNDLE_IDS?.trim();

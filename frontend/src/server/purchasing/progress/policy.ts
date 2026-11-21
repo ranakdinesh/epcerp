@@ -182,7 +182,7 @@ export function registerCompletion(records: RegisterState[]) { const out = { pen
         units += weights[n - 1];
         out.completed.push(n);
     } const client = records.every(r => r.later_completed.includes(21)); if (client)
-    out.completed.push(21); out.percent = percent(units); out.completed.unshift(1); out.next = allApprovals ? 'PUR-05' : allQuotes ? 'PUR-04' : allIndents ? 'PUR-03' : 'PUR-02'; if (allApprovals) {
+    out.completed.push(21); out.percent = percent(units); out.completed.unshift(1); out.next = allQuotes ? (allApprovals ? 'PUR-05' : 'PUR-04') : allIndents ? 'PUR-03' : 'PUR-02'; if (allQuotes && allApprovals) {
     for (let n = 5; n <= 20; n++) {
         if (!out.completed.includes(n)) {
             out.next = 'PUR-' + String(n).padStart(2, '0');

@@ -31,8 +31,6 @@ export function terms(vendor: Vendor): Terms {
             invalid('vendor_id', 'Vendor indent terms are invalid; correct them in Vendors / Suppliers');
         values[key] = trim(raw);
     }
-    if (!values.indent_terms || !values.delivery_terms)
-        invalid('vendor_id', "Configure this vendor's purchase indent conditions and delivery basis in Vendors / Suppliers before generating an indent");
     const lines = (raw: string = '') => raw.replaceAll('\r\n', '\n').split('\n').map(trim).filter(Boolean);
-    return { source: 'vendor_master', notes: lines(values.indent_notes), conditions: lines(values.indent_terms), delivery_basis: values.delivery_terms };
+    return { source: 'vendor_master', notes: lines(values.indent_notes), conditions: lines(values.indent_terms), delivery_basis: values.delivery_terms ?? '' };
 }

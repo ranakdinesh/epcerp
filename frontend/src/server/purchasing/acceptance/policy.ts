@@ -22,7 +22,16 @@ export function validate(raw: Command) { const q = structuredClone(raw); if (q.v
     invalid('status', 'Choose pending, accepted or accepted with exceptions'); r.signatory_name = text('signatory_name', r.signatory_name, 200, false); r.document_reference = text('document_reference', r.document_reference, 300, false); r.remarks = text('remarks', r.remarks, 4000, r.status === 'accepted_with_exceptions'); r.accepted_date = text('accepted_date', r.accepted_date, 10, false); if (r.status === 'pending' && r.accepted_date)
     invalid('accepted_date', 'A pending response has no vendor acceptance date'); if (r.status !== 'pending' && !isoDate(r.accepted_date))
     invalid('accepted_date', 'Provide the actual vendor acceptance date'); return q; }
-export function apply(base: Record | null, a: Actor, caps: Capabilities, raw: Command, source: Source, at: string, newID: string): Record { const q = validate(raw); accessGuard(a, caps, true); guard(source); if (q.response.status !== 'pending' && (q.response.accepted_date < source.order!.date || q.response.accepted_date > indiaDate(new Date(at))))
+export function apply(base: Record | null, a: Actor, caps: Capabilities, raw: Command, source: Source, at: string, newID: string): Record { const q = validate(raw); accessGuard(a, caps, true); guard(source);
+    const sent = q.response.dispatched_date, today = indiaDate(new Date(at));
+    if (!sent || !isoDate(sent) || sent < indiaDate(new Date(source.order!.released_at)) || sent < source.order!.date || sent > today)
+        invalid('dispatched_date', 'Enter the actual PO dispatch date between release and today');
+    q.response.dispatch_reference = text('dispatch_reference', q.response.dispatch_reference ?? '', 300);
+    if (q.response.accepted_date && q.response.accepted_date < sent)
+        invalid('accepted_date', 'Vendor confirmation cannot precede PO dispatch');
+    if (base?.response.status === 'accepted')
+        invalid('status', 'Unconditional vendor acceptance is already recorded for this PO');
+    if (q.response.status !== 'pending' && (q.response.accepted_date < source.order!.date || q.response.accepted_date > indiaDate(new Date(at))))
     invalid('accepted_date', 'Acceptance date must be between the issued PO date and today'); const out: Record = base ? structuredClone(base) : { id: newID, project_id: source.project_id, package_id: source.package_id, order_snapshot: structuredClone(source.order!), is_active: true, created_at: at, created_by_id: a.id, version: 0, response: q.response, updated_at: at, updated_by_id: a.id }; if (!base) {
     if (q.version !== 0)
         throw stale();

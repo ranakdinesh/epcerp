@@ -7,6 +7,7 @@ export type Terms = {
 };
 export type Data = {
     terms?: Terms;
+    type_indent?: { category: string; version: number; content: string; client: string; site: string };
     generated_by_name: string;
     project_name: string;
     group_name: string;

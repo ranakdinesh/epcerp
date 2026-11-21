@@ -1,6 +1,9 @@
 import 'server-only';
 import { pool, transaction } from '../../db';
 import { AppError } from '../../errors';
+import { requireClosedPrebidReview, tenderFlow, tenderFlowColumns } from '../flow';
+import { authorizeTender } from '../documents';
+import { biddingProjectId, ensureBiddingProject } from './bidding-project';
 
 export type BiddingAuthorization = {
   id: string;
@@ -21,158 +24,13 @@ export type BiddingAuthorization = {
   version: number;
 };
 
-export type TenderFlowStatus = {
-  draft_id: string;
-  completed_steps: number[];
-  next_step: string;
-  status_label: string;
-  has_documents: boolean;
-  has_verified_batches: boolean;
-  tsc_completed: boolean;
-  tsc_decision?: 'pending' | 'accepted' | 'rejected' | 'overridden';
-  bidding_authorized: boolean;
-  bidding_decision?: string;
-};
-
-export async function getTenderFlowStatus(draftId: string): Promise<TenderFlowStatus> {
-  const db = pool();
-
-  // 1. Check batches in draft
-  const draftRes = await db.query<{
-    id: string;
-    has_verified: boolean;
-    has_sources: boolean;
-  }>(
-    `SELECT d.id,
-            EXISTS(
-              SELECT 1 FROM document_package_receipts r
-              WHERE r.draft_id = d.id AND r.state IN ('consumed', 'ready')
-            ) as has_verified,
-            EXISTS(
-              SELECT 1 FROM tender.draft_sources s
-              WHERE s.draft_id = d.id
-            ) as has_sources
-     FROM tender.document_drafts d
-     WHERE d.id = $1`,
+export async function getTenderFlowStatus(draftId: string) {
+  const { rows: [draft] } = await pool().query(
+    `SELECT d.*, ${tenderFlowColumns} FROM tender.document_drafts d WHERE d.id=$1`,
     [draftId]
   );
-
-  const draft = draftRes.rows[0];
   if (!draft) throw new AppError(404, 'Tender draft not found');
-
-  const hasVerified = draft.has_verified || draft.has_sources;
-
-  // 2. Check TSC Eligibility Verdict
-  const verdictRes = await db.query<{
-    human_verified: boolean;
-    human_decision: 'pending' | 'accepted' | 'rejected' | 'overridden';
-  }>(
-    `SELECT human_verified, human_decision
-     FROM tender.tsc_eligibility_verdicts
-     WHERE draft_id = $1
-     ORDER BY evaluated_at DESC
-     LIMIT 1`,
-    [draftId]
-  );
-  const verdict = verdictRes.rows[0];
-  const tscCompleted = Boolean(verdict && verdict.human_verified);
-
-  // 3. Check Bidding Authorization
-  const authRes = await db.query<{
-    decision: 'authorized' | 'rejected' | 'conditional';
-  }>(
-    `SELECT decision
-     FROM tender.bidding_authorizations
-     WHERE draft_id = $1`,
-    [draftId]
-  );
-  const bidding = authRes.rows[0];
-  const biddingAuthorized = Boolean(
-    bidding && (bidding.decision === 'authorized' || bidding.decision === 'conditional')
-  );
-
-  // 4. Check downstream stages: prebid_queries, bid_items, quotations, costing
-  const downstreamRes = await db.query<{
-    has_queries: boolean;
-    has_answered_queries: boolean;
-    has_items: boolean;
-    has_quotes: boolean;
-    has_l1: boolean;
-    costing_status: string | null;
-  }>(
-    `SELECT
-       EXISTS(SELECT 1 FROM tender.prebid_queries WHERE draft_id = $1) as has_queries,
-       EXISTS(SELECT 1 FROM tender.prebid_queries WHERE draft_id = $1 AND status IN ('answered', 'accepted', 'rejected')) as has_answered_queries,
-       EXISTS(SELECT 1 FROM tender.bid_items WHERE draft_id = $1) as has_items,
-       EXISTS(SELECT 1 FROM tender.vendor_quotations WHERE draft_id = $1) as has_quotes,
-       EXISTS(SELECT 1 FROM tender.vendor_quotations WHERE draft_id = $1 AND is_l1 = true) as has_l1,
-       (SELECT status FROM tender.bid_costings WHERE draft_id = $1) as costing_status`,
-    [draftId]
-  );
-  const down = downstreamRes.rows[0];
-
-  // Compute completed steps
-  const completedSteps: number[] = [];
-  if (hasVerified) completedSteps.push(1);
-  if (tscCompleted) completedSteps.push(2);
-  if (biddingAuthorized) completedSteps.push(3);
-
-  if (down?.has_queries) completedSteps.push(6); // LG-03
-  if (down?.has_answered_queries) completedSteps.push(7); // LG-04
-  if (down?.has_items) {
-    completedSteps.push(8); // CV-01
-    completedSteps.push(9); // CV-02
-  }
-  if (down?.has_quotes) {
-    completedSteps.push(10); // CV-03
-    completedSteps.push(11); // CV-04
-  }
-  if (down?.has_l1) completedSteps.push(12); // CV-05
-  if (down?.costing_status && ['approved', 'submitted', 'awarded'].includes(down.costing_status)) {
-    completedSteps.push(14); // CV-07
-  }
-  if (down?.costing_status && ['submitted', 'awarded'].includes(down.costing_status)) {
-    completedSteps.push(15); // CV-08
-  }
-
-  let nextStep = 'TS-01';
-  let statusLabel = 'Upload & verify documents';
-
-  if (down?.costing_status === 'awarded') {
-    nextStep = 'AWARD';
-    statusLabel = 'Tender Awarded · Project & Purchase Handoff Ready';
-  } else if (down?.costing_status === 'submitted') {
-    nextStep = 'CV-08';
-    statusLabel = 'Bid Submitted · Awaiting Commercial Award';
-  } else if (down?.has_l1) {
-    nextStep = 'CV-07';
-    statusLabel = 'L-1 Rates Finalized · Prepare Working Costing & Bid Budget';
-  } else if (down?.has_items) {
-    nextStep = 'CV-03';
-    statusLabel = 'Tender BOQ & Makes Logged · Floating RFQs & Vendor Quotes';
-  } else if (biddingAuthorized) {
-    nextStep = 'LG-03';
-    statusLabel = 'Bidding Authorized · Pre-Bid Queries & Sourcing';
-  } else if (tscCompleted) {
-    nextStep = 'TS-02';
-    statusLabel = `TSC Verified (${verdict?.human_decision.toUpperCase()}) · Next: Step 3 · Approval for Bidding the Tender`;
-  } else if (hasVerified) {
-    nextStep = 'TS-TSC';
-    statusLabel = 'Documents Verified · Next: Step 2 · Prepare TSC';
-  }
-
-  return {
-    draft_id: draftId,
-    completed_steps: completedSteps,
-    next_step: nextStep,
-    status_label: statusLabel,
-    has_documents: hasVerified,
-    has_verified_batches: hasVerified,
-    tsc_completed: tscCompleted,
-    tsc_decision: verdict?.human_decision,
-    bidding_authorized: biddingAuthorized,
-    bidding_decision: bidding?.decision,
-  };
+  return { draft_id: draftId, ...tenderFlow(draft) };
 }
 
 export async function getBiddingApproval(draftId: string): Promise<BiddingAuthorization | null> {
@@ -208,16 +66,37 @@ export async function saveBiddingApproval(
     tender_fee_exemption_claimed?: boolean;
     due_date?: string | null;
     approval_notes?: string;
+    project?: Record<string, unknown>;
   },
-  actorId: string
-): Promise<BiddingAuthorization> {
+  token: string
+) {
+  if (!payload || !['authorized', 'rejected', 'conditional'].includes(payload.decision)) {
+    throw new AppError(422, 'Select a valid bidding decision');
+  }
+  if (payload.project != null && (typeof payload.project !== 'object' || Array.isArray(payload.project))) {
+    throw new AppError(422, 'Provide valid project details');
+  }
   return transaction(async (db) => {
+    const scope = await authorizeTender(db, token, draftId, 'write');
+    const reviewedAt = await requireClosedPrebidReview(db, draftId);
+    const { rows: [verdict] } = await db.query(
+      `SELECT human_decision, (human_verified AND verified_at >= $2) AS current
+       FROM tender.tsc_eligibility_verdicts WHERE draft_id=$1 ORDER BY evaluated_at DESC, id DESC LIMIT 1`,
+      [draftId, reviewedAt],
+    );
+    if (!verdict?.current) throw new AppError(409, 'Finalize the TSC before recording the bidding decision.');
+    const actorId = scope.actor.id;
+    const project = payload.decision === 'authorized'
+      ? await ensureBiddingProject(db, scope, await biddingProjectId(db, draftId), payload.manager_id || null, {
+        estimated_value: payload.estimated_value ?? null, due_date: payload.due_date || null, approval_notes: payload.approval_notes || '',
+      }, payload.project ?? {})
+      : null;
     const res = await db.query<BiddingAuthorization>(
       `INSERT INTO tender.bidding_authorizations (
         draft_id, decision, manager_id, estimated_value, emd_amount,
         emd_exemption_claimed, tender_fee, tender_fee_exemption_claimed,
-        due_date, approval_notes, authorized_by_id, authorized_at, version
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, clock_timestamp(), 1)
+        due_date, approval_notes, authorized_by_id, authorized_at, version, project_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, clock_timestamp(), 1, $12)
       ON CONFLICT (draft_id) DO UPDATE SET
         decision = EXCLUDED.decision,
         manager_id = EXCLUDED.manager_id,
@@ -230,6 +109,7 @@ export async function saveBiddingApproval(
         approval_notes = EXCLUDED.approval_notes,
         authorized_by_id = EXCLUDED.authorized_by_id,
         authorized_at = clock_timestamp(),
+        project_id = COALESCE(tender.bidding_authorizations.project_id, EXCLUDED.project_id),
         version = tender.bidding_authorizations.version + 1
       RETURNING id, draft_id, decision, manager_id, estimated_value, emd_amount,
                 emd_exemption_claimed, tender_fee, tender_fee_exemption_claimed,
@@ -249,6 +129,7 @@ export async function saveBiddingApproval(
         payload.due_date || null,
         payload.approval_notes || '',
         actorId,
+        project?.id ?? null,
       ]
     );
 
@@ -266,6 +147,7 @@ export async function saveBiddingApproval(
       ...row,
       manager_name: userNames.rows[0]?.mname,
       authorized_by_name: userNames.rows[0]?.aname,
+      project,
     };
   });
 }

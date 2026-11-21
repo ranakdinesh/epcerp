@@ -23,7 +23,7 @@ test("native catalogue preserves owned records, revisions, identities and atomic
         await pool().query("INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser) VALUES($1,$2,$3,$4,true,false)", [readerID, prefix, prefix + "@fixture.invalid", await hashPassword("Catalogue-Reader1!")]);
         await pool().query("INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)", [readerID, role.id]);
         const readerToken = (await login(prefix, "Catalogue-Reader1!")).access_token;
-        let unit: Awaited<ReturnType<typeof call>>, category: typeof unit, type: typeof unit, make: typeof unit, template: typeof unit, item: typeof unit;
+        let unit: Awaited<ReturnType<typeof call>>, category: typeof unit, type: typeof unit, make: typeof unit, otherMake: typeof unit, template: typeof unit, item: typeof unit;
         const def = () => ({ ...definition(), subcategory_code: type.code, template_name: prefix + " configuration" });
         await t.test("permission checks use existing granular grants", async () => {
             await call("GET", "/catalogue-items", undefined, 401, "");
@@ -114,14 +114,14 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             const copies = await Promise.all(Array.from({ length: 5 }, () => call("POST", "/catalogue-items", itemInput(), 201)));
             item = copies[0];
             assert.ok(copies.every(v => v.id === item.id));
-            assert.equal(item.serial, 1);
+            assert.equal(item.serial, null);
             assert.equal(item.model, "qa model strasse");
-            assert.ok(item.sku.endsWith("-001"));
+            assert.equal(item.sku, `${category.code}-${type.code}-SIZES1-QAMODELSTRASSE`);
             assert.equal(item.category_id, undefined);
             assert.equal(item.snapshot.configuration.category_code, category.code);
             assert.equal((await call("GET", `/catalogue-items/${item.id}/history`)).length, 1);
             const second = await call("POST", "/catalogue-items", itemInput("Another model", "S2"), 201);
-            assert.equal(second.serial, 2);
+            assert.equal(second.serial, null);
             assert.notEqual(second.fingerprint, item.fingerprint);
             await call("POST", "/catalogue-items", { ...itemInput(), specifications: { SIZE: "missing" } }, 422);
             const refs = await call("GET", "/catalogue-items/references");
@@ -133,6 +133,27 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             }) => v.id === make.id));
             await assert.rejects(pool().query("UPDATE catalogue_items SET model='forged' WHERE id=$1", [item.id]), /immutable/);
             await assert.rejects(pool().query("UPDATE catalogue_item_events SET reason='forged' WHERE subject_id=$1", [item.id]), /cannot be deleted or rewritten/);
+        });
+        await t.test("concurrent creates for the same vendor-free SKU save one item without a serial", async () => {
+            otherMake = await call("POST", "/manufacturers", { code: prefix + "ALT", name: prefix + " alternate make", data: { eligible: [category.code] }, reason: "QA alternate make" }, 201);
+            const input = itemInput("Shared model");
+            const responses = await Promise.all([make.id, otherMake.id].map(manufacturer_id => handleMaster(new Request("http://localhost/api/v1/catalogue-items", {
+                method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...input, manufacturer_id }),
+            }))));
+            assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
+            const first = await responses.find(r => r.status === 201)!.json();
+            assert.equal(first.sku, `${category.code}-${type.code}-SIZES1-SHAREDMODEL`);
+            assert.equal(first.serial, null);
+
+            const sameRequest = await call("POST", "/catalogue-items", { ...input, manufacturer_id: first.manufacturer_id }, 201);
+            assert.equal(sameRequest.id, first.id);
+            // Different model text can produce the same SKU after punctuation is removed.
+            await call("POST", "/catalogue-items", itemInput("Shared-model"), 409);
+
+            // Use a distinct item ID, fingerprint and serial to exercise the SKU constraint itself.
+            await assert.rejects(pool().query(`INSERT INTO catalogue_items(id,configuration_id,manufacturer_id,category_id,model,specifications,snapshot,fingerprint,engineering_key,description,sku,serial,status,is_active)
+   SELECT $1,configuration_id,manufacturer_id,category_id,model,specifications,snapshot,$2,engineering_key,description,sku,5,status,is_active FROM catalogue_items WHERE id=$3`,
+            [randomUUID(), randomUUID().replaceAll("-", "").padEnd(64, "0"), first.id]), { code: "23505", constraint: "catalogue_items_sku_key" });
         });
         await t.test("template revisions and parent corrections never rewrite issued items", async () => {
             const original = JSON.stringify(item.snapshot), oldTemplate = template.id;
@@ -242,10 +263,10 @@ test("native catalogue preserves owned records, revisions, identities and atomic
                 const r = await handleMaster(new Request("http://localhost/api/v1" + path, { method: "POST", body, duplex: "half" } as RequestInit));
                 assert.equal(r.status, 413);
             }
-            assert.equal((await pool().query("SELECT version FROM schema_migrations")).rows[0].version, "99");
         });
         await t.test("legacy model candidates are reused without rewriting their issued evidence", async () => {
-            const legacy = randomUUID(), fingerprint = randomUUID().replaceAll("-", "").padEnd(64, "0"), sku = "QA-LEGACY-" + legacy;
+            const legacy = randomUUID(), fingerprint = randomUUID().replaceAll("-", "").padEnd(64, "0");
+            const sku = `${category.code}-${type.code}-SIZES1-${make.code}-LEGACYMODEL-050`;
             await pool().query(`INSERT INTO catalogue_items(id,configuration_id,manufacturer_id,category_id,model,specifications,snapshot,fingerprint,engineering_key,description,sku,serial,status,is_active,created_by_id,updated_by_id)
    SELECT $1,configuration_id,manufacturer_id,category_id,'Legacy ＭＯＤＥＬ',specifications,snapshot,$2,engineering_key,'Unchanged legacy description',$3,50,status,is_active,created_by_id,updated_by_id FROM catalogue_items WHERE id=$4`, [legacy, fingerprint, sku, item.id]);
             const before = (await pool().query("SELECT to_jsonb(c)::text AS snapshot FROM catalogue_items c WHERE id=$1", [legacy])).rows[0].snapshot;
@@ -253,13 +274,16 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             assert.equal(reused.id, legacy);
             assert.equal(reused.model, "Legacy ＭＯＤＥＬ");
             assert.equal(reused.description, "Unchanged legacy description");
+            await call("POST", "/catalogue-items", { ...itemInput("Legacy model"), manufacturer_id: otherMake.id }, 409);
+            await call("POST", "/catalogue-items", itemInput("Legacy-model"), 409);
             assert.equal((await pool().query("SELECT to_jsonb(c)::text AS snapshot FROM catalogue_items c WHERE id=$1", [legacy])).rows[0].snapshot, before);
         });
-        await t.test("SKU exhaustion fails without issuing a four-digit serial or audit row", async () => {
+        await t.test("the last legacy serial does not prevent a new SKU from being issued", async () => {
             await pool().query(`INSERT INTO catalogue_items(id,configuration_id,manufacturer_id,category_id,model,specifications,snapshot,fingerprint,engineering_key,description,sku,serial,status,is_active,created_by_id,updated_by_id)
    SELECT $1,configuration_id,manufacturer_id,category_id,'QA exhaustion fixture',specifications,snapshot,$2,engineering_key,description,$3,999,status,is_active,created_by_id,updated_by_id FROM catalogue_items WHERE id=$4`, [randomUUID(), randomUUID().replaceAll("-", "").padEnd(64, "0"), "QA-EXHAUSTION-" + randomUUID(), item.id]);
-            await call("POST", "/catalogue-items", itemInput("Cannot issue 1000"), 422);
-            assert.equal((await pool().query("SELECT count(*) FROM catalogue_items WHERE manufacturer_id=$1 AND serial>999", [make.id])).rows[0].count, "0");
+            const saved = await call("POST", "/catalogue-items", itemInput("After legacy limit"), 201);
+            assert.equal(saved.sku, `${category.code}-${type.code}-SIZES1-AFTERLEGACYLIMIT`);
+            assert.equal(saved.serial, null);
         });
     }
     finally {
