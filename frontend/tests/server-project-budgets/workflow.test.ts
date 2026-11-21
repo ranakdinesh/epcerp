@@ -12,7 +12,7 @@ import * as budgets from '../../src/server/projects/budgets/service';
 import { effectiveApproved } from '../../src/server/projects/budgets/approved';
 import { fingerprint } from '../../src/server/projects/budgets/finance';
 import { handleMaster } from '../../src/server/master/http';
-import { definition } from '../server-master/catalogue-fixtures';
+import { definition, legacyCatalogueItem } from '../server-master/catalogue-fixtures';
 import * as bo from '../../src/server/purchasing/bo/service';
 import { save as assign } from '../../src/server/projects/team/service';
 const oracle = (Actor: string, Method: string, Path: string, Body?: unknown, Operation?: string) => JSON.parse(execFileSync(process.env.EPCERP_PURCHASING_ORACLE!, [], { input: JSON.stringify({
@@ -140,9 +140,7 @@ test('native project budgets preserve Go evidence, item pricing, authority and f
                 code: code + 'T', name: code, category_id: category.id, reason: 'Synthetic'
             }), template = await master('/configuration-templates/' + sub.id + '/publish', { definition: { ...definition(), subcategory_code: sub.code, template_name: code }, expected_revision: 0, reason: 'Synthetic' }), make = await master('/manufacturers', {
                 code, name: code, data: { eligible: [category.code] }, reason: 'Synthetic'
-            }), item = await master('/catalogue-items', {
-                configuration_id: template.id, manufacturer_id: make.id, specifications: { SIZE: 'S1' }, model: code
-            });
+            }), item = await legacyCatalogueItem(template.id, make, code);
             boID = randomUUID();
             lineID = randomUUID();
             await bo.save(token, p, boID, {

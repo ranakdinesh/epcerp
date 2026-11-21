@@ -23,7 +23,7 @@ test("native catalogue preserves owned records, revisions, identities and atomic
         await pool().query("INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser) VALUES($1,$2,$3,$4,true,false)", [readerID, prefix, prefix + "@fixture.invalid", await hashPassword("Catalogue-Reader1!")]);
         await pool().query("INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)", [readerID, role.id]);
         const readerToken = (await login(prefix, "Catalogue-Reader1!")).access_token;
-        let unit: Awaited<ReturnType<typeof call>>, category: typeof unit, type: typeof unit, make: typeof unit, otherMake: typeof unit, template: typeof unit, item: typeof unit;
+        let unit: Awaited<ReturnType<typeof call>>, category: typeof unit, type: typeof unit, make: typeof unit, template: typeof unit, item: typeof unit;
         const def = () => ({ ...definition(), subcategory_code: type.code, template_name: prefix + " configuration" });
         await t.test("permission checks use existing granular grants", async () => {
             await call("GET", "/catalogue-items", undefined, 401, "");
@@ -109,7 +109,7 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             const saved = (await pool().query(`SELECT "before"->'data'->>'legacy_number' AS value FROM manufacturers_events WHERE subject_id=$1 AND reason='QA legacy precision'`, [make.id])).rows[0];
             assert.equal(saved.value, '12345678901234567890.123456');
         });
-        const itemInput = (model = "QA ＭＯＤＥＬ Straße", size = "S1") => ({ configuration_id: template.id, manufacturer_id: make.id, specifications: { SIZE: size }, model });
+        const itemInput = (model = "QA ＭＯＤＥＬ Straße", size = "S1") => ({ configuration_id: template.id, specifications: { SIZE: size }, model });
         await t.test("item creation derives immutable snapshots and deduplicates normalized identities concurrently", async () => {
             const copies = await Promise.all(Array.from({ length: 5 }, () => call("POST", "/catalogue-items", itemInput(), 201)));
             item = copies[0];
@@ -118,6 +118,9 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             assert.equal(item.model, "qa model strasse");
             assert.equal(item.sku, `${category.code}-${type.code}-SIZES1-QAMODELSTRASSE`);
             assert.equal(item.category_id, undefined);
+            assert.equal(item.manufacturer_id, null);
+            assert.equal(item.snapshot.manufacturer, undefined);
+            assert.ok(!item.description.includes(make.name));
             assert.equal(item.snapshot.configuration.category_code, category.code);
             assert.equal((await call("GET", `/catalogue-items/${item.id}/history`)).length, 1);
             const second = await call("POST", "/catalogue-items", itemInput("Another model", "S2"), 201);
@@ -128,24 +131,23 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             assert.ok(refs.catalogue.some((v: {
                 id: string;
             }) => v.id === template.id));
-            assert.ok(refs.manufacturers.some((v: {
-                id: string;
-            }) => v.id === make.id));
+            assert.equal(refs.manufacturers, undefined);
             await assert.rejects(pool().query("UPDATE catalogue_items SET model='forged' WHERE id=$1", [item.id]), /immutable/);
             await assert.rejects(pool().query("UPDATE catalogue_item_events SET reason='forged' WHERE subject_id=$1", [item.id]), /cannot be deleted or rewritten/);
         });
         await t.test("concurrent creates for the same vendor-free SKU save one item without a serial", async () => {
-            otherMake = await call("POST", "/manufacturers", { code: prefix + "ALT", name: prefix + " alternate make", data: { eligible: [category.code] }, reason: "QA alternate make" }, 201);
             const input = itemInput("Shared model");
-            const responses = await Promise.all([make.id, otherMake.id].map(manufacturer_id => handleMaster(new Request("http://localhost/api/v1/catalogue-items", {
+            const responses = await Promise.all([make.id, randomUUID()].map(manufacturer_id => handleMaster(new Request("http://localhost/api/v1/catalogue-items", {
                 method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...input, manufacturer_id }),
             }))));
-            assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
-            const first = await responses.find(r => r.status === 201)!.json();
+            assert.deepEqual(responses.map(r => r.status), [201, 201]);
+            const [first, second] = await Promise.all(responses.map(r => r.json()));
+            assert.equal(first.id, second.id);
+            assert.equal(first.manufacturer_id, null);
             assert.equal(first.sku, `${category.code}-${type.code}-SIZES1-SHAREDMODEL`);
             assert.equal(first.serial, null);
 
-            const sameRequest = await call("POST", "/catalogue-items", { ...input, manufacturer_id: first.manufacturer_id }, 201);
+            const sameRequest = await call("POST", "/catalogue-items", input, 201);
             assert.equal(sameRequest.id, first.id);
             // Different model text can produce the same SKU after punctuation is removed.
             await call("POST", "/catalogue-items", itemInput("Shared-model"), 409);
@@ -173,14 +175,12 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             const duplicate = await call("POST", "/catalogue-items", itemInput(), 201);
             assert.equal(duplicate.id, item.id);
         });
-        await t.test("lifecycle guards honor stale versions and current manufacturer eligibility", async () => {
+        await t.test("lifecycle guards honor stale versions and require an active configuration", async () => {
             item = await call("PATCH", `/catalogue-items/${item.id}`, { status: "retired", version: item.version, reason: "QA retirement" });
             assert.equal(item.is_active, false);
             await call("PATCH", `/catalogue-items/${item.id}`, { status: "approved", version: 1, reason: "QA stale" }, 409);
             make = await call("PATCH", `/manufacturers/${make.id}`, { is_active: false, version: make.version, reason: "QA inactive make" });
-            await call("PATCH", `/catalogue-items/${item.id}`, { status: "approved", version: item.version, reason: "QA inactive make" }, 422);
-            await call("POST", "/catalogue-items", itemInput("Blocked make"), 422);
-            make = await call("PATCH", `/manufacturers/${make.id}`, { is_active: true, version: make.version, reason: "QA restore make" });
+            await call("POST", "/catalogue-items", itemInput("Independent of inactive make"), 201);
             item = await call("PATCH", `/catalogue-items/${item.id}`, { status: "approved", version: item.version, reason: "QA restore item" });
             assert.equal(item.is_active, true);
             assert.equal((await call("GET", `/catalogue-items/${item.id}/history`)).length, 3);
@@ -196,7 +196,7 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             await pool().query("ALTER TABLE business_events ADD CONSTRAINT epcerp_qa_catalogue_failure CHECK(source_module <> 'catalogue_items') NOT VALID");
             try {
                 await call("POST", "/catalogue-items", itemInput("Must roll back"), 503);
-                assert.equal((await pool().query("SELECT count(*) FROM catalogue_items WHERE manufacturer_id=$1 AND model='must roll back'", [make.id])).rows[0].count, "0");
+                assert.equal((await pool().query("SELECT count(*) FROM catalogue_items WHERE configuration_id=$1 AND model='must roll back'", [template.id])).rows[0].count, "0");
             }
             finally {
                 await pool().query("ALTER TABLE business_events DROP CONSTRAINT epcerp_qa_catalogue_failure");
@@ -268,13 +268,14 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             const legacy = randomUUID(), fingerprint = randomUUID().replaceAll("-", "").padEnd(64, "0");
             const sku = `${category.code}-${type.code}-SIZES1-${make.code}-LEGACYMODEL-050`;
             await pool().query(`INSERT INTO catalogue_items(id,configuration_id,manufacturer_id,category_id,model,specifications,snapshot,fingerprint,engineering_key,description,sku,serial,status,is_active,created_by_id,updated_by_id)
-   SELECT $1,configuration_id,manufacturer_id,category_id,'Legacy ＭＯＤＥＬ',specifications,snapshot,$2,engineering_key,'Unchanged legacy description',$3,50,status,is_active,created_by_id,updated_by_id FROM catalogue_items WHERE id=$4`, [legacy, fingerprint, sku, item.id]);
+   SELECT $1,configuration_id,$5,category_id,'Legacy ＭＯＤＥＬ',specifications,snapshot || jsonb_build_object('manufacturer',$6::jsonb),$2,engineering_key,'Unchanged legacy description',$3,50,status,is_active,created_by_id,updated_by_id FROM catalogue_items WHERE id=$4`, [legacy, fingerprint, sku, item.id, make.id, JSON.stringify(make)]);
             const before = (await pool().query("SELECT to_jsonb(c)::text AS snapshot FROM catalogue_items c WHERE id=$1", [legacy])).rows[0].snapshot;
             const reused = await call("POST", "/catalogue-items", itemInput("  LEGACY model "), 201);
             assert.equal(reused.id, legacy);
             assert.equal(reused.model, "Legacy ＭＯＤＥＬ");
             assert.equal(reused.description, "Unchanged legacy description");
-            await call("POST", "/catalogue-items", { ...itemInput("Legacy model"), manufacturer_id: otherMake.id }, 409);
+            assert.equal(reused.manufacturer_id, make.id);
+            assert.equal(reused.snapshot.manufacturer.name, make.name);
             await call("POST", "/catalogue-items", itemInput("Legacy-model"), 409);
             assert.equal((await pool().query("SELECT to_jsonb(c)::text AS snapshot FROM catalogue_items c WHERE id=$1", [legacy])).rows[0].snapshot, before);
         });

@@ -9,8 +9,6 @@ import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import {
   type Item,
   type Definition,
-  type Manufacturer,
-  eligible,
   itemName,
   configuredItemName,
   request,
@@ -37,8 +35,7 @@ export function ItemBank() {
   const [items, setItems] = useState<Item[]>([]);
   const [refs, setRefs] = useState<{
     catalogue: Definition[];
-    manufacturers: Manufacturer[];
-  }>({ catalogue: [], manufacturers: [] });
+  }>({ catalogue: [] });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
@@ -121,7 +118,7 @@ export function ItemBank() {
             </button>
           )}
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl bg-blue-50 p-4">
             <strong className="text-2xl">{issued}</strong>
             <p className="text-sm">SKUs issued</p>
@@ -170,14 +167,14 @@ export function ItemBank() {
           />
         </RecordDrawer>
       )}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <ValidatedLabel>
           Search items
           <ValidatedInput name="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={input}
-            placeholder="SKU, specification, manufacturer or model"
+            placeholder="SKU, specification or model"
           />
         </ValidatedLabel>
         <ValidatedLabel>
@@ -239,11 +236,6 @@ export function ItemBank() {
             value: (r) => itemName(r),
             render: (r) => <div className="flex items-center gap-2"><CategoryThumbnail code={r.snapshot.configuration.category_code} />{itemName(r)}</div>,
             className: "min-w-64 max-w-lg font-semibold",
-          },
-          {
-            key: "manufacturer",
-            label: "Manufacturer",
-            value: (r) => r.snapshot.manufacturer.name,
           },
           { key: "model", label: "Model", value: (r) => r.model || "—" },
           {
@@ -307,19 +299,17 @@ function ItemCreate({
   done,
   close,
 }: {
-  refs: { catalogue: Definition[]; manufacturers: Manufacturer[] };
+  refs: { catalogue: Definition[] };
   done: (i: Item) => void;
   close: () => void;
 }) {
   const [category, setCategory] = useState("");
   const [configuration, setConfiguration] = useState("");
-  const [manufacturer, setManufacturer] = useState("");
   const [specs, setSpecs] = useState<Record<string, string>>({});
   const [model, setModel] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const config = refs.catalogue.find((c) => c.id === configuration);
-  const make = refs.manufacturers.find((m) => m.id === manufacturer);
   async function save(e: SubmitEvent<HTMLFormElement>) {
     const submittedForm = e.currentTarget instanceof HTMLFormElement ? e.currentTarget : undefined;
     e.preventDefault();
@@ -329,7 +319,6 @@ function ItemCreate({
       done(
         await request<Item>("/api/settings/catalogue-items", {
           configuration_id: configuration,
-          manufacturer_id: manufacturer,
           specifications: specs,
           model,
         }),
@@ -350,7 +339,7 @@ function ItemCreate({
         </p>
       )}
       <fieldset disabled={busy} className="min-w-0 space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <ValidatedLabel>
             Item category
             <ValidatedSelect name="category"
@@ -361,7 +350,6 @@ function ItemCreate({
               onChange={(e) => {
                 setCategory(e.target.value);
                 setConfiguration("");
-                setManufacturer("");
                 setSpecs({});
                 setModel("");
               }}
@@ -386,7 +374,6 @@ function ItemCreate({
               value={configuration}
               onChange={(e) => {
                 setConfiguration(e.target.value);
-                setManufacturer("");
                 setSpecs({});
                 setModel("");
               }}
@@ -404,27 +391,6 @@ function ItemCreate({
                     {c.name} · revision {c.data.revision}
                   </option>
                 ))}
-            </ValidatedSelect>
-          </ValidatedLabel>
-          <ValidatedLabel>
-            Manufacturer
-            <ValidatedSelect name="manufacturer"
-              required
-              className={input}
-              disabled={!configuration}
-              aria-label="Manufacturer"
-              value={manufacturer}
-              onChange={(e) => setManufacturer(e.target.value)}
-            >
-              <option value="">Select eligible manufacturer</option>
-              {config &&
-                refs.manufacturers
-                  .filter((m) => eligible(m, config))
-                  .map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
             </ValidatedSelect>
           </ValidatedLabel>
         </div>
@@ -456,7 +422,7 @@ function ItemCreate({
           ))}
         </div>
         <ValidatedLabel className="block">
-          Manufacturer model / part number
+          Model / part number
           {!config?.data.model_required ? " (if applicable)" : ""}
           <ValidatedInput name="model"
             required={config?.data.model_required}
@@ -473,13 +439,11 @@ function ItemCreate({
               {configuredItemName(
                 { name: config.name, fields: config.data.fields },
                 specs,
-                make?.name,
                 model,
               )}
             </p>
             <p className="mt-2">
-              {config.data.uom} · Permanent three-digit number assigned when you
-              save.
+              {config.data.uom} · SKU assigned when you save.
             </p>
           </div>
         )}

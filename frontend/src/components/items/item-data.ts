@@ -33,7 +33,6 @@ export type Item = {
   id: string;
   description: string;
   configuration_id: string;
-  manufacturer_id: string;
   model: string;
   specifications: Record<string, string>;
   engineering_key: string;
@@ -44,7 +43,6 @@ export type Item = {
   version: number;
   snapshot: {
     configuration: Definition["data"] & { name: string; code: string };
-    manufacturer: { id: string; code: string; name: string };
   };
 };
 export const input =
@@ -74,19 +72,9 @@ export async function request<T>(
   if (!response.ok) throw new FieldValidationError(data.detail, "Request failed. Check the fields and try again.");
   return data as T;
 }
-export function eligible(m: Manufacturer, c: Definition) {
-  return (
-    m.is_active &&
-    [c.code, c.data.family_code, c.data.category_code].some(
-      (code) => code && m.data.eligible.includes(code),
-    )
-  );
-}
-
 export function configuredItemName(
   configuration: { name: string; fields?: SpecField[] },
   specifications: Record<string, string>,
-  manufacturer: string | undefined,
   model: string,
 ) {
   return [
@@ -98,7 +86,6 @@ export function configuredItemName(
             value)
         : "";
     }),
-    manufacturer,
     model.trim(),
   ]
     .filter(Boolean)
@@ -109,7 +96,6 @@ export function itemName(item: Item) {
   return configuredItemName(
     item.snapshot.configuration,
     item.specifications,
-    item.snapshot.manufacturer.name,
     item.model,
   );
 }

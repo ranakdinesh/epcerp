@@ -10,7 +10,7 @@ export type Snapshot = {
     engineering_key: string;
     uom: string;
     manufacturer: string;
-    manufacturer_id: string;
+    manufacturer_id: string | null;
     category_code: string;
     family_code: string;
     configuration_code: string;
@@ -18,9 +18,9 @@ export type Snapshot = {
 export async function catalogue(db: DB, id: string): Promise<Snapshot> {
     const item = await purchaseTaskItem(db, id);
     if (!item.approved_for_purchase)
-        invalid('item_id', 'Select an active approved catalogue item with current configuration and manufacturer eligibility');
+        invalid('item_id', 'Select an active approved catalogue item with an eligible configuration');
     const config = item.snapshot.configuration;
-    return { id: item.id, sku: item.sku, description: item.description, engineering_key: item.engineering_key, uom: config.uom, manufacturer: item.snapshot.manufacturer.name, manufacturer_id: item.manufacturer_id, category_code: config.category_code, family_code: config.family_code, configuration_code: config.code };
+    return { id: item.id, sku: item.sku, description: item.description, engineering_key: item.engineering_key, uom: config.uom, manufacturer: item.snapshot.manufacturer?.name ?? "", manufacturer_id: item.manufacturer_id, category_code: config.category_code, family_code: config.family_code, configuration_code: config.code };
 }
 export async function policy(db: DB, project: string, item: Snapshot) {
     const p = (await db.query('SELECT client_id FROM projects WHERE id=$1', [project])).rows[0];
@@ -38,7 +38,11 @@ export async function policy(db: DB, project: string, item: Snapshot) {
         if (!row.is_active || d.project_id && d.project_id !== project || d.effective_from > today || d.effective_until && d.effective_until < today || !['*', item.category_code, item.family_code, item.configuration_code].includes(d.scope_code))
             continue;
         rules.push({ id: row.id, version: row.version, evidence: d.evidence });
-        if (d.excluded.includes(item.manufacturer_id))
+        if (!item.manufacturer_id && (d.mode === 'approved_only' || d.excluded.length)) {
+            reasons.push('Manufacturer is required by ' + d.scope_code + ' policy');
+            continue;
+        }
+        if (item.manufacturer_id && d.excluded.includes(item.manufacturer_id))
             reasons.push('Manufacturer excluded by ' + d.scope_code + ' policy');
         if (d.mode === 'approved_only' && !d.allowed.includes(item.manufacturer_id))
             reasons.push('Manufacturer outside approved list for ' + d.scope_code);
