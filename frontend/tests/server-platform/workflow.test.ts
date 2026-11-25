@@ -171,6 +171,17 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.equal(removedClarification.tsc_completed, false);
             assert.equal(removedClarification.bidding_authorized, false);
         });
+        await t.test('skipping pre-bid review opens Step 4 with TSC sign-off still required', async () => {
+            const created = await call(handleIntake, '/tender-fms/drafts', 'POST', { name: 'Skip before sign-off fixture' }, 201, token, randomUUID());
+            const base = `/tender-fms/drafts/${created.id}`;
+            await call(handleTSC, base + '/prebid-queries/skip', 'POST');
+            const status = await call(handleTSC, base + '/flow-status');
+            assert.equal(status.prebid_review_skipped, true);
+            assert.equal(status.tsc_completed, false);
+            assert.equal(status.next_step, 'TS-02');
+            const approval = await call(handleTSC, base + '/bidding-approval', 'POST', { decision: 'conditional' }, 409);
+            assert.match(approval.detail, /Finalize the TSC/);
+        });
         await t.test('tender costing and award create one project and a reviewable BOQ', async () => {
             const draft = randomUUID(), client = randomUUID(), clientName = 'QA' + client.replaceAll('-', '').slice(0, 12);
             await sql.query(`INSERT INTO clients(id,client_code,legal_name,normalized_legal_name,display_name,parent_organization,client_type,industry,gstin,pan,cin,website,address_line_1,address_line_2,city,state,postal_code,country,legacy_source,legacy_source_id,is_active)

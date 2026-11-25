@@ -200,8 +200,9 @@ export function TenderPrebidQueries({
     }
   }
 
-  const afterReview = tscCompleted ? "TS-02" : "TS-TSC";
-  const afterReviewLabel = tscCompleted ? "Continue to bidding approval" : "Return to Step 3 to finalize the TSC";
+  const continueToBidding = skipped || tscCompleted;
+  const afterReview = continueToBidding ? "TS-02" : "TS-TSC";
+  const afterReviewLabel = continueToBidding ? "Continue to bidding approval" : "Return to Step 3 to finalize the TSC";
   const canSkip = canWrite && !reviewing && !closed && !loading && queriesLoaded && queries.length === 0;
 
   async function saveReview(query?: PrebidQuery, skip = false) {
@@ -221,7 +222,7 @@ export function TenderPrebidQueries({
       }
       await Promise.all([loadQueries(), onRefresh()]);
       window.dispatchEvent(new Event("tender-progress-saved"));
-      if (skip) onNavigateStep?.(afterReview);
+      if (skip) onNavigateStep?.("TS-02");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to save pre-bid review");
     } finally {

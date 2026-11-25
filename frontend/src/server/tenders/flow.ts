@@ -32,6 +32,7 @@ type Verdict = { current?: boolean; previously_verified?: boolean; human_decisio
 export function tenderFlow(row: Record<string, unknown>) {
   const verdict = row.verdict as Verdict | null;
   const reviewed = Boolean(row.prebid_reviewed_at && !row.has_draft_queries && !row.has_pending_replies);
+  const skipped = reviewed && !row.has_queries;
   const finalized = Boolean(verdict?.current);
   const bidding = typeof row.bidding_decision === 'string' ? row.bidding_decision : undefined;
   const approvalCurrent = Boolean(reviewed && finalized && row.bidding_is_current);
@@ -52,7 +53,7 @@ export function tenderFlow(row: Record<string, unknown>) {
   let next = 'TS-01';
   if (submitted) next = 'CV-08';
   else if (authorized) next = row.costing_status === 'approved' ? 'CV-08' : row.has_l1 ? 'CV-07' : row.has_items ? 'CV-03' : 'CV-01';
-  else if (reviewed) next = finalized ? 'TS-02' : 'TS-TSC';
+  else if (reviewed) next = skipped || finalized ? 'TS-02' : 'TS-TSC';
   else if (!finalized && !verdict?.previously_verified) {
     if (row.has_verified) next = 'TS-TSC';
   } else {
@@ -70,7 +71,7 @@ export function tenderFlow(row: Record<string, unknown>) {
     has_documents: Boolean(row.has_verified),
     has_verified_batches: Boolean(row.has_verified),
     prebid_review_closed: reviewed,
-    prebid_review_skipped: reviewed && !row.has_queries,
+    prebid_review_skipped: skipped,
     tsc_completed: finalized,
     tsc_decision: finalized ? verdict?.human_decision : undefined,
     bidding_authorized: authorized,
