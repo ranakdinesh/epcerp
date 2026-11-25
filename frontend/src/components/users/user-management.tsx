@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type SubmitEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type SubmitEvent } from "react";
 import {useRouter} from "next/navigation";
-import { EyeIcon, PencilSquareIcon, KeyIcon, PlusIcon, NoSymbolIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, EyeSlashIcon, PencilSquareIcon, KeyIcon, PlusIcon, NoSymbolIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { actionButtonClass } from "@/components/ui/action-button";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { UserDetails, type UserDetailRecord } from "@/components/users/user-details";
@@ -17,8 +17,43 @@ type PlatformUser = UserDetailRecord;
 type Role = { is_active?: boolean; id: string; name: string };
 type DialogMode = "create" | "view" | "edit" | "reset" | "status" | null;
 const button = actionButtonClass("secondary", true);
-const input = "mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900";
+const inputField = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900";
+const input = `mt-2 ${inputField}`;
 const deliveryLabel = (state: string) => ({pending:"Email queued",sending:"Email sending",delivered:"Email accepted",failed:"Email failed",cancelled:"Email cancelled"}[state] ?? "No invitation issued");
+
+function UserPasswordField({ name, label, placeholder }: { name: "password" | "confirmation"; label: string; placeholder: string }) {
+  const id = useId();
+  const [visible, setVisible] = useState(false);
+  const Icon = visible ? EyeSlashIcon : EyeIcon;
+
+  return <div className="min-w-0">
+    <ValidatedLabel htmlFor={id} required className="block text-sm font-bold">{label}</ValidatedLabel>
+    <div className="mt-2 grid grid-cols-1">
+      <ValidatedInput
+        id={id}
+        name={name}
+        type={visible ? "text" : "password"}
+        autoComplete="new-password"
+        autoCapitalize="none"
+        spellCheck={false}
+        required
+        minLength={8}
+        maxLength={128}
+        placeholder={placeholder}
+        className={`${inputField} col-start-1 row-start-1 pr-16`}
+      />
+      <button
+        type="button"
+        className={`${button} col-start-1 row-start-1 mr-1 self-center justify-self-end`}
+        aria-controls={id}
+        aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
+        onClick={() => setVisible(value => !value)}
+      >
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </button>
+    </div>
+  </div>;
+}
 
 export function UserManagement() {
   const actor = useAuthenticatedUser();
@@ -200,32 +235,8 @@ export function UserManagement() {
 
   const passwordFields = <>
     <div className="grid gap-3 sm:grid-cols-2">
-      <ValidatedLabel required className="block text-sm font-bold">
-        {manualCreate ? "Temporary password" : "New password"}
-        <ValidatedInput
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          maxLength={128}
-          placeholder="Enter new password"
-          className={input}
-        />
-      </ValidatedLabel>
-      <ValidatedLabel required className="block text-sm font-bold">
-        Confirm password
-        <ValidatedInput
-          name="confirmation"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          maxLength={128}
-          placeholder="Confirm new password"
-          className={input}
-        />
-      </ValidatedLabel>
+      <UserPasswordField name="password" label={manualCreate ? "Temporary password" : "New password"} placeholder="Enter new password" />
+      <UserPasswordField name="confirmation" label="Confirm password" placeholder="Confirm new password" />
     </div>
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
       <p className="font-semibold text-slate-700">Password requirements:</p>
