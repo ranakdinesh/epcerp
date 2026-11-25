@@ -14,13 +14,17 @@ export function processingTitle(p: Processing, provider: string) {
     case "preparing_documents": return `Preparing ${p.source_count} source document${p.source_count === 1 ? "" : "s"} for ${provider}`;
     case "waiting_for_model": return `Waiting for ${provider} to answer ${p.model_questions} questions`;
     case "retrying": return `Recovering from temporary ${provider} overload`;
-    case "saving_answers": return "Saving the model response";
+    case "saving_answers": return (p.provider_status ?? 0) >= 400 ? "Finalising this attempt" : "Saving and checking the model response";
     case "failed": return "Generation failed — no answers received";
     case "partial": return "Processing stopped — some answers were saved";
     case "imported": return "Word checklist saved";
     case "manual": return "Manual draft — no model request";
     default: return p.returned_answers ? "Generation finished" : "Generation finished — no usable answers returned";
   }
+}
+export function processingElapsed(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  return minutes ? `${minutes}m ${seconds % 60}s` : `${seconds}s`;
 }
 export function processingFailure(code: string, provider: string) {
   if (code === "provider_unavailable") return `${provider} returned a service error (HTTP 5xx). The request stopped; no usable answers were returned by this attempt.`;
