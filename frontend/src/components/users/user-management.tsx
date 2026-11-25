@@ -44,7 +44,7 @@ function UserPasswordField({ name, label, placeholder }: { name: "password" | "c
       />
       <button
         type="button"
-        className={`${button} col-start-1 row-start-1 mr-1 self-center justify-self-end`}
+        className="go-password-visibility col-start-1 row-start-1 mr-1 inline-flex h-11 w-11 items-center justify-center self-center justify-self-end rounded-lg"
         aria-controls={id}
         aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
         onClick={() => setVisible(value => !value)}

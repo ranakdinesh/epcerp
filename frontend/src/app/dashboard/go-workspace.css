@@ -67,8 +67,9 @@
 .go-account-menu summary:focus-visible { outline: 2px solid var(--go-blue); }
 .go-account-dropdown { position: absolute; right: 0; top: calc(100% + 10px); width: 240px; padding: 8px; border: 1px solid var(--go-line); background: var(--go-panel); border-radius: 12px; box-shadow: 0 12px 32px #0f172a22; }
 .go-account-dropdown p { margin: 8px 10px; font-size: 12px; color: var(--go-muted); }
-.go-account-dropdown, .go-profile-tabs { --account-action-text: var(--action-color); }
-html[data-theme="dark"] :is(.go-account-dropdown, .go-profile-tabs) { --account-action-text: #61d6ca; }
+.go-account-dropdown, .go-profile-tabs, .go-password-visibility { --account-action-text: var(--action-color); }
+html[data-theme="dark"] :is(.go-account-dropdown, .go-profile-tabs, .go-password-visibility) { --account-action-text: #61d6ca; }
+.go-password-visibility { background: transparent; color: var(--account-action-text); cursor: pointer; }
 .go-account-dropdown > button { width: 100%; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--account-action-text); }
 .go-account-dropdown > button:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 .go-account-dropdown hr { border-color: var(--go-line); margin: 8px 0; }
