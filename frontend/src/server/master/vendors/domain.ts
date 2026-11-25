@@ -136,7 +136,10 @@ export function validateVendorMaster(code: string, name: string, value: unknown)
 }
 export function validateVendorReason(value: unknown) { const result = text(value); if (!trim(result) || byteLength(result) > 2000)
     fieldError("reason", "A change reason is required (maximum 2000 bytes)"); return result; }
-export function parseVendorCreate(value: unknown) { const r = goObject(value, ["code", "name", "data", "reason"]), code = upper(trim(text(r.code))), name = trim(text(r.name)); return { code, name, data: validateVendorMaster(code, name, r.data), reason: validateVendorReason(r.reason) }; }
+export function parseVendorCreate(value: unknown) {
+    const r = goObject(value, ["code", "name", "data", "reason"]), code = upper(trim(text(r.code))), name = trim(text(r.name));
+    return { code, name, data: validateVendorMaster(code, name, r.data), reason: r.reason === undefined ? "Supplier created" : validateVendorReason(r.reason) };
+}
 export function parseVendorUpdate(value: unknown) { const r = goObject(value, ["name", "data", "version", "is_active", "reason"]); return { name: trim(text(r.name)), data: r.data, version: integer(r.version), is_active: r.is_active == null ? null : boolean(r.is_active), reason: validateVendorReason(r.reason) }; }
 export function parseVendorImport(value: unknown) {
     const r = goObject(value, ["source", "code", "name", "data", "is_active"]), s = goObject(r.source, ["id", "version", "created_at", "updated_at"]);

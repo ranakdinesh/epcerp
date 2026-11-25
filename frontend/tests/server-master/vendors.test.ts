@@ -42,8 +42,8 @@ test("supplier profiles and lifecycle preserve existing SQL, audit and Finance b
                 await call('POST', '/suppliers/legacy-import', {}, 403, c.token);
             }
         });
-        await t.test('create normalizes code and outer whitespace while preserving fields, actors and response shape', async () => {
-            supplier = await call('POST', '/suppliers', input(), 201);
+        await t.test('create without a reason normalizes supplier fields and records the creation audit', async () => {
+            supplier = await call('POST', '/suppliers', { ...input(), reason: undefined }, 201);
             assert.equal(supplier.code, prefix);
             assert.equal(supplier.name, prefix + '  Supplier');
             assert.equal(supplier.is_active, true);
@@ -56,7 +56,7 @@ test("supplier profiles and lifecycle preserve existing SQL, audit and Finance b
             const history = (await pool().query('SELECT * FROM supplier_changes WHERE supplier_id=$1', [supplier.id])).rows;
             assert.equal(history.length, 1);
             assert.equal(history[0].action, 'created');
-            assert.equal(history[0].reason, ' QA created ');
+            assert.equal(history[0].reason, 'Supplier created');
             assert.equal(history[0].snapshot.id, supplier.id);
             assert.equal((await pool().query("SELECT count(*) FROM business_events WHERE source_module='suppliers' AND entity_id=$1 AND action='created'", [supplier.id])).rows[0].count, '1');
             await call('POST', '/suppliers', input(), 409);

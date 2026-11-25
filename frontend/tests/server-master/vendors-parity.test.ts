@@ -32,6 +32,13 @@ test("supplier document and profile owners can roll back independently", () => {
         if (previousDocuments === undefined) delete process.env.EPCERP_VENDOR_DOCUMENTS_OWNER; else process.env.EPCERP_VENDOR_DOCUMENTS_OWNER = previousDocuments;
     }
 });
+test("supplier creation defaults the audit reason and edits require a reason", () => {
+    const input = { code: "QA", name: "Test supplier", data: {} };
+    assert.equal(parseVendorCreate(input).reason, "Supplier created");
+    assert.equal(parseVendorCreate({ ...input, reason: "Imported by purchasing" }).reason, "Imported by purchasing");
+    assert.throws(() => parseVendorCreate({ ...input, reason: " " }));
+    assert.throws(() => parseVendorUpdate({ name: input.name, data: input.data, version: 1 }));
+});
 test("supplier validation and exact payment arithmetic match the Go implementation", { skip: !process.env.EPCERP_CATALOGUE_COMPATIBILITY_BINARY }, () => {
     const base = { code: " qa-01_ ", name: "  Straße   Σς  ", data: { qualification: "unverified", contact_person_name: "QA Contact", payment_terms: { advance_pct: 40, delivery_pct: 60, credit_days: 30 } }, reason: "  QA reviewed  " };
     const fixtures: {
