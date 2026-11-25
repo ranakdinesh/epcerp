@@ -58,10 +58,11 @@ export const codePattern = /^[A-Z0-9]{1,32}$/;
 export const sameName = (a: string, b: string) => normalizedName(a) === normalizedName(b);
 export function categoryKind(value: string): CategoryKind { if (!["category", "subcategory", "unit"].includes(value))
     invalid("Unknown catalogue record kind"); return value as CategoryKind; }
+const creationReasons: Record<CategoryKind, string> = { category: "Category created", subcategory: "Subcategory created", unit: "Base unit created" };
 export function cleanCategory(kind: CategoryKind, value: unknown, edit = false) {
     const input = goObject(value, edit ? ["code", "name", "reason", "version"] : ["code", "name", "unit_id", "category_id", "reason"]);
     const originalCode = text(input.code), code = upper(trim(originalCode)), name = spacedName(text(input.name));
-    const reason = !edit && kind === "category" && input.reason === undefined ? "Category created" : trim(text(input.reason));
+    const reason = !edit && input.reason === undefined ? creationReasons[kind] : trim(text(input.reason));
     if (!codePattern.test(code) || (kind === "unit" && code.length > 16))
         fieldError("code", "Use letters and digits, up to 32 characters (16 for units)");
     if (!name || runeLength(name) > (kind === "unit" ? 128 : 255) || /[\0\r\n]/.test(name))

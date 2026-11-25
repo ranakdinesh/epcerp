@@ -33,10 +33,14 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             await call("POST", "/catalogue-items", { configuration_id: randomUUID(), manufacturer_id: randomUUID(), specifications: {} }, 403, readerToken);
         });
         await t.test("units, categories and subcategories retain parent relationships and audit history", async () => {
-            unit = await call("POST", "/categories/units", { code: prefix, name: prefix + " Unit", reason: "QA base unit" }, 201);
+            unit = await call("POST", "/categories/units", { code: prefix, name: prefix + " Unit" }, 201);
+            assert.equal((await pool().query("SELECT reason FROM category_catalogue_changes WHERE subject_id=$1 AND action='create'", [unit.id])).rows[0].reason, "Base unit created");
             category = await call("POST", "/categories/categories", { code: prefix + "C", name: prefix + " Category", unit_id: unit.id }, 201);
             assert.equal((await pool().query("SELECT reason FROM category_catalogue_changes WHERE subject_id=$1 AND action='create'", [category.id])).rows[0].reason, "Category created");
-            type = await call("POST", "/categories/subcategories", { code: prefix + "T", name: prefix + " Type", category_id: category.id, reason: "QA type" }, 201);
+            type = await call("POST", "/categories/subcategories", { code: prefix + "T", name: prefix + " Type", category_id: category.id }, 201);
+            assert.equal((await pool().query("SELECT reason FROM category_catalogue_changes WHERE subject_id=$1 AND action='create'", [type.id])).rows[0].reason, "Subcategory created");
+            await call("PATCH", `/categories/units/${unit.id}`, { code: unit.code, name: unit.name + " corrected", version: unit.version }, 422);
+            await call("PATCH", `/categories/subcategories/${type.id}`, { code: type.code, name: type.name + " corrected", version: type.version }, 422);
             assert.equal(type.unit_id, unit.id);
             assert.equal(type.category_id, category.id);
             assert.equal(type.configuration.family_code, type.code);
