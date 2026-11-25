@@ -104,6 +104,19 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             assert.equal(make.created_at, old.created_at);
             await call("PATCH", `/manufacturers/${make.id}/profile`, { name: make.name, data: make.data, version: 1, reason: "QA stale" }, 409);
             assert.equal((await call("GET", `/manufacturers/${make.id}/history`)).length, 2);
+            const path = `/manufacturers/${make.id}/profile`;
+            const update = { name: make.name, data: { ...make.data, notes: "Status and notes updated together" }, version: make.version };
+            await call("PATCH", path, { ...update, is_active: false }, 422);
+            make = await call("PATCH", path, { ...update, is_active: false, reason: "QA deactivate in edit" });
+            assert.equal(make.is_active, false);
+            assert.equal(make.data.notes, update.data.notes);
+            const event = (await call("GET", `/manufacturers/${make.id}/history`))[0];
+            assert.equal(event.before.is_active, true);
+            assert.equal(event.after.is_active, false);
+            make = await call("PATCH", path, { ...update, version: make.version, reason: "QA omitted status" });
+            assert.equal(make.is_active, false);
+            make = await call("PATCH", path, { ...update, version: make.version, is_active: true, reason: "QA reactivate in edit" });
+            assert.equal(make.is_active, true);
         });
         await t.test("legacy JSON numbers and timestamp microseconds survive reads and audit snapshots", async () => {
             await pool().query(`UPDATE manufacturers SET data=jsonb_set(data,'{legacy_number}','12345678901234567890.123456'::jsonb),created_at='2020-01-01T00:00:00.123456Z' WHERE id=$1`, [make.id]);

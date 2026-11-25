@@ -33,6 +33,8 @@ export type ClientInput = ClientFields & {
     state_id: string;
     city_id: string;
     contacts: Contact[];
+    is_active?: boolean;
+    reason?: string;
 };
 export type Client = ClientFields & {
     id: string;

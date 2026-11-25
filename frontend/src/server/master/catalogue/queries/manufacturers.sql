@@ -9,7 +9,7 @@ SELECT * FROM manufacturers WHERE id=$1 FOR UPDATE;
 -- name: ManufacturersInsertManufacturer :one
 INSERT INTO manufacturers(id,code,name,data,is_active,version,created_by_id,updated_by_id) VALUES(sqlc.arg(id),sqlc.arg(code),sqlc.arg(name),sqlc.arg(data),sqlc.arg(is_active),1,sqlc.arg(actor_id),sqlc.arg(actor_id)) RETURNING *;
 -- name: ManufacturersProfileManufacturer :one
-UPDATE manufacturers SET name=sqlc.arg(name),data=sqlc.arg(data),version=sqlc.arg(version),updated_by_id=sqlc.arg(actor_id),updated_at=clock_timestamp() WHERE id=sqlc.arg(id) RETURNING *;
+UPDATE manufacturers SET name=sqlc.arg(name),data=sqlc.arg(data),is_active=COALESCE(sqlc.narg(active),is_active),version=sqlc.arg(version),updated_by_id=sqlc.arg(actor_id),updated_at=clock_timestamp() WHERE id=sqlc.arg(id) RETURNING *;
 -- name: ManufacturersStatusManufacturer :one
 UPDATE manufacturers SET is_active=sqlc.arg(active),version=sqlc.arg(version),updated_by_id=sqlc.arg(actor_id),updated_at=clock_timestamp() WHERE id=sqlc.arg(id) RETURNING *;
 -- name: ManufacturersInsertEvent :exec

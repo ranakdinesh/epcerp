@@ -48,7 +48,7 @@ export class ManufacturerRepository {
         return { rows: rows.map(choice), total };
     }
     async create(code: string, name: string, data: ManufacturerData, actor: string, active = true) { return (await query<Manufacturer>(this.db, "ManufacturersInsertManufacturer", { id: randomUUID(), code, name, data, is_active: active, actor_id: actor })).rows[0]; }
-    async update(old: Manufacturer, name: string, data: ManufacturerData, actor: string, active?: boolean) { return (await query<Manufacturer>(this.db, active === undefined ? "ManufacturersProfileManufacturer" : "ManufacturersStatusManufacturer", { id: old.id, name, data, active, version: old.version + 1, actor_id: actor })).rows[0]; }
+    async update(old: Manufacturer, name: string, data: ManufacturerData, actor: string, active: boolean | undefined, statusOnly: boolean) { return (await query<Manufacturer>(this.db, statusOnly ? "ManufacturersStatusManufacturer" : "ManufacturersProfileManufacturer", { id: old.id, name, data, active, version: old.version + 1, actor_id: actor })).rows[0]; }
     async event(saved: Manufacturer, action: string, reason: string, before: object, after: object, actor: string) {
         const id = randomUUID();
         await query(this.db, "ManufacturersInsertEvent", { id, subject_id: saved.id, action, reason, before_snapshot: before, after_snapshot: after, actor_id: actor });

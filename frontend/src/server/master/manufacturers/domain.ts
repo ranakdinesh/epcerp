@@ -24,7 +24,7 @@ export type ManufacturerData = {
 };
 export const nameKey = (s: string) => fold(trim(s));
 export function parseManufacturer(value: unknown, kind: "create" | "profile" | "active") {
-    const input = strictObject(value, kind === "active" ? ["is_active", "version", "reason"] : kind === "profile" ? ["name", "data", "version", "reason"] : ["code", "name", "data", "reason"]);
+    const input = strictObject(value, kind === "active" ? ["is_active", "version", "reason"] : kind === "profile" ? ["name", "data", "version", "reason", "is_active"] : ["code", "name", "data", "reason"]);
     const reason = kind === "create" && input.reason === undefined ? "Manufacturer created" : stringField(input, "reason", 1, 2000);
     const version = kind === "create" ? 0 : integer(input.version);
     if (kind !== "create" && version < 1)
@@ -40,7 +40,9 @@ export function parseManufacturer(value: unknown, kind: "create" | "profile" | "
     const data = strictObject(input.data, ["eligible", "notes"]), notes = stringField(data, "notes", 0, 2000, "");
     if (!Array.isArray(data.eligible) || !data.eligible.length || data.eligible.length > 200 || data.eligible.some(v => typeof v !== "string"))
         invalid("Select 1–200 eligibility codes");
-    return { reason, version, name, code, data: { eligible: (data.eligible as string[]).map(trim), notes }, is_active: true };
+    if (input.is_active !== undefined && typeof input.is_active !== "boolean")
+        invalid("Invalid is_active");
+    return { reason, version, name, code, data: { eligible: (data.eligible as string[]).map(trim), notes }, is_active: kind === "create" ? true : input.is_active as boolean | undefined };
 }
 export function eligibilityQuery(q: URLSearchParams) {
     queryFields(q, ["search", "codes", "skip", "kind", "category_code"]);

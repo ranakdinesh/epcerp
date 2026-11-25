@@ -41,9 +41,9 @@ export function saveManufacturer(token: string, kind: "create" | "profile" | "ac
             throw new AppError(409, "Record changed; refresh before saving");
         if (kind === "profile")
             await repo.validate(input.data, old!.data.eligible);
-        const before = kind === "active" ? { is_active: old.is_active, version: old.version } : { name: old.name, data: old.data, version: old.version };
-        const saved = await repo.update(old, input.name, input.data, actor.id, kind === "active" ? input.is_active : undefined);
-        const after = kind === "active" ? { is_active: saved.is_active, version: saved.version } : { name: saved.name, data: saved.data, version: saved.version };
+        const before = kind === "active" ? { is_active: old.is_active, version: old.version } : { name: old.name, data: old.data, ...(input.is_active !== undefined ? { is_active: old.is_active } : {}), version: old.version };
+        const saved = await repo.update(old, input.name, input.data, actor.id, input.is_active, kind === "active");
+        const after = kind === "active" ? { is_active: saved.is_active, version: saved.version } : { name: saved.name, data: saved.data, ...(input.is_active !== undefined ? { is_active: saved.is_active } : {}), version: saved.version };
         await repo.event(saved, kind === "active" ? "lifecycle" : "update", input.reason, before, after, actor.id);
         return saved;
     });

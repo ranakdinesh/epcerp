@@ -225,10 +225,11 @@ export const catalogueSQL = {
     "mode": "one"
   },
   "ManufacturersProfileManufacturer": {
-    "text": "UPDATE manufacturers SET name=$1,data=$2,version=$3,updated_by_id=$4,updated_at=clock_timestamp() WHERE id=$5 RETURNING *;",
+    "text": "UPDATE manufacturers SET name=$1,data=$2,is_active=COALESCE($3,is_active),version=$4,updated_by_id=$5,updated_at=clock_timestamp() WHERE id=$6 RETURNING *;",
     "keys": [
       "name",
       "data",
+      "active",
       "version",
       "actor_id",
       "id"

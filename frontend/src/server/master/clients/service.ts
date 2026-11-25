@@ -26,7 +26,7 @@ export function getClient(token: string, rawID: string) {
     });
 }
 export async function saveClient(token: string, rawID: string | null, value: unknown) {
-    const id = rawID === null ? randomUUID() : canonicalID(rawID, "client_id", "path"), input = parseClient(value);
+    const id = rawID === null ? randomUUID() : canonicalID(rawID, "client_id", "path"), input = parseClient(value, rawID !== null);
     const result = await transaction(async (db) => {
         const by = await requirePermission(db, token, "settings.clients.write", true);
         await lockReferences(db);
@@ -46,13 +46,16 @@ export async function saveClient(token: string, rawID: string | null, value: unk
             throw new AppError(404, "Client not found");
         if (existing && input.contacts.some(c => c.id && !existing.contacts.some(old => old.id === c.id)))
             throw new AppError(422, "A contact does not belong to this client");
-        const contacts = input.contacts.map(c => ({ ...c, id: rawID === null || !c.id ? randomUUID() : c.id, is_active: true }));
-        await repo.save(id, existing?.client_code ?? `CLI-${randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`, input, existing?.is_active ?? true, by.id, rawID === null);
+        const active = input.is_active ?? existing?.is_active ?? true;
+        const contacts = input.contacts.map(c => ({ ...c, id: rawID === null || !c.id ? randomUUID() : c.id, is_active: active }));
+        await repo.save(id, existing?.client_code ?? `CLI-${randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`, input, active, by.id, rawID === null);
         await repo.contacts(id, contacts, by.id);
         const saved = (await repo.get(id))!;
-        return { saved, actorID: by.id };
+        return { saved, actorID: by.id, statusChanged: existing !== null && active !== existing.is_active };
     });
     console.info(JSON.stringify({ event: rawID === null ? "master.clients.created" : "master.clients.updated", client_id: id, actor_id: result.actorID }));
+    if (result.statusChanged)
+        console.info(JSON.stringify({ event: result.saved.is_active ? "master.clients.activated" : "master.clients.deactivated", client_id: id, actor_id: result.actorID, reason: input.reason }));
     return result.saved;
 }
 export async function setClientActive(token: string, rawID: string, active: boolean) {
