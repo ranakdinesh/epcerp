@@ -1,5 +1,5 @@
 import { invalid, email, username } from "./domain";
-import { newUserMobileLength, newUserMobileMessage, newUserMobilePattern } from "../../lib/auth/new-user-mobile";
+import { indianMobileMessage, isIndianMobile } from "../../lib/indian-mobile";
 export type Input = Record<string, unknown>;
 export async function body(request: Request, allowed: string[], limit = 16384): Promise<Input> {
   const type = request.headers.get("content-type")?.split(";")[0].trim();
@@ -59,9 +59,8 @@ export function contact(v: Input, partial = false) {
 export const address = (v: Input) => email(text(v, "email", 5, 255));
 export const userName = (v: Input) => username(text(v, "username", 3, 64));
 
-const newUserMobile = new RegExp(`^${newUserMobilePattern}$`);
 export function newUserContact(v: Input) {
   const mobile = v.mobile;
-  if (typeof mobile !== "string" || mobile.length !== newUserMobileLength || !newUserMobile.test(mobile)) invalid(newUserMobileMessage);
+  if (!isIndianMobile(mobile)) invalid(indianMobileMessage);
   return { ...contact(v), mobile };
 }

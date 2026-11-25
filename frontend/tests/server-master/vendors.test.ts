@@ -26,7 +26,7 @@ test("supplier profiles and lifecycle preserve existing SQL, audit and Finance b
             await pool().query('INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)', [id, role.id]);
             credentials[kind] = { id, role, token: (await login(name, 'Vendor-Reader1!')).access_token };
         }
-        const input = (code = prefix) => ({ code: code.toLowerCase(), name: '  ' + prefix + '  Supplier  ', data: { contact_person_name: 'QA contact', email: 'vendor@fixture.invalid', phone: '+91 9000000000', qualification: 'unverified', payment_terms: { advance_pct: 33.33, delivery_pct: 66.67, credit_days: 30 }, indent_terms: 'Synthetic terms only', delivery_terms: 'Synthetic delivery basis' }, reason: ' QA created ' });
+        const input = (code = prefix) => ({ code: code.toLowerCase(), name: '  ' + prefix + '  Supplier  ', data: { contact_person_name: 'QA contact', email: 'vendor@fixture.invalid', phone: '9000000000', contact_address: '1 Fixture Road', qualification: 'unverified', payment_terms: { advance_pct: 33.33, delivery_pct: 66.67, credit_days: 30 }, indent_terms: 'Synthetic terms only', delivery_terms: 'Synthetic delivery basis' }, reason: ' QA created ' });
         let supplier: Awaited<ReturnType<typeof call>>;
         const evidenceTables = ['supplier_documents', 'supplier_document_changes', 'supplier_verifications', 'supplier_verification_history', 'supplier_document_approval_tasks', 'supplier_document_approval_events'];
         const evidenceBefore: Record<string, string> = {};
@@ -43,6 +43,17 @@ test("supplier profiles and lifecycle preserve existing SQL, audit and Finance b
                 await call('POST', '/suppliers/legacy-import', {}, 403, c.token);
             }
         });
+        await t.test('creation requires a 10-digit mobile number and a contact address', async () => {
+            const draft = input();
+            for (const phone of [undefined, '123456789', '12345678901', '+919000000000', '900000000x']) {
+                const error = await call('POST', '/suppliers', { ...draft, data: { ...draft.data, phone } }, 422);
+                assert.equal(error.detail[0].loc.at(-1), 'phone');
+            }
+            for (const contact_address of [undefined, '  ']) {
+                const error = await call('POST', '/suppliers', { ...draft, data: { ...draft.data, contact_address, contact: 'legacy@fixture.invalid' } }, 422);
+                assert.equal(error.detail[0].loc.at(-1), 'contact_address');
+            }
+        });
         await t.test('create without a reason normalizes supplier fields and records the creation audit', async () => {
             supplier = await call('POST', '/suppliers', { ...input(), reason: undefined }, 201);
             assert.equal(supplier.code, prefix);
@@ -53,6 +64,8 @@ test("supplier profiles and lifecycle preserve existing SQL, audit and Finance b
             assert.ok(supplier.created_by_id);
             assert.equal(supplier.updated_by_id, supplier.created_by_id);
             assert.equal(supplier.data.payment_terms.advance_pct, 33.33);
+            assert.equal(supplier.data.phone, '9000000000');
+            assert.equal(supplier.data.contact_address, '1 Fixture Road');
             assert.deepEqual(Object.keys(supplier).sort(), ['id', 'code', 'name', 'data', 'is_active', 'version', 'created_at', 'updated_at', 'created_by_id', 'updated_by_id', 'is_imported'].sort());
             const history = (await pool().query('SELECT * FROM supplier_changes WHERE supplier_id=$1', [supplier.id])).rows;
             assert.equal(history.length, 1);

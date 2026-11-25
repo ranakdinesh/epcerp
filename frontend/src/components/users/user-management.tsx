@@ -11,7 +11,7 @@ import { DataGrid, type GridQuery } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { displayServerErrors } from "@/components/ui/server-field-errors";
 import { RequiredSelection, ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedTextarea } from "@/components/ui/validated-controls";
-import { newUserMobileLength, newUserMobileMessage, newUserMobilePattern } from "@/lib/auth/new-user-mobile";
+import { indianMobileLength, indianMobileMessage, indianMobilePattern } from "@/lib/indian-mobile";
 
 type PlatformUser = UserDetailRecord;
 type Role = { is_active?: boolean; id: string; name: string };
@@ -302,9 +302,9 @@ export function UserManagement() {
             name="mobile" type="tel" required
             inputMode={creating ? "numeric" : undefined}
             minLength={creating ? undefined : 8}
-            maxLength={creating ? newUserMobileLength : 24}
-            pattern={creating ? newUserMobilePattern : undefined}
-            title={creating ? newUserMobileMessage : undefined}
+            maxLength={creating ? indianMobileLength : 24}
+            pattern={creating ? indianMobilePattern : undefined}
+            title={creating ? indianMobileMessage : undefined}
             placeholder={creating ? "10 digits without +91" : undefined}
             defaultValue={selectedUser?.mobile} className={input}
           /></ValidatedLabel>{dialogMode==="create"&&<><ValidatedLabel required className="block text-sm font-bold">Username<ValidatedInput name="username" required minLength={3} maxLength={64} pattern="[a-zA-Z0-9._\-]+" className={input}/></ValidatedLabel></>}
