@@ -10,6 +10,7 @@ import { handleMaster } from "../../src/server/master/http";
 test("supplier profiles and lifecycle preserve existing SQL, audit and Finance boundaries", { skip: !process.env.EPCERP_DATABASE_URL }, async (t) => {
     assert.match(new URL(process.env.EPCERP_DATABASE_URL!).pathname, /\/epcerp_(auth|master)_qa_/u, "Refusing to mutate an application database");
     try {
+        const migrationBefore = (await pool().query('SELECT version, dirty FROM schema_migrations')).rows;
         await initializeAuth();
         const token = (await login("superadmin", process.env.VTPL_BOOTSTRAP_SUPERADMIN_PASSWORD!)).access_token, prefix = 'VQ' + randomUUID().replaceAll('-', '').slice(0, 10).toUpperCase();
         async function raw(method: string, path: string, body?: string, access = token) { return handleMaster(new Request('http://localhost/api/v1' + path, { method, headers: { Authorization: `Bearer ${access}` }, body })); }
@@ -155,7 +156,7 @@ test("supplier profiles and lifecycle preserve existing SQL, audit and Finance b
         });
         for (const [table, hash] of Object.entries(evidenceBefore))
             assert.equal((await pool().query(`SELECT md5(coalesce(string_agg(to_jsonb(v)::text,'|' ORDER BY to_jsonb(v)::text),'')) AS hash FROM public.${table} v`)).rows[0].hash, hash, 'Profile writes touched document/Finance evidence: ' + table);
-        assert.equal((await pool().query('SELECT version FROM schema_migrations')).rows[0].version, '99');
+        assert.deepEqual((await pool().query('SELECT version, dirty FROM schema_migrations')).rows, migrationBefore);
     }
     finally {
         await pool().end();
