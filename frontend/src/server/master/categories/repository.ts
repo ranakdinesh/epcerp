@@ -31,8 +31,8 @@ export class CategoryRepository {
         await recordMasterEvent(this.db, "category_catalogue", kind, saved.id, 1, reason ? "create" : "import", actor);
         return saved;
     }
-    async update(kind: CategoryKind, before: StoredCategory, code: string, name: string, actor: string, reason: string) {
-        const changed = await query(this.db, names[kind].update, { id: before.id, code, name, actor_id: actor, expected_version: before.version });
+    async update(kind: CategoryKind, before: StoredCategory, { code, name, is_active }: Pick<StoredCategory, "code" | "name" | "is_active">, actor: string, reason: string) {
+        const changed = await query(this.db, names[kind].update, { id: before.id, code, name, is_active, actor_id: actor, expected_version: before.version });
         if (changed.rowCount !== 1)
             throw new AppError(409, "Record changed; reload before saving");
         const saved = (await this.list(kind)).find(v => v.id === before.id)!;

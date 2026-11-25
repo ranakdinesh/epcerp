@@ -27,7 +27,7 @@ INSERT INTO category_catalogue_changes(id,kind,subject_id,action,reason,before_s
 VALUES(@id,@kind,@subject_id,@action,@reason,@before_snapshot,@after_snapshot,@actor_id);
 
 -- name: CategoriesUpdateCategory :execrows
-UPDATE categories SET code= @code,name= @name,version=version+1,updated_at=clock_timestamp(),updated_by_id= @actor_id WHERE id= @id AND version= @expected_version;
+UPDATE categories SET code= @code,name= @name,is_active= @is_active,version=version+1,updated_at=clock_timestamp(),updated_by_id= @actor_id WHERE id= @id AND version= @expected_version;
 
 -- name: CategoriesUpdateSubcategory :execrows
 UPDATE category_subcategories SET code= @code,name= @name,version=version+1,updated_at=clock_timestamp(),updated_by_id= @actor_id WHERE id= @id AND version= @expected_version;

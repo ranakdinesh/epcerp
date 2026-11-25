@@ -14,7 +14,7 @@ export function CategoryForm({ kind, data, record, parentCategoryId, onAddUnit, 
   const singular = kind === "categories" ? "category" : kind === "subcategories" ? "subcategory" : "unit";
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const values = new FormData(form);
-    const payload = { code: record && String(values.get("code")) === record.code ? record.code : String(values.get("code") ?? "").trim().toUpperCase(), name: String(values.get("name") ?? "").trim(), ...(record ? { version: record.version, reason: String(values.get("reason") ?? "").trim() } : kind === "categories" ? { unit_id: String(values.get("unit_id")) } : kind === "subcategories" ? { category_id: categoryId } : {}) };
+    const payload = { code: record && String(values.get("code")) === record.code ? record.code : String(values.get("code") ?? "").trim().toUpperCase(), name: String(values.get("name") ?? "").trim(), ...(record ? { version: record.version, reason: String(values.get("reason") ?? "").trim(), ...(kind === "categories" ? { is_active: values.has("is_active") } : {}) } : kind === "categories" ? { unit_id: String(values.get("unit_id")) } : kind === "subcategories" ? { category_id: categoryId } : {}) };
     setBusy(true); setError("");
     try { const response = await fetch(`/api/settings/categories/${kind}${record ? `/${record.id}` : ""}`, { method: record ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const body = await response.json(); if (!response.ok) { if (!displayServerErrors(form, body)) setError(typeof body.detail === "string" ? body.detail : "Unable to save this record. Check your access or try again."); return; } onSaved(body as CatalogueRecord); }
     catch { setError("Unable to connect. Please try again."); } finally { setBusy(false); }
@@ -26,6 +26,10 @@ export function CategoryForm({ kind, data, record, parentCategoryId, onAddUnit, 
     {kind === "subcategories" && <><p className="text-sm">Category: <strong>{category ? `${category.name} (${category.code})` : "Unavailable"}</strong></p><p className="text-sm">Base unit: <strong>{inherited ? `${inherited.code} — ${inherited.name}` : "Unavailable"}</strong>. Inherited from the category.</p>{!record && <p className="text-sm">Specification configuration will be pending after creation.</p>}</>}
     {kind === "units" && record && <p className="text-sm">Correcting this shared unit updates its label in every category using it; it does not convert quantities.</p>}
     {record?.unit_id && <p className="text-sm">Base unit: <strong>{data.units.find(u => u.id === record.unit_id)?.code}</strong>. Unit relationships are preserved during corrections.</p>}
+    {record && kind === "categories" && <div>
+      <Label><Input name="is_active" type="checkbox" defaultChecked={record.is_active} aria-describedby="category-active-help" />Active</Label>
+      <p id="category-active-help" className="text-sm text-slate-600">Inactive categories are unavailable for new selections. Existing records keep their category.</p>
+    </div>}
     {record && <Label>Reason for correction<Textarea name="reason" required maxLength={2000} /></Label>}
     {error && <p role="alert" className="text-red-700">{error}</p>}
     <button type="submit" className="rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white">{busy ? "Saving…" : record ? "Save changes" : `Create ${singular}`}</button>

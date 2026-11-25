@@ -20,7 +20,8 @@ export class ManufacturerRepository {
     async lock() { await query(this.db, "ManufacturersLockNames"); }
     async list() { return (await query<Manufacturer>(this.db, "ManufacturersListManufacturers")).rows; }
     async get(id: string, lock = false) { return (await query<Manufacturer>(this.db, lock ? "ManufacturersLockManufacturer" : "ManufacturersGetManufacturer", { id })).rows[0] ?? null; }
-    async validate(data: ManufacturerData) {
+    async validate(data: ManufacturerData, existing: readonly string[] = []) {
+        await query(this.db, "CategoriesLockImport");
         const records = (await query<Eligibility>(this.db, "CategoriesFindEligibility", { codes: data.eligible })).rows, seen = new Set<string>();
         for (const code of data.eligible) {
             if (records.filter(r => r.code === code).length !== 1)
@@ -31,7 +32,7 @@ export class ManufacturerRepository {
                 invalid("Duplicate manufacturer eligibility");
             seen.add(code);
         }
-        if (data.eligible.some(c => !records.some(r => r.code === c && r.active)))
+        if (data.eligible.some(c => !existing.includes(c) && !records.some(r => r.code === c && r.active)))
             invalid("Manufacturer eligibility must reference active categories or types");
     }
     async options(values: Record<string, unknown> & {

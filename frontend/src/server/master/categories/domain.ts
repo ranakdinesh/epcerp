@@ -60,7 +60,7 @@ export function categoryKind(value: string): CategoryKind { if (!["category", "s
     invalid("Unknown catalogue record kind"); return value as CategoryKind; }
 const creationReasons: Record<CategoryKind, string> = { category: "Category created", subcategory: "Subcategory created", unit: "Base unit created" };
 export function cleanCategory(kind: CategoryKind, value: unknown, edit = false) {
-    const input = goObject(value, edit ? ["code", "name", "reason", "version"] : ["code", "name", "unit_id", "category_id", "reason"]);
+    const input = goObject(value, edit ? ["code", "name", "reason", "version", ...(kind === "category" ? ["is_active"] : [])] : ["code", "name", "unit_id", "category_id", "reason"]);
     const originalCode = text(input.code), code = upper(trim(originalCode)), name = spacedName(text(input.name));
     const reason = !edit && input.reason === undefined ? creationReasons[kind] : trim(text(input.reason));
     if (!codePattern.test(code) || (kind === "unit" && code.length > 16))
@@ -80,7 +80,9 @@ export function cleanCategory(kind: CategoryKind, value: unknown, edit = false) 
         fieldError("category_id", "Select an active category; its unit is inherited");
     else if (kind === "unit" && (unit_id || category_id))
         invalid("Units do not have parent references");
-    return { code, name, reason, version, unit_id, category_id, originalCode };
+    const is_active = input.is_active;
+    if (is_active !== undefined && typeof is_active !== "boolean") fieldError("is_active", "Choose active or inactive");
+    return { code, name, reason, version, unit_id, category_id, originalCode, ...(is_active !== undefined ? { is_active } : {}) };
 }
 export function browseQuery(q: URLSearchParams) {
     queryFields(q, ["kind", "category_id", "search", "status", "sort", "direction", "page", "size"]);

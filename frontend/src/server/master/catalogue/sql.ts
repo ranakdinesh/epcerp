@@ -78,10 +78,11 @@ export const catalogueSQL = {
     "mode": "exec"
   },
   "CategoriesUpdateCategory": {
-    "text": "UPDATE categories SET code= $1,name= $2,version=version+1,updated_at=clock_timestamp(),updated_by_id= $3 WHERE id= $4 AND version= $5;",
+    "text": "UPDATE categories SET code= $1,name= $2,is_active= $3,version=version+1,updated_at=clock_timestamp(),updated_by_id= $4 WHERE id= $5 AND version= $6;",
     "keys": [
       "code",
       "name",
+      "is_active",
       "actor_id",
       "id",
       "expected_version"
