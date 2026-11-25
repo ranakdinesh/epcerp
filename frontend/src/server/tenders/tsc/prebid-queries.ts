@@ -189,14 +189,25 @@ export async function closePrebidReview(db: DB, draftId: string, actorId: string
   }
   if (action === 'close' && (row.has_drafts || row.has_pending_replies)) throw new AppError(409, 'Resolve all draft queries and outstanding issuer replies before closing pre-bid review.');
   await db.query(`
-    WITH closed AS (
-      UPDATE tender.document_drafts SET prebid_reviewed_at=clock_timestamp(), prebid_reviewed_by_id=$2
-      WHERE id=$1 AND prebid_reviewed_at IS NULL
-      RETURNING id, prebid_reviewed_at
-    )
-    INSERT INTO tender.draft_events(id, draft_id, action, created_at, created_by_id)
-    SELECT gen_random_uuid(), id, 'prebid_replies_skipped', prebid_reviewed_at, $2
-    FROM closed WHERE $3
-  `, [draftId, actorId, action === 'skip-replies']);
-  return { prebid_review_closed: true, prebid_review_skipped: !row.has_queries };
+    UPDATE tender.document_drafts SET prebid_reviewed_at=clock_timestamp(), prebid_reviewed_by_id=$2
+    WHERE id=$1 AND prebid_reviewed_at IS NULL
+  `, [draftId, actorId]);
+  if (action !== 'close') {
+    const eventType = action === 'skip' ? 'prebid_queries_skipped' : 'prebid_replies_skipped';
+    await db.query(`
+      INSERT INTO tender.draft_events(id, draft_id, action, created_at, created_by_id)
+      SELECT gen_random_uuid(), d.id, $3, d.prebid_reviewed_at, $2
+      FROM tender.document_drafts d WHERE d.id=$1 AND NOT EXISTS (
+        SELECT FROM tender.draft_events e
+        WHERE e.draft_id=d.id AND e.action=$3 AND e.created_at=d.prebid_reviewed_at
+      )
+    `, [draftId, actorId, eventType]);
+  }
+  const { rows: [status] } = await db.query(`
+    SELECT EXISTS(
+      SELECT FROM tender.draft_events e
+      WHERE e.draft_id=d.id AND e.action='prebid_queries_skipped' AND e.created_at=d.prebid_reviewed_at
+    ) AS prebid_review_skipped FROM tender.document_drafts d WHERE d.id=$1
+  `, [draftId]);
+  return { prebid_review_closed: true, prebid_review_skipped: status.prebid_review_skipped };
 }

@@ -6,7 +6,7 @@ import { AppError } from '../errors';
 // A skip applies only to the review closure it recorded. Query changes reopen that review.
 const skippedReplies = `EXISTS(
   SELECT FROM tender.draft_events e
-  WHERE e.draft_id=d.id AND e.action='prebid_replies_skipped' AND e.created_at=d.prebid_reviewed_at
+  WHERE e.draft_id=d.id AND e.action IN ('prebid_replies_skipped', 'prebid_queries_skipped') AND e.created_at=d.prebid_reviewed_at
 )`;
 
 // The draft row is aliased as d. Read the same facts for both the register and detail.
@@ -27,6 +27,9 @@ export const tenderFlowColumns = `
   EXISTS(SELECT FROM tender.prebid_queries q WHERE q.draft_id=d.id) AS has_queries,
   EXISTS(SELECT FROM tender.prebid_queries q WHERE q.draft_id=d.id AND q.status='draft') AS has_draft_queries,
   EXISTS(SELECT FROM tender.prebid_queries q WHERE q.draft_id=d.id AND q.status='submitted') AS has_pending_replies,
+  EXISTS(SELECT FROM tender.draft_events e
+    WHERE e.draft_id=d.id AND e.action='prebid_queries_skipped' AND e.created_at=d.prebid_reviewed_at
+  ) AS skipped_queries,
   ${skippedReplies} AS skipped_replies,
   EXISTS(SELECT FROM tender.bid_items i WHERE i.draft_id=d.id) AS has_items,
   EXISTS(SELECT FROM tender.vendor_quotations q WHERE q.draft_id=d.id) AS has_quotes,
@@ -39,8 +42,8 @@ type Verdict = { current?: boolean; previously_verified?: boolean; human_decisio
 export function tenderFlow(row: Record<string, unknown>) {
   const verdict = row.verdict as Verdict | null;
   const reviewed = Boolean(row.prebid_reviewed_at && !row.has_draft_queries && (row.skipped_replies || !row.has_pending_replies));
-  const skipped = reviewed && !row.has_queries;
-  const repliesSkipped = reviewed && (skipped || Boolean(row.skipped_replies));
+  const skipped = reviewed && Boolean(row.skipped_queries);
+  const repliesSkipped = reviewed && Boolean(row.skipped_replies);
   const finalized = Boolean(verdict?.current);
   const bidding = typeof row.bidding_decision === 'string' ? row.bidding_decision : undefined;
   const approvalCurrent = Boolean(reviewed && finalized && row.bidding_is_current);

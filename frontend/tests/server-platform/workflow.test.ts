@@ -130,6 +130,7 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             const afterSkip = await tender('flow-status');
             assert.equal(afterSkip.next_step, 'TS-02');
             assert.equal(afterSkip.prebid_review_skipped, true);
+            assert.equal(afterSkip.prebid_replies_skipped, true);
             assert.equal(afterSkip.tsc_completed, true);
             await tender('bidding-approval', 'POST', { decision: 'conditional' }, 201);
 
@@ -190,9 +191,18 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
         await t.test('skipping pre-bid review opens Step 4 with TSC sign-off still required', async () => {
             const created = await call(handleIntake, '/tender-fms/drafts', 'POST', { name: 'Skip before sign-off fixture' }, 201, token, randomUUID());
             const base = `/tender-fms/drafts/${created.id}`;
+            const fresh = await call(handleTSC, base + '/flow-status');
+            assert.equal(fresh.prebid_review_skipped, false);
+            assert.equal(fresh.prebid_replies_skipped, false);
+            await call(handleTSC, base + '/prebid-queries/close', 'POST');
+            const closed = await call(handleTSC, base + '/flow-status');
+            assert.equal(closed.prebid_review_closed, true);
+            assert.equal(closed.prebid_review_skipped, false);
+            assert.equal(closed.prebid_replies_skipped, false);
             await call(handleTSC, base + '/prebid-queries/skip', 'POST');
             const status = await call(handleTSC, base + '/flow-status');
             assert.equal(status.prebid_review_skipped, true);
+            assert.equal(status.prebid_replies_skipped, true);
             assert.equal(status.tsc_completed, false);
             assert.equal(status.next_step, 'TS-02');
             const approval = await call(handleTSC, base + '/bidding-approval', 'POST', { decision: 'conditional' }, 409);

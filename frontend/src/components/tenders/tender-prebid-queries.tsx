@@ -89,7 +89,7 @@ export function TenderPrebidQueries({
   const [queryDesc, setQueryDesc] = useState("");
   const [justification, setJustification] = useState("");
   const [saving, setSaving] = useState(false);
-  const [skipQueries, setSkipQueries] = useState(false);
+  const [skipSelected, setSkipSelected] = useState(false);
 
   // Response edit state
   const [activeResponseQuery, setActiveResponseQuery] = useState<PrebidQuery | null>(null);
@@ -206,8 +206,12 @@ export function TenderPrebidQueries({
   const afterReview = continueToBidding ? "TS-02" : "TS-TSC";
   const afterReviewLabel = continueToBidding ? "Continue to bidding approval" : "Return to Step 3 to finalize the TSC";
   const canWriteReview = canWrite && !closed && !loading && queriesLoaded;
-  const canSkip = canWriteReview && !reviewing && queries.length === 0;
   const hasDraftQueries = queries.some(query => query.status === "draft");
+  const skipSaved = reviewing ? repliesSkipped : skipped;
+  const emptyReview = queries.length === 0;
+  const canSelectSkip = canWrite && !skipSaved && !loading && queriesLoaded &&
+    (reviewing ? !hasDraftQueries && (!closed || emptyReview) : emptyReview);
+  const willSkip = canSelectSkip && skipSelected;
 
   async function saveReview(query?: PrebidQuery, action: "close" | "skip" | "skip-replies" = "close") {
     setSaving(true);
@@ -292,17 +296,16 @@ export function TenderPrebidQueries({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {reviewing && !closed && canWrite && (
-              <button
-                type="button"
-                className={secondaryBtn}
-                disabled={!canWriteReview || saving || hasDraftQueries}
-                onClick={() => void saveReview(undefined, "skip-replies")}
-              >
-                Skip replies and continue
-                <ArrowRightIcon className="h-4 w-4" />
-              </button>
-            )}
+            <ValidatedLabel className="flex min-h-11 items-center gap-3 text-sm font-semibold">
+              <ValidatedInput
+                type="checkbox"
+                className="h-5 w-5 accent-blue-700"
+                checked={skipSaved || willSkip}
+                disabled={!canSelectSkip || saving}
+                onChange={event => setSkipSelected(event.target.checked)}
+              />
+              {reviewing ? "Skip pre-bid replies review" : "Skip pre-bid queries and replies"}
+            </ValidatedLabel>
             {queries.length > 0 && (
               <button
                 type="button"
@@ -497,19 +500,16 @@ export function TenderPrebidQueries({
       </div>
 
       <div className="space-y-2">
-        {canSkip && (
-          <ValidatedLabel className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-sm font-semibold">
-            <ValidatedInput
-              type="checkbox"
-              className="h-5 w-5 accent-blue-700"
-              checked={skipQueries}
-              disabled={saving}
-              onChange={event => setSkipQueries(event.target.checked)}
-            />
-            Skip pre-bid queries and replies
-          </ValidatedLabel>
-        )}
-        {skipped || (reviewing && closed) ? (
+        {willSkip ? (
+          <button
+            type="button"
+            className={primaryBtn}
+            disabled={saving}
+            onClick={() => void saveReview(undefined, reviewing ? "skip-replies" : "skip")}
+          >
+            {saving ? "Saving…" : "Skip and continue"} <ArrowRightIcon className="h-4 w-4" />
+          </button>
+        ) : skipped || (reviewing && closed) ? (
           <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.(afterReview)}>
             {afterReviewLabel} <ArrowRightIcon className="h-4 w-4" />
           </button>
@@ -518,9 +518,9 @@ export function TenderPrebidQueries({
             type="button"
             className={primaryBtn}
             disabled={saving}
-            onClick={() => canSkip && skipQueries ? void saveReview(undefined, "skip") : onNavigateStep?.("LG-04")}
+            onClick={() => onNavigateStep?.("LG-04")}
           >
-            {canSkip && skipQueries ? (saving ? "Saving…" : "Skip and continue") : "Review pre-bid replies"}
+            Review pre-bid replies
             <ArrowRightIcon className="h-4 w-4" />
           </button>
         ) : canWrite && (

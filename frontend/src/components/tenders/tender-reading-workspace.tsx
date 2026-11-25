@@ -1040,6 +1040,7 @@ function DraftDetail({
         />
       ) : prebidStage ? (
         <TenderPrebidQueries
+          key={stage}
           reviewing={stage === "replies"}
           closed={Boolean(data.prebid_review_closed)}
           skipped={Boolean(data.prebid_review_skipped)}
