@@ -58,6 +58,7 @@ export function TenderPrebidQueries({
   draftId,
   reviewing,
   closed,
+  tscCompleted,
   onRefresh,
   canWrite = true,
   onNavigateStep,
@@ -65,6 +66,7 @@ export function TenderPrebidQueries({
   draftId: string;
   reviewing: boolean;
   closed: boolean;
+  tscCompleted: boolean;
   onRefresh: () => Promise<void>;
   canWrite?: boolean;
   onNavigateStep?: (step: string) => void;
@@ -201,7 +203,6 @@ export function TenderPrebidQueries({
       if (!response.ok) throw new Error((await response.json()).detail || "Failed to save pre-bid review");
       await Promise.all([loadQueries(), onRefresh()]);
       window.dispatchEvent(new Event("tender-progress-saved"));
-      if (!query) onNavigateStep?.("TS-TSC");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to save pre-bid review");
     } finally {
@@ -464,8 +465,8 @@ export function TenderPrebidQueries({
             Review replies or confirm no queries <ArrowRightIcon className="h-4 w-4" />
           </button>
         ) : closed ? (
-          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.("TS-TSC")}>
-            Continue to TSC <ArrowRightIcon className="h-4 w-4" />
+          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.(tscCompleted ? "TS-02" : "TS-TSC")}>
+            {tscCompleted ? "Continue to bidding approval" : "Return to Step 3 to finalize the TSC"} <ArrowRightIcon className="h-4 w-4" />
           </button>
         ) : canWrite && (
           <button
@@ -474,7 +475,7 @@ export function TenderPrebidQueries({
             disabled={loading || saving || answeredCount !== queries.length}
             onClick={() => void saveReview()}
           >
-            {queries.length ? "Close review and continue to TSC" : "Confirm no queries and continue to TSC"}
+            {queries.length ? "Close pre-bid review" : "Confirm no queries and close review"}
           </button>
         )}
         {reviewing && !closed && answeredCount !== queries.length &&

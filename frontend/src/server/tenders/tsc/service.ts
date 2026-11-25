@@ -2,7 +2,6 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { transaction } from '../../db';
 import { AppError } from '../../errors';
-import { requireClosedPrebidReview } from '../flow';
 import { authorizeTender, authorizeWorker, referenceDocument, sourceFingerprint, tenderSources } from '../documents';
 import { digest, encrypt, decrypt } from './crypto';
 import { configured,providerNames } from './providers';
@@ -32,7 +31,6 @@ export async function create(token: string, draft: string, key: string, value: u
             return jobView(db, previous, d.version);
         }
         if (requested !== 'manual') {
-            await requireClosedPrebidReview(db, draft);
             if (!actor.allows('tenders.tsc.originals.write'))
                 throw new AppError(403, 'Permission to send original documents is required');
             if (!configured(requested))
@@ -125,7 +123,6 @@ export function resume(token:string,draft:string,job:string,key:string,value:unk
 export async function enqueueResume(db:Parameters<typeof costs>[0],actorID:string,draft:string,job:string,key:string,version:number){
   id(key);integer(version,1);const actor={id:actorID},permitted=await authorizeWorker(db,actorID,draft),d={...permitted,version:Number(permitted.version)},row=await getJob(db,draft,job,true),{snapshot,answers}=decodeJob(row),hash=digest(JSON.stringify({resume:job,version}));
   const old=(await db.query('SELECT request_hash FROM tender.tsc_workspace_tasks WHERE job_id=$1 AND operation_key=$2',[job,key])).rows[0];if(old){if(old.request_hash!==hash)throw new AppError(409,'Operation key belongs to another request');return jobView(db,row,d.version)}
-  await requireClosedPrebidReview(db, draft);
   if(row.state!=='ready'||Number(row.version)!==version||Number(row.draft_version)!==d.version)throw new AppError(409,'Refresh the current checklist before resuming');
   if(snapshot.mode==='manual'||!configured(snapshot.mode))throw new AppError(503,'Provider is not configured');
   if(!['provider_unavailable','quota_or_rate_limit'].includes(row.error_code))throw new AppError(409,'Only a confirmed provider rejection can be resumed; review unknown outcomes first');
@@ -153,7 +150,6 @@ export function requestProposal(token: string, draft: string, job: string, quest
                 throw new AppError(409, 'Operation key belongs to another question request');
             return { task_id: old.id, state: old.state };
         }
-        await requireClosedPrebidReview(db, draft);
         if (row.state !== 'ready' || Number(row.version) !== version || Number(row.draft_version) !== d.version)
             throw new AppError(409, 'Refresh the current TSC draft before requesting a proposal');
         const q = snapshot.questions.find(q => q.id === question);

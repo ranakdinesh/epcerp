@@ -134,6 +134,7 @@ type Draft = {
   status_label?: string;
   completed_steps?: number[];
   basic_details?: BasicDetails;
+  has_verified_batches?: boolean;
   prebid_review_closed?: boolean;
   tsc_completed?: boolean;
   bidding_authorized?: boolean;
@@ -830,7 +831,7 @@ function DeleteDraft({
 }
 
 const workspaceStages: readonly Stage[] = [
-  "details", "documents", "queries", "replies", "tsc", "bidding", "boq", "quotes", "costing", "award",
+  "details", "documents", "tsc", "queries", "replies", "bidding", "boq", "quotes", "costing", "award",
 ];
 
 function DraftDetail({
@@ -928,8 +929,13 @@ function DraftDetail({
   const currentCode = activeStep && stageForStep(activeStep) === stage ? activeStep : stepForStage(stage);
   const workStep = tenderProcess.steps.find(item => item.code === currentCode);
   const prevStage = workspaceStages[currentIndex - 1];
-  const nextStage = workspaceStages[currentIndex + 1];
-  const canContinue = stage === "replies" ? data.prebid_review_closed
+  const hasVerifiedDocuments = Boolean(data.has_verified_batches || verifiedBatches);
+  const tscNextStage = data.prebid_review_closed ? "bidding" : "queries";
+  const nextStage = stage === "tsc" ? tscNextStage
+    : stage === "replies" && data.prebid_review_closed && !data.tsc_completed ? "tsc"
+    : workspaceStages[currentIndex + 1];
+  const canContinue = stage === "documents" ? hasVerifiedDocuments
+    : stage === "replies" ? data.prebid_review_closed
     : stage === "tsc" ? data.tsc_completed
     : stage === "bidding" ? data.bidding_authorized : true;
 
@@ -996,11 +1002,14 @@ function DraftDetail({
           onViewArtifact={(title, text) => setArtifact({ title, text })}
         />
       ) : stage === "tsc" ? (
-        data.prebid_review_closed ? (
+        hasVerifiedDocuments || data.tsc_completed || data.prebid_review_closed ? (
           <CloudTSCWorkspace
             onDone={onDone}
             onDirty={onDirty}
-            onProceedToBidding={() => changeStage("bidding")}
+            nextStep={{
+              label: stepName(stepForStage(tscNextStage)),
+              navigate: () => changeStage(tscNextStage),
+            }}
             draftID={data.id}
             sourceVersion={data.version}
             readyForGeneration={
@@ -1015,8 +1024,8 @@ function DraftDetail({
           />
         ) : (
           <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <p>Close the pre-bid review before preparing or finalizing the TSC.</p>
-            <button type="button" className={primary} onClick={() => changeStage("replies")}>Review pre-bid replies</button>
+            <p>Verify the tender documents in Step 2 before preparing the TSC.</p>
+            <button type="button" className={primary} onClick={() => changeStage("documents")}>Read &amp; verify documents</button>
           </section>
         )
       ) : stage === "bidding" ? (
@@ -1031,6 +1040,7 @@ function DraftDetail({
         <TenderPrebidQueries
           reviewing={stage === "replies"}
           closed={Boolean(data.prebid_review_closed)}
+          tscCompleted={Boolean(data.tsc_completed)}
           onRefresh={refresh}
           draftId={data.id}
           canWrite={canWrite}

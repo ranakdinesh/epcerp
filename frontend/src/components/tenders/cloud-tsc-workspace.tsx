@@ -118,7 +118,7 @@ export function CloudTSCWorkspace(props: {
   readyForGeneration?: boolean;
   onDone?: () => void;
   onDirty?: (value: boolean) => void;
-  onProceedToBidding?: () => void;
+  nextStep?: { label: string; navigate: () => void };
 }) {
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
@@ -187,7 +187,6 @@ export function CloudTSCWorkspace(props: {
         refreshOptions={refresh}
         onDone={props.onDone}
         onDirty={props.onDirty}
-        onProceedToBidding={props.onProceedToBidding}
       />
     </>
   );
@@ -199,7 +198,7 @@ function NativeTSC({
   options,
   refreshOptions,
   onDirty,
-  onProceedToBidding,
+  nextStep,
 }: {
   draftID: string;
   sourceVersion: number;
@@ -207,7 +206,7 @@ function NativeTSC({
   refreshOptions: () => Promise<void>;
   onDone?: () => void;
   onDirty?: (value: boolean) => void;
-  onProceedToBidding?: () => void;
+  nextStep?: { label: string; navigate: () => void };
 }) {
   const user = useAuthenticatedUser();
   const has = (p: string) => user.permissions.includes("system:admin") || user.permissions.includes(p);
@@ -480,9 +479,7 @@ function NativeTSC({
 
   async function handleProceed() {
     await saveQueue.current;
-    if (onProceedToBidding) {
-      onProceedToBidding();
-    }
+    nextStep?.navigate();
   }
 
   return (
@@ -1069,7 +1066,7 @@ function NativeTSC({
             base={base}
             jobId={job.id}
             canWrite={canVerifyEligibility}
-            onProceedToBidding={onProceedToBidding ? handleProceed : undefined}
+            nextStep={nextStep && { label: nextStep.label, navigate: handleProceed }}
           />
         </>
       ) : null}

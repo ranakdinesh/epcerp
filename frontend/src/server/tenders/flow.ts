@@ -9,11 +9,12 @@ export const tenderFlowColumns = `
     OR EXISTS(SELECT FROM tender.draft_sources s WHERE s.draft_id=d.id) AS has_verified,
   (SELECT json_build_object(
     'human_decision', v.human_decision,
-    'current', v.human_verified AND v.verified_at >= d.prebid_reviewed_at
+    'current', v.human_verified,
+    'previously_verified', v.verified_at IS NOT NULL
   ) FROM tender.tsc_eligibility_verdicts v WHERE v.draft_id=d.id ORDER BY evaluated_at DESC, id DESC LIMIT 1) AS verdict,
   (SELECT b.decision FROM tender.bidding_authorizations b WHERE b.draft_id=d.id) AS bidding_decision,
   EXISTS(SELECT FROM tender.bidding_authorizations b
-    WHERE b.draft_id=d.id AND b.authorized_at >= (
+    WHERE b.draft_id=d.id AND b.authorized_at >= d.prebid_reviewed_at AND b.authorized_at >= (
       SELECT v.verified_at FROM tender.tsc_eligibility_verdicts v
       WHERE v.draft_id=d.id ORDER BY evaluated_at DESC, id DESC LIMIT 1
     )) AS bidding_is_current,
@@ -26,14 +27,14 @@ export const tenderFlowColumns = `
   (SELECT c.status FROM tender.bid_costings c WHERE c.draft_id=d.id) AS costing_status`;
 
 const steps = new Map(tenderProcess.steps.map(step => [step.code, step]));
-type Verdict = { current?: boolean; human_decision?: string };
+type Verdict = { current?: boolean; previously_verified?: boolean; human_decision?: string };
 
 export function tenderFlow(row: Record<string, unknown>) {
   const verdict = row.verdict as Verdict | null;
   const reviewed = Boolean(row.prebid_reviewed_at && !row.has_draft_queries && !row.has_pending_replies);
-  const finalized = Boolean(reviewed && verdict?.current);
+  const finalized = Boolean(verdict?.current);
   const bidding = typeof row.bidding_decision === 'string' ? row.bidding_decision : undefined;
-  const approvalCurrent = Boolean(finalized && row.bidding_is_current);
+  const approvalCurrent = Boolean(reviewed && finalized && row.bidding_is_current);
   const authorized = approvalCurrent && (bidding === 'authorized' || bidding === 'conditional');
   const submitted = row.costing_status === 'submitted' || row.costing_status === 'awarded';
   const completed = ['LG-01'];
@@ -51,10 +52,12 @@ export function tenderFlow(row: Record<string, unknown>) {
   let next = 'TS-01';
   if (submitted) next = 'CV-08';
   else if (authorized) next = row.costing_status === 'approved' ? 'CV-08' : row.has_l1 ? 'CV-07' : row.has_items ? 'CV-03' : 'CV-01';
-  else if (finalized) next = 'TS-02';
-  else if (reviewed) next = 'TS-TSC';
-  else if (row.has_draft_queries || (row.has_verified && !row.has_queries)) next = 'LG-03';
-  else if (row.has_queries) next = 'LG-04';
+  else if (reviewed) next = finalized ? 'TS-02' : 'TS-TSC';
+  else if (!finalized && !verdict?.previously_verified) {
+    if (row.has_verified) next = 'TS-TSC';
+  } else {
+    next = row.has_draft_queries || !row.has_queries ? 'LG-03' : 'LG-04';
+  }
 
   const step = steps.get(next)!;
   return {
@@ -81,7 +84,6 @@ export async function requireClosedPrebidReview(db: DB, draftId: string) {
     FROM tender.document_drafts d WHERE id=$1 FOR UPDATE
   `, [draftId]);
   if (!draft?.prebid_reviewed_at || draft.open) {
-    throw new AppError(409, 'Close pre-bid review before preparing or finalizing the TSC.');
+    throw new AppError(409, 'Close pre-bid review before recording the bidding decision.');
   }
-  return draft.prebid_reviewed_at;
 }

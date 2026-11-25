@@ -84,7 +84,7 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.equal(summary.processed, register.total);
             assert.ok((await tenderSummary(token)).processed > summary.processed);
         });
-        await t.test('pre-bid replies gate TSC sign-off and bidding approval', async () => {
+        await t.test('verified documents lead to TSC sign-off before pre-bid review', async () => {
             const created = await call(handleIntake, '/tender-fms/drafts', 'POST', { name: 'Clarification fixture tender' }, 201, token, randomUUID());
             const draft = created.id;
             const tender = (tail: string, method = 'GET', value?: unknown, status = 200) =>
@@ -94,15 +94,12 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             });
             assert.equal(basic.basic_details.reference, 'QA-REF');
 
-            await tender('prebid-queries/close', 'POST');
-            assert.equal((await tender('flow-status')).next_step, 'TS-TSC');
-            const query = await tender('prebid-queries', 'POST', {
-                tender_specification: 'Equipment rating', query_description: 'Confirm minimum rating',
-            }, 201);
-            assert.equal((await tender('flow-status')).next_step, 'LG-03');
-            await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'submitted' });
-            assert.equal((await tender('flow-status')).next_step, 'LG-04');
-            await tender('prebid-queries/close', 'POST', undefined, 409);
+            assert.equal((await tender('flow-status')).next_step, 'TS-01');
+            await sql.query(`INSERT INTO public.document_package_receipts(id, owner_id, draft_id, state)
+                VALUES($1,$2,$3,'ready')`, [randomUUID(), admin, draft]);
+            const verified = await tender('flow-status');
+            assert.equal(verified.next_step, 'TS-TSC');
+            assert.match(verified.status_label, /^Step 3 · Prepare & finalize TSC$/);
 
             const format = (await tender('tsc/options')).formats[0];
             const createTSC = (mode: string) => handleTSC(new Request(
@@ -114,18 +111,37 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
                     source_ids: [], mode, ...(mode === 'manual' ? {} : { original_documents_confirmed: true }),
                 }),
             }));
-            assert.equal((await createTSC('gemini')).status, 409);
+            assert.equal((await createTSC('gemini')).status, 503);
             const manual = await createTSC('manual');
             assert.equal(manual.status, 201);
             const job = await manual.json();
             await tender(`tsc/${job.id}/eligibility`, 'POST', undefined, 201);
             const verify = (status: number) => tender(`tsc/${job.id}/eligibility/verify`, 'POST', { decision: 'accepted' }, status);
-            await verify(409);
+            await verify(200);
+            const signedOff = await tender('flow-status');
+            assert.equal(signedOff.tsc_completed, true);
+            assert.equal(signedOff.prebid_review_closed, false);
+            assert.equal(signedOff.next_step, 'LG-03');
             await tender('bidding-approval', 'POST', { decision: 'conditional' }, 409);
+
+            await tender('prebid-queries/close', 'POST');
+            assert.equal((await tender('flow-status')).next_step, 'TS-02');
+
+            const query = await tender('prebid-queries', 'POST', {
+                tender_specification: 'Equipment rating', query_description: 'Confirm minimum rating',
+            }, 201);
+            assert.equal((await tender('flow-status')).next_step, 'LG-03');
+            await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'submitted' });
+            assert.equal((await tender('flow-status')).next_step, 'LG-04');
+            await tender('prebid-queries/close', 'POST', undefined, 409);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered' }, 422);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered', client_response: 'Use the rating in Corrigendum 1', corrigendum_reference: '1' });
             await tender('prebid-queries/close', 'POST');
             assert.equal((await tender('tsc/options')).clarifications[0].corrigendum_reference, '1');
+            const needsReverification = await tender('flow-status');
+            assert.equal(needsReverification.tsc_completed, false);
+            assert.equal(needsReverification.next_step, 'TS-TSC');
+            await tender('bidding-approval', 'POST', { decision: 'conditional' }, 409);
             await verify(200);
             assert.equal((await tender('flow-status')).next_step, 'TS-02');
             await tender('bidding-approval', 'POST', { decision: 'conditional' }, 201);
@@ -134,9 +150,14 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
                 tender_specification: 'Warranty', query_description: 'Confirm warranty period',
             }, 201);
             const reopened = await tender('flow-status');
-            assert.equal(reopened.tsc_completed, false);
+            assert.equal(reopened.tsc_completed, true);
             assert.equal(reopened.bidding_authorized, false);
             assert.equal(reopened.next_step, 'LG-03');
+
+            await tender(`prebid-queries/${query.id}`, 'DELETE');
+            const removedClarification = await tender('flow-status');
+            assert.equal(removedClarification.tsc_completed, false);
+            assert.equal(removedClarification.bidding_authorized, false);
         });
         await t.test('tender costing and award create one project and a reviewable BOQ', async () => {
             const draft = randomUUID(), client = randomUUID(), clientName = 'QA' + client.replaceAll('-', '').slice(0, 12);

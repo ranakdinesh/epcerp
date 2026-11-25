@@ -25,12 +25,12 @@ export function TenderEligibilitySection({
   base,
   jobId,
   canWrite,
-  onProceedToBidding,
+  nextStep,
 }: {
   base: string;
   jobId: string;
   canWrite: boolean;
-  onProceedToBidding?: () => void;
+  nextStep?: { label: string; navigate: () => void };
 }) {
   const [verdict, setVerdict] = useState<EligibilityVerdict | null>(null);
   const [loading, setLoading] = useState(false);
@@ -294,32 +294,22 @@ export function TenderEligibilitySection({
                   </span>
                 </div>
 
-                {onProceedToBidding && <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900/60 dark:bg-blue-950/40">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xs font-bold text-white shadow-sm">
-                      3
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold text-blue-950 dark:text-blue-100">
-                        Tender Selection Pipeline · Next Step
-                      </p>
-                      <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                        Formal verification recorded ({verdict.human_decision.toUpperCase()}). Proceed to Step 4 for Executive Bidding Approval &amp; Manager Assignment.
-                      </p>
-                    </div>
-                  </div>
+                {nextStep && (
                   <button
                     type="button"
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
-                    onClick={onProceedToBidding}
+                    className={primary}
+                    onClick={nextStep.navigate}
                   >
-                    Proceed to Step 4 · Approval for Bidding
+                    Continue · {nextStep.label}
                     <ArrowRightIcon className="h-4 w-4" />
                   </button>
-                </div>}
+                )}
               </div>
             ) : canWrite ? (
               <ValidatedForm className="mt-4 space-y-4" onSubmit={submitVerification}>
+                {verdict.verified_at && (
+                  <p className="text-sm">Pre-bid clarifications changed. Review the updates before signing off again.</p>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <ValidatedLabel className="block text-sm font-semibold">
                     Decision Action

@@ -5,9 +5,9 @@ export const tenderProcess: ProcessDefinition = {
  screen: "tender-fms", label: "Tender FMS", steps: [
   { code: "LG-01", group: "Tender Intake & Scrutiny", number: 1, label: "Add tender details", available: true },
   { code: "TS-01", group: "Tender Intake & Scrutiny", number: 2, label: "Read & verify documents", available: true },
-  { code: "LG-03", group: "Tender Intake & Scrutiny", number: 2.1, label: "Prepare & submit pre-bid queries", available: true },
-  { code: "LG-04", group: "Tender Intake & Scrutiny", number: 2.2, label: "Record replies & close pre-bid review", available: true },
   { code: "TS-TSC", group: "Tender Intake & Scrutiny", number: 3, label: "Prepare & finalize TSC", available: true },
+  { code: "LG-03", group: "Tender Intake & Scrutiny", number: 3.1, label: "Prepare & submit pre-bid queries", available: true },
+  { code: "LG-04", group: "Tender Intake & Scrutiny", number: 3.2, label: "Record replies & close pre-bid review", available: true },
   { code: "TS-02", group: "Tender Intake & Scrutiny", number: 4, label: "Approval for bidding", available: true },
   { code: "CV-01", group: "Costing and Vendor Work", number: 5, label: "Read & understand tender document", available: true },
   { code: "CV-02", group: "Costing and Vendor Work", number: 6, label: "Float Inquiries to vendors as per Make list", available: true },
