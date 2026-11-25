@@ -4,6 +4,7 @@ import { boolean, byteLength, fieldError, goObject, integer, invalid, runeLength
 import { sourceTimestamp } from "../categories/domain";
 import { trim, upper } from "../shared/text";
 import { createHash } from "node:crypto";
+import { indianMobileMessage, isIndianMobile } from "../../../lib/indian-mobile";
 export type Vendor = {
     id: string;
     code: string;
@@ -30,7 +31,7 @@ export type StoredVendor = Vendor & {
     source_updated_at: string | null;
 };
 export const vendorID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const fields: Record<string, number> = { registration_reference: 120, contact: 255, location: 255, contact_person_name: 255, email: 255, phone: 50, aadhar_number: 50, pan_number: 50, gst_number: 50, cancelled_cheque_ref: 120, notes: 2000, indent_notes: 4000, indent_terms: 12000, delivery_terms: 2000 };
+const fields: Record<string, number> = { registration_reference: 120, contact: 255, contact_address: 255, location: 255, contact_person_name: 255, email: 255, phone: 50, aadhar_number: 50, pan_number: 50, gst_number: 50, cancelled_cheque_ref: 120, notes: 2000, indent_notes: 4000, indent_terms: 12000, delivery_terms: 2000 };
 function object(value: unknown, message: string): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value) || (JSON as typeof JSON & {
     isRawJSON: (value: unknown) => boolean;
 }).isRawJSON(value))
@@ -136,7 +137,14 @@ export function validateVendorMaster(code: string, name: string, value: unknown)
 }
 export function validateVendorReason(value: unknown) { const result = text(value); if (!trim(result) || byteLength(result) > 2000)
     fieldError("reason", "A change reason is required (maximum 2000 bytes)"); return result; }
-export function parseVendorCreate(value: unknown) { const r = goObject(value, ["code", "name", "data", "reason"]), code = upper(trim(text(r.code))), name = trim(text(r.name)); return { code, name, data: validateVendorMaster(code, name, r.data), reason: validateVendorReason(r.reason) }; }
+export function parseVendorCreate(value: unknown) {
+    const r = goObject(value, ["code", "name", "data", "reason"]), code = upper(trim(text(r.code))), name = trim(text(r.name));
+    return { code, name, data: validateVendorMaster(code, name, r.data), reason: r.reason === undefined ? "Supplier created" : validateVendorReason(r.reason) };
+}
+export function validateVendorOnboardingContact(data: Record<string, unknown>) {
+    if (!isIndianMobile(data.phone)) fieldError("phone", indianMobileMessage);
+    if (typeof data.contact_address !== "string" || !trim(data.contact_address)) fieldError("contact_address", "Contact address is required");
+}
 export function parseVendorUpdate(value: unknown) { const r = goObject(value, ["name", "data", "version", "is_active", "reason"]); return { name: trim(text(r.name)), data: r.data, version: integer(r.version), is_active: r.is_active == null ? null : boolean(r.is_active), reason: validateVendorReason(r.reason) }; }
 export function parseVendorImport(value: unknown) {
     const r = goObject(value, ["source", "code", "name", "data", "is_active"]), s = goObject(r.source, ["id", "version", "created_at", "updated_at"]);

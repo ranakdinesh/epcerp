@@ -5,7 +5,8 @@ import test from "node:test";
 import { effectivePermissions, strongPassword, type User } from "../../src/server/auth/domain";
 import { hashPassword, issueAccess, validPHC, verifyAccess, verifyPassword } from "../../src/server/auth/security";
 import { openMail, sealMail } from "../../src/server/auth/mail";
-import { body } from "../../src/server/auth/validation";
+import { body, contact, newUserContact } from "../../src/server/auth/validation";
+import { handleAuth } from "../../src/server/auth/http";
 import registry from "../../src/server/auth/permissions.json";
 
 process.env.VTPL_JWT_SECRET_KEY = "epcerp-synthetic-auth-compatibility-secret-only";
@@ -69,6 +70,21 @@ test("password strength keeps Unicode character semantics", () => {
 test("request parsing bounds streamed bodies and rejects unknown authority fields", async () => {
   await assert.rejects(body(new Request("http://localhost",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:"forged"})}),["username"]));
   await assert.rejects(body(new Request("http://localhost",{method:"POST",headers:{"Content-Type":"application/json"},body:"x".repeat(20000)}),["username"]), {status:413});
+});
+test("new user creation requires exactly ten mobile digits and existing contacts can retain their format", async () => {
+  const details = { first_name: "Test", last_name: "Employee", mobile: "9000000001" };
+  assert.deepEqual(newUserContact(details), details);
+  assert.deepEqual(contact({ mobile: "+91 9000000001" }, true), { mobile: "+91 9000000001" });
+
+  for (const mobile of [undefined, "900000001", "90000000011", "900000000a", "+919000000001", "90000 00001", "9000000001\n", 9000000001]) {
+    const response = await handleAuth(new Request("http://localhost/api/v1/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer synthetic-regression-token" },
+      body: JSON.stringify({ ...details, mobile, username: "synthetic-user", email: "synthetic@example.invalid", role_names: ["reader"] }),
+    }));
+    assert.equal(response.status, 422);
+    assert.deepEqual(await response.json(), { detail: "Enter a 10-digit mobile number without +91." });
+  }
 });
 test("transition permission registries agree with the historical reference", {skip:!backend}, () => {
   const go = readFileSync(`${backend}/internal/modules/auth/application/permissions.go`,"utf8");

@@ -34,7 +34,7 @@ export function saveCategory(token: string, rawKind: string, id: string | null, 
         const code = old && sameName(input.originalCode, old.code) ? old.code : input.code;
         const draft = { id: id ?? randomUUID(), code, name: input.name, is_active: true, version: 1, source_fingerprint: null } as StoredCategory;
         if (old)
-            Object.assign(draft, old, { code, name: input.name });
+            Object.assign(draft, old, { code, name: input.name, is_active: input.is_active ?? old.is_active });
         else if (kind === "category") {
             const unit = (await repo.list("unit")).find(u => u.id === input.unit_id && u.is_active);
             if (!unit)
@@ -58,7 +58,7 @@ export function saveCategory(token: string, rawKind: string, id: string | null, 
                 if (sameName(r.name, input.name) && (kind !== "subcategory" || r.category_id === draft.category_id))
                     invalid("Name already exists");
             }
-        return categoryView(old ? await repo.update(kind, old, code, input.name, actor.id, input.reason) : await repo.insert(kind, draft, actor.id, input.reason));
+        return categoryView(old ? await repo.update(kind, old, draft, actor.id, input.reason) : await repo.insert(kind, draft, actor.id, input.reason));
     });
 }
 export function importCategories(token: string, value: unknown) {

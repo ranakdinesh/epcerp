@@ -28,7 +28,7 @@ test('native Finance decisions, assignment, reconciliation, histories and Go pur
             await pool().query('INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)', [id, role.id]);
             users[kind] = { id, role, token: (await login(name, 'Finance-QA1!')).access_token };
         }
-        let supplier = await call('POST', '/suppliers', { code: prefix, name: 'Finance QA supplier', data: { gst_number: '27AAACW4202F1ZQ' }, reason: 'Synthetic Finance fixture' }, 201), assignment: Awaited<ReturnType<typeof call>>, pan: Awaited<ReturnType<typeof call>>, cheque: Awaited<ReturnType<typeof call>>;
+        let supplier = await call('POST', '/suppliers', { code: prefix, name: 'Finance QA supplier', data: { gst_number: '27AAACW4202F1ZQ', phone: '9000000000', contact_address: '1 Fixture Road' }, reason: 'Synthetic Finance fixture' }, 201), assignment: Awaited<ReturnType<typeof call>>, pan: Awaited<ReturnType<typeof call>>, cheque: Awaited<ReturnType<typeof call>>;
         const base = '/suppliers/' + supplier.id;
         const status = () => call('GET', base + '/verification');
         async function command(decisions: unknown[], access = users.reviewer.token, expected = 200) { const state = await status(); return call('POST', base + '/verification', { version: state.review?.version ?? 0, fingerprint: state.fingerprint, decisions, reason: 'Synthetic Finance document review' }, expected, access); }

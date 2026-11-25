@@ -13,7 +13,7 @@ import { SupplierEvidence } from "./supplier-evidence";
 import { type Supplier } from "./supplier-types";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 
-const labels: Record<string,string> = { registration_reference: "Registration reference", contact: "Contact", location: "Location", qualification: "Qualification", contact_person_name: "Contact person", email: "Email", phone: "Phone", aadhar_number: "Aadhaar number", pan_number: "PAN", gst_number: "GSTIN", cancelled_cheque_ref: "Cancelled cheque reference", notes: "Review notes", advance_pct: "Advance (%)", qc_pct: "Quality clearance (%)", delivery_pct: "Delivery (%)", retention_pct: "Retention (%)", credit_days: "Credit days", description: "Description" };
+const labels: Record<string,string> = { registration_reference: "Registration reference", contact: "Contact", contact_address: "Contact address", location: "Location", qualification: "Qualification", contact_person_name: "Contact person", email: "Email", phone: "Mobile number", aadhar_number: "Aadhaar number", pan_number: "PAN", gst_number: "GSTIN", cancelled_cheque_ref: "Cancelled cheque reference", notes: "Review notes", advance_pct: "Advance (%)", qc_pct: "Quality clearance (%)", delivery_pct: "Delivery (%)", retention_pct: "Retention (%)", credit_days: "Credit days", description: "Description" };
 function text(value: unknown): string { return value === undefined || value === null || value === "" ? "Pending" : typeof value === "boolean" ? value ? "Yes" : "No" : String(value); }
 export function SupplierDirectory() {
   const user=useAuthenticatedUser();

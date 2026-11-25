@@ -11,6 +11,7 @@ import { handleMaster } from "../../src/server/master/http";
 test("Clients migration on the existing owned PostgreSQL schema",{skip:!process.env.EPCERP_DATABASE_URL},async t=>{
   assert.match(new URL(process.env.EPCERP_DATABASE_URL!).pathname,/\/epcerp_(auth|master)_qa_/u,"Refusing to write test fixtures to an application database");
   try {
+  const migrationBefore=(await pool().query("SELECT version,dirty FROM schema_migrations")).rows;
   await initializeAuth();
   const token=(await login("superadmin",process.env.VTPL_BOOTSTRAP_SUPERADMIN_PASSWORD!)).access_token;
   const prefix=`clientqa${randomUUID().replace(/-/g,"").slice(0,10)}`;
@@ -86,6 +87,19 @@ test("Clients migration on the existing owned PostgreSQL schema",{skip:!process.
       client=await json("PATCH",`/clients/${client.id}`,{...input(),contacts:[]});
       assert.equal(client.contacts[0].id,contactID);assert.equal(client.contacts[0].is_active,false);assert.equal(client.missing_contact_types.length,3);
     });
+    await t.test("client edit saves status and profile together and requires a status reason",async()=>{
+      const contactID=client.contacts[0].id, path=`/clients/${client.id}`;
+      const edit={...input(), display_name:`${prefix} updated display name`, contacts:[{...input().contacts[0], id:contactID}]};
+      await json("PATCH",path,{...edit,is_active:false},token,422);
+      await json("PATCH",path,{...edit,is_active:"false",reason:"QA bad status"},token,422);
+      client=await json("PATCH",path,{...edit,is_active:false,reason:"QA deactivate in edit"});
+      assert.equal(client.is_active,false);assert.equal(client.display_name,edit.display_name);
+      assert.equal(client.contacts[0].id,contactID);assert.equal(client.contacts[0].is_active,false);
+      const active=await json("GET",`/clients?search=${prefix}&status=active`);
+      assert.ok(active.items.every((v:{id:string})=>v.id!==client.id));
+      client=await json("PATCH",path,{...edit,contacts:[],is_active:true,reason:"QA reactivate in edit"});
+      assert.equal(client.is_active,true);assert.equal(client.contacts[0].is_active,false);
+    });
     await t.test("deactivate retires contacts; activate never resurrects them",async()=>{
       client=await json("POST",`/clients/${client.id}/deactivate`);assert.equal(client.is_active,false);
       const page=await json("GET",`/clients?search=${prefix}&status=inactive`);assert.ok(page.items.some((v:{id:string})=>v.id===client.id));
@@ -108,7 +122,7 @@ test("Clients migration on the existing owned PostgreSQL schema",{skip:!process.
       const r=await handleMaster(new Request("http://localhost/api/v1/clients",{method:"POST",body:"x".repeat(128*1024+1)}));assert.equal(r.status,413);
       await json("GET","/clients/arbitrary/path",undefined,token,404);
       const result=await json("POST","/clients",{...input(),created_by_id:randomUUID()},token,422);assert.ok(Array.isArray(result.detail));
-      assert.equal((await pool().query("SELECT version FROM schema_migrations")).rows[0].version,"99");
+      assert.deepEqual((await pool().query("SELECT version,dirty FROM schema_migrations")).rows,migrationBefore);
     });
   } finally {await pool().end();}
 });

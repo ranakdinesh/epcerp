@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- authenticated cookie-protected avatars bypass the public image optimizer */
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SessionManagement } from "@/components/auth/session-management";
 import { actionButtonClass } from "@/components/ui/action-button";
@@ -62,17 +62,43 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
  const [confirmationError, setConfirmationError] = useState("");
  const [photoStage, setPhotoStage] = useState("");
  const [notice, setNotice] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+ const [savingDetails, setSavingDetails] = useState(false);
  const save = store.save;
  useEffect(() => {
   let active = true;
   fetch("/api/auth/user_profile/me").then(r => result(r)).then(p => { if (active) { save(p); setProfile(p); setReady(true); } }).catch(() => { if (active) setError("Unable to load your profile. Close and reopen to retry."); });
   return () => { active = false; };
  }, [save]);
- useEffect(() => { const overflow = document.body.style.overflow; const element = dialog.current; element?.showModal(); document.body.style.overflow = "hidden"; return () => { element?.close(); document.body.style.overflow = overflow; }; }, []);
+ useLayoutEffect(() => {
+  if (savingDetails) return;
+  const element = dialog.current;
+  const overflow = document.body.style.overflow;
+  element?.showModal();
+  document.body.style.overflow = "hidden";
+  return () => { element?.close(); document.body.style.overflow = overflow; };
+ }, [savingDetails]);
+ function dismiss() {
+  dialog.current?.close();
+  close();
+ }
  async function run(work: () => Promise<void>) { if (busy) return; setBusy(true); setNotice(""); setError(""); try { await work(); } catch(e) { setError(e instanceof Error ? e.message : "Unable to save changes."); } finally { setBusy(false); } }
- async function details(e: FormEvent<HTMLFormElement>) { e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); await run(async () => {
-  const saved = await result(await fetch("/api/auth/user_profile/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: data.get("display_name"), contact: { first_name: String(data.get("first_name")).trim(), last_name: String(data.get("last_name")).trim(), mobile: String(data.get("mobile")).trim() }, expected_contact: profile?.contact, version: profile?.version }) }), form); store.save(saved); setProfile(saved); setNotice("Your personal details have been saved."); router.refresh();
- }); }
+ async function details(e: FormEvent<HTMLFormElement>) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const data = new FormData(form);
+  await run(async () => {
+   setSavingDetails(true);
+   try {
+    const saved = await result(await fetch("/api/auth/user_profile/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: data.get("display_name"), contact: { first_name: String(data.get("first_name")).trim(), last_name: String(data.get("last_name")).trim(), mobile: String(data.get("mobile")).trim() }, expected_contact: profile?.contact, version: profile?.version }) }), form);
+    save(saved);
+   } catch (error) {
+    setSavingDetails(false);
+    throw error;
+   }
+   if (form.isConnected) close();
+   router.refresh();
+  });
+ }
  async function security(e: FormEvent<HTMLFormElement>, password: boolean) { e.preventDefault(); const form = e.currentTarget; const data = new FormData(form); if (password && data.get("password") !== data.get("confirmation")) { setConfirmationError("Passwords do not match."); form.querySelector<HTMLInputElement>('[name="confirmation"]')?.focus(); return; } await run(async () => {
   await result(await fetch(password ? "/api/auth/me/password" : "/api/auth/me/email", { method: password ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(password ? { current_password: data.get("current_password"), password: data.get("password") } : { current_password: data.get("current_password"), email: data.get("email") }) }), form);
   // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full navigation prevents stale dashboard refreshes after cookie removal
@@ -88,8 +114,8 @@ export function PersonalAccountDialog({ mode, close }: { mode: "profile" | "pass
    setNotice(file ? "Photo updated." : "Photo removed.");
   } finally { setPhotoStage(""); }
  }); }
- return <dialog ref={dialog} className="go-personal-dialog" aria-labelledby="personal-title" onClose={event => { /* Ignore a queued cleanup close after Strict Mode has reopened the dialog. */ if (!event.currentTarget.open) close(); }}>
-  <div className="go-profile-topbar"><div><p className="go-profile-eyebrow">MY ACCOUNT</p><h2 id="personal-title">Account settings</h2></div><button type="button" className="go-icon-button" aria-label="Close personal account" onClick={() => dialog.current?.close()}>×</button></div>
+ return <dialog ref={dialog} className="go-personal-dialog" aria-labelledby="personal-title" onCancel={event => { event.preventDefault(); dismiss(); }}>
+  <div className="go-profile-topbar"><div><p className="go-profile-eyebrow">MY ACCOUNT</p><h2 id="personal-title">Account settings</h2></div><button type="button" className="go-icon-button" aria-label="Close personal account" onClick={dismiss}>×</button></div>
   <div className="go-profile-identity">
    <UserAvatar id={user.id} name={user.username} size={80} />
    <div className="go-profile-summary"><h3>{profile?.display_name || user.username}</h3><p>@{user.username}<span className="go-profile-status">{user.is_active === false ? "Inactive" : "Active"}</span></p>

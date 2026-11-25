@@ -2,7 +2,7 @@ import "server-only";
 import { transaction } from "../../db";
 import { AppError } from "../../errors";
 import { requirePermission } from "../../auth/access";
-import { dataFingerprint, missingVendor, parseVendorCreate, parseVendorImport, parseVendorUpdate, sourceInstant, validateVendorMaster, vendorConflict, vendorID } from "./domain";
+import { dataFingerprint, missingVendor, parseVendorCreate, parseVendorImport, parseVendorUpdate, sourceInstant, validateVendorMaster, validateVendorOnboardingContact, vendorConflict, vendorID } from "./domain";
 import { VendorRepository, vendorView } from "./repository";
 export function listVendors(token: string) {
     return transaction(async (db) => {
@@ -19,7 +19,9 @@ export function listVendors(token: string) {
 }
 export function createVendor(token: string, value: unknown) {
     return transaction(async (db) => {
-        const actor = await requirePermission(db, token, "settings.suppliers.write", true), input = parseVendorCreate(value), repo = new VendorRepository(db), saved = await repo.insert(input.code, input.name, input.data, true, actor.id);
+        const actor = await requirePermission(db, token, "settings.suppliers.write", true), input = parseVendorCreate(value);
+        validateVendorOnboardingContact(input.data);
+        const repo = new VendorRepository(db), saved = await repo.insert(input.code, input.name, input.data, true, actor.id);
         await repo.changed(saved, actor.id, input.reason, "created");
         return vendorView(saved);
     });

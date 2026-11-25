@@ -27,9 +27,9 @@ export function saveManufacturer(token: string, kind: "create" | "profile" | "ac
             for (const r of await repo.list())
                 if (r.id !== id && ((kind === "create" && r.code === input.code) || nameKey(r.name) === nameKey(input.name)))
                     invalid(kind === "create" ? "Code or name already exists" : "Name already exists");
-            await repo.validate(input.data);
         }
         if (kind === "create") {
+            await repo.validate(input.data);
             const saved = await repo.create(input.code, input.name, input.data, actor.id);
             await repo.event(saved, "create", input.reason, {}, { code: saved.code, name: saved.name, data: saved.data }, actor.id);
             return saved;
@@ -39,9 +39,11 @@ export function saveManufacturer(token: string, kind: "create" | "profile" | "ac
             throw new AppError(404, "Record not found");
         if (old!.version !== input.version || input.version === 2147483647)
             throw new AppError(409, "Record changed; refresh before saving");
-        const before = kind === "active" ? { is_active: old.is_active, version: old.version } : { name: old.name, data: old.data, version: old.version };
-        const saved = await repo.update(old, input.name, input.data, actor.id, kind === "active" ? input.is_active : undefined);
-        const after = kind === "active" ? { is_active: saved.is_active, version: saved.version } : { name: saved.name, data: saved.data, version: saved.version };
+        if (kind === "profile")
+            await repo.validate(input.data, old!.data.eligible);
+        const before = kind === "active" ? { is_active: old.is_active, version: old.version } : { name: old.name, data: old.data, ...(input.is_active !== undefined ? { is_active: old.is_active } : {}), version: old.version };
+        const saved = await repo.update(old, input.name, input.data, actor.id, input.is_active, kind === "active");
+        const after = kind === "active" ? { is_active: saved.is_active, version: saved.version } : { name: saved.name, data: saved.data, ...(input.is_active !== undefined ? { is_active: saved.is_active } : {}), version: saved.version };
         await repo.event(saved, kind === "active" ? "lifecycle" : "update", input.reason, before, after, actor.id);
         return saved;
     });

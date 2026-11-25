@@ -212,10 +212,9 @@ function ManufacturerEditor({
       await request(
         `/api/settings/manufacturers${source ? `/${source.id}/profile` : ""}`,
         {
-          ...(source ? { version: source.version } : { code }),
+          ...(source ? { version: source.version, reason, is_active: new FormData(e.currentTarget).has("is_active") } : { code }),
           name,
           data: { eligible, notes },
-          reason,
         },
         source ? "PATCH" : "POST",
       );
@@ -279,7 +278,10 @@ function ManufacturerEditor({
             onChange={(e) => setNotes(e.target.value)}
           />
         </ValidatedLabel>
-        <ValidatedLabel className="block">
+        {source && <ValidatedLabel className="flex min-h-11 items-center gap-3 text-sm font-semibold">
+          <ValidatedInput name="is_active" type="checkbox" defaultChecked={source.is_active} />Active
+        </ValidatedLabel>}
+        {source && <ValidatedLabel className="block">
           Change reason
           <ValidatedInput name="reason"
             className={input}
@@ -287,37 +289,9 @@ function ManufacturerEditor({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
-        </ValidatedLabel>
+        </ValidatedLabel>}
         <div className="flex flex-wrap gap-2">
           <button type="submit" className={button}>{busy ? "Saving…" : source ? "Save changes" : "Create manufacturer"}</button>
-          {source && (
-            <button
-              type="button"
-              className={secondary}
-              disabled={!reason.trim()}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await request(
-                    `/api/settings/manufacturers/${source.id}`,
-                    {
-                      version: source.version,
-                      is_active: !source.is_active,
-                      reason,
-                    },
-                    "PATCH",
-                  );
-                  done();
-                } catch (e) {
-                  setError((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              {source.is_active ? "Deactivate" : "Reactivate"}
-            </button>
-          )}
           <button type="button" className={secondary} onClick={close}>
             Cancel
           </button>

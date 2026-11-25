@@ -78,10 +78,11 @@ export const catalogueSQL = {
     "mode": "exec"
   },
   "CategoriesUpdateCategory": {
-    "text": "UPDATE categories SET code= $1,name= $2,version=version+1,updated_at=clock_timestamp(),updated_by_id= $3 WHERE id= $4 AND version= $5;",
+    "text": "UPDATE categories SET code= $1,name= $2,is_active= $3,version=version+1,updated_at=clock_timestamp(),updated_by_id= $4 WHERE id= $5 AND version= $6;",
     "keys": [
       "code",
       "name",
+      "is_active",
       "actor_id",
       "id",
       "expected_version"
@@ -224,10 +225,11 @@ export const catalogueSQL = {
     "mode": "one"
   },
   "ManufacturersProfileManufacturer": {
-    "text": "UPDATE manufacturers SET name=$1,data=$2,version=$3,updated_by_id=$4,updated_at=clock_timestamp() WHERE id=$5 RETURNING *;",
+    "text": "UPDATE manufacturers SET name=$1,data=$2,is_active=COALESCE($3,is_active),version=$4,updated_by_id=$5,updated_at=clock_timestamp() WHERE id=$6 RETURNING *;",
     "keys": [
       "name",
       "data",
+      "active",
       "version",
       "actor_id",
       "id"

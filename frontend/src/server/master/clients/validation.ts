@@ -24,9 +24,14 @@ function website(raw: unknown) {
         bad("website");
     return value;
 }
-export function parseClient(value: unknown): ClientInput {
-    const input = strictObject(value, clientKeys);
+export function parseClient(value: unknown, edit = false): ClientInput {
+    const input = strictObject(value, edit ? [...clientKeys, "is_active", "reason"] : clientKeys);
     const result = {} as ClientInput;
+    if (input.is_active !== undefined) {
+        if (typeof input.is_active !== "boolean") bad("is_active", "Choose active or inactive");
+        result.is_active = input.is_active;
+        result.reason = stringField(input, "reason", 1, 2000);
+    } else if (input.reason !== undefined) bad("reason", "A reason is only used when setting client status");
     for (const [field, min, max, fallback] of [
         ["legal_name", 2, 255, undefined], ["display_name", 0, 255, ""], ["parent_organization", 0, 255, ""],
         ["client_type", 0, 64, ""], ["industry", 0, 128, ""], ["gstin", 1, 15, undefined], ["pan", 1, 10, undefined],

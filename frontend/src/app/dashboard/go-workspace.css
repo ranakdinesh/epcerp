@@ -67,7 +67,11 @@
 .go-account-menu summary:focus-visible { outline: 2px solid var(--go-blue); }
 .go-account-dropdown { position: absolute; right: 0; top: calc(100% + 10px); width: 240px; padding: 8px; border: 1px solid var(--go-line); background: var(--go-panel); border-radius: 12px; box-shadow: 0 12px 32px #0f172a22; }
 .go-account-dropdown p { margin: 8px 10px; font-size: 12px; color: var(--go-muted); }
-.go-account-dropdown button { width: 100%; text-align: left; border: 0; border-radius: 6px; }
+.go-account-dropdown, .go-profile-tabs, .go-password-visibility { --account-action-text: var(--action-color); }
+html[data-theme="dark"] :is(.go-account-dropdown, .go-profile-tabs, .go-password-visibility) { --account-action-text: #61d6ca; }
+.go-password-visibility { background: transparent; color: var(--account-action-text); cursor: pointer; }
+.go-account-dropdown > button { width: 100%; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--account-action-text); }
+.go-account-dropdown > button:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 .go-account-dropdown hr { border-color: var(--go-line); margin: 8px 0; }
 .go-mobile-toggle { display: none; }
 .go-mobile-navigation { display: none; }
@@ -165,7 +169,23 @@
 .go-profile-summary{min-width:0}.go-profile-summary h3{font-size:18px;font-weight:700;overflow-wrap:anywhere;margin:0 0 3px}.go-profile-summary p{font-size:13px;color:var(--go-muted);margin:0;overflow-wrap:anywhere}
 .go-profile-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:650;margin-left:10px;padding:2px 8px;border:1px solid var(--go-line);border-radius:20px;color:var(--go-ink);background:var(--go-panel)}
 .go-profile-photo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.go-profile-photo-actions button{min-height:44px;border:1px solid var(--go-line);border-radius:8px;background:var(--go-panel);padding:8px 12px;color:var(--go-ink);font-size:12px;font-weight:650;cursor:pointer}.go-profile-photo-actions button.go-profile-remove{border-color:transparent;background:transparent;color:var(--go-muted)}.go-profile-summary .go-profile-photo-help{margin-top:6px;font-size:11px}
-.go-profile-tabs{display:flex;gap:24px;border-bottom:1px solid var(--go-line);padding:0 28px}.go-profile-tabs button{min-height:48px;padding:8px 0;border-bottom:2px solid transparent;color:var(--go-muted);font-size:14px;font-weight:650;cursor:pointer}.go-profile-tabs button[aria-current]{border-bottom-color:var(--go-blue);color:var(--go-blue)}
+.go-profile-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--go-line);
+  padding: 0 28px;
+}
+.go-profile-tabs > button {
+  min-height: 48px;
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--account-action-text);
+  cursor: pointer;
+}
+.go-profile-tabs > button[aria-current="page"] { border-bottom-color: currentColor; }
+.go-profile-tabs > button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .go-profile-body{padding:24px 28px 0}.go-profile-section-title h3{font-size:16px;font-weight:700;margin:0 0 4px}.go-profile-section-title p{font-size:13px;color:var(--go-muted);margin:0}
 .go-personal-form{border:0;padding:20px 0 0;gap:20px}.go-personal-form fieldset{border:0;padding:0;margin:0;min-width:0;display:grid;gap:20px}.go-profile-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}.go-personal-form label{font-size:13px}.go-personal-form input,.go-personal-form textarea{font-size:14px;margin-top:7px;min-height:46px;padding:11px 12px;width:100%;border:1px solid var(--go-line);border-radius:8px;background:var(--go-panel);color:var(--go-ink);font-weight:400}.go-personal-form textarea{resize:vertical}.go-personal-form input::placeholder,.go-personal-form textarea::placeholder{color:var(--go-muted);opacity:.8}.go-personal-form textarea:focus-visible,.go-personal-dialog button:focus-visible{outline:2px solid var(--go-blue);outline-offset:3px}
 .go-profile-contact-note{display:grid;grid-template-columns:1fr auto;gap:3px 16px;padding:14px 16px;border:1px solid var(--go-line);border-radius:10px;min-width:0}.go-profile-contact-note span{font-size:12px;color:var(--go-muted)}.go-profile-contact-note strong{font-size:13px;font-weight:500;overflow-wrap:anywhere;grid-column:1}.go-profile-contact-note button{grid-column:2;grid-row:1/3;align-self:center;background:transparent;color:var(--go-blue);padding:6px 0;min-height:44px;font-size:12px}
