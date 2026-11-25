@@ -17,8 +17,9 @@ import { useAuthenticatedUser } from "@/components/auth-user-provider";
 import { createRecordId } from "@/lib/record-id";
 import { TenderEligibilitySection } from "./tender-eligibility-verdict";
 import { TSCWorkspace } from "./tsc-workspace";
+import { TSCGenerationProgress } from "./tsc-generation-progress";
 import { ValidatedInput, ValidatedSelect, ValidatedTextarea, ValidatedLabel } from "@/components/ui/validated-controls";
-import type { Answer, Question, Source, Snapshot } from "@/server/tenders/tsc/types";
+import type { Answer, Processing, Question, Source, Snapshot } from "@/server/tenders/tsc/types";
 
 const button = "ui-action";
 const primary = "ui-action ui-action--primary";
@@ -84,6 +85,7 @@ type Job = Summary & {
   draft_version: number;
   stale: boolean;
   error_code: string;
+  processing?: Processing;
   snapshot: Snapshot;
   answers: Answer[];
   cost: Cost;
@@ -116,7 +118,7 @@ export function CloudTSCWorkspace(props: {
   readyForGeneration?: boolean;
   onDone?: () => void;
   onDirty?: (value: boolean) => void;
-  onProceedToBidding?: () => void;
+  nextStep?: { label: string; navigate: () => void };
 }) {
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState("");
@@ -185,7 +187,6 @@ export function CloudTSCWorkspace(props: {
         refreshOptions={refresh}
         onDone={props.onDone}
         onDirty={props.onDirty}
-        onProceedToBidding={props.onProceedToBidding}
       />
     </>
   );
@@ -197,7 +198,7 @@ function NativeTSC({
   options,
   refreshOptions,
   onDirty,
-  onProceedToBidding,
+  nextStep,
 }: {
   draftID: string;
   sourceVersion: number;
@@ -205,7 +206,7 @@ function NativeTSC({
   refreshOptions: () => Promise<void>;
   onDone?: () => void;
   onDirty?: (value: boolean) => void;
-  onProceedToBidding?: () => void;
+  nextStep?: { label: string; navigate: () => void };
 }) {
   const user = useAuthenticatedUser();
   const has = (p: string) => user.permissions.includes("system:admin") || user.permissions.includes(p);
@@ -250,6 +251,7 @@ function NativeTSC({
     async (signal?: AbortSignal) => {
       try {
         const data = await api<{ items: Summary[] }>(base, { signal });
+        if (signal?.aborted) return;
         setJobs(data.items);
         const targetId = selected || data.items[0]?.id;
         if (!initialized.current && data.items[0]?.id) {
@@ -260,6 +262,7 @@ function NativeTSC({
           const summary = data.items.find((j) => j.id === targetId);
           if (summary?.engine !== "go") {
             const loadedJob = await api<Job>(`${base}/${targetId}`, { signal });
+            if (signal?.aborted) return;
             setJob(loadedJob);
             latestVersionRef.current = loadedJob.version;
           } else {
@@ -476,9 +479,7 @@ function NativeTSC({
 
   async function handleProceed() {
     await saveQueue.current;
-    if (onProceedToBidding) {
-      onProceedToBidding();
-    }
+    nextStep?.navigate();
   }
 
   return (
@@ -493,13 +494,7 @@ function NativeTSC({
       )}
 
       {!jobs.length && busy ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-blue-300 bg-blue-50/40 p-12 text-center dark:border-blue-900 dark:bg-blue-950/20">
-          <SparklesIcon className="h-10 w-10 animate-spin text-blue-600" />
-          <p className="mt-3 text-sm font-bold text-slate-800 dark:text-slate-200">
-            Initializing Technical Scrutiny Questionnaire…
-          </p>
-          <span className="text-xs text-slate-500">Setting up checklist criteria and preparing scrutiny grid.</span>
-        </div>
+        <TSCGenerationProgress submitting />
       ) : !jobs.length ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -714,26 +709,6 @@ function NativeTSC({
 
       {job ? (
         <>
-          {job.state !== "ready" && job.state !== "failed" && job.mode !== "manual" && (
-            <div className="flex items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900/60 dark:bg-blue-950/40">
-              <div className="flex items-center gap-3">
-                <SparklesIcon className="h-5 w-5 animate-pulse text-blue-600 dark:text-blue-400" />
-                <div>
-                  <p className="text-xs font-bold text-blue-900 dark:text-blue-200">
-                    AI Document Scrutiny Running…
-                  </p>
-                  <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                    Evaluating tender documents with {job.mode.toUpperCase()}. Answers will populate automatically as they complete. You can also edit and enter answers manually.
-                  </p>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                <ClockIcon className="h-3.5 w-3.5 animate-spin" />
-                Processing
-              </span>
-            </div>
-          )}
-
           {/* Header & Controls Card */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -792,16 +767,16 @@ function NativeTSC({
             </div>
 
             {/* Progress bar */}
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                <span className="font-medium">Completion Progress</span>
-                <span className="font-bold text-blue-700 dark:text-blue-400">{progressPercent}%</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-blue-600 transition-all duration-300 rounded-full"
-                  style={{ width: `${progressPercent}%` }}
-                />
+            <div className="mt-4 space-y-3">
+              <TSCGenerationProgress job={job} submitting={busy} statusUnavailable={Boolean(error)} />
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-medium">Checklist completion</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{progressPercent}%</span>
+                </div>
+                <div role="progressbar" aria-label="Checklist completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div className="h-full rounded-full bg-[var(--action-color)] motion-safe:transition-all" style={{ width: `${progressPercent}%` }} />
+                </div>
               </div>
             </div>
 
@@ -1091,7 +1066,7 @@ function NativeTSC({
             base={base}
             jobId={job.id}
             canWrite={canVerifyEligibility}
-            onProceedToBidding={onProceedToBidding ? handleProceed : undefined}
+            nextStep={nextStep && { label: nextStep.label, navigate: handleProceed }}
           />
         </>
       ) : null}

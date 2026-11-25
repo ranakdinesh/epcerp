@@ -5,10 +5,10 @@ import ts from 'typescript';
 const source = readFileSync(new URL('../src/components/processes/process-directory.ts', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
 const { tenderProcess, projectProcess, processForScreen, availableProcessStep, processStepHref, filterProcessSteps } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
-test('tender intake and clarifications precede scrutiny and bidding approval', () => {
+test('tender scrutiny directly follows document verification and precedes clarifications', () => {
  const steps = tenderProcess.steps;
  assert.deepEqual(steps.slice(0,6).map(s=>[s.code,s.number]),[
-  ['LG-01',1],['TS-01',2],['LG-03',2.1],['LG-04',2.2],['TS-TSC',3],['TS-02',4],
+  ['LG-01',1],['TS-01',2],['TS-TSC',3],['LG-03',3.1],['LG-04',3.2],['TS-02',4],
  ]);
  assert.equal(new Set(steps.map(s=>s.code)).size, steps.length);
  assert.ok(steps.every((s,index)=>!index || s.number>steps[index-1].number));

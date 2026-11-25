@@ -78,11 +78,11 @@ export async function saveBiddingApproval(
   }
   return transaction(async (db) => {
     const scope = await authorizeTender(db, token, draftId, 'write');
-    const reviewedAt = await requireClosedPrebidReview(db, draftId);
+    await requireClosedPrebidReview(db, draftId);
     const { rows: [verdict] } = await db.query(
-      `SELECT human_decision, (human_verified AND verified_at >= $2) AS current
+      `SELECT human_verified AS current
        FROM tender.tsc_eligibility_verdicts WHERE draft_id=$1 ORDER BY evaluated_at DESC, id DESC LIMIT 1`,
-      [draftId, reviewedAt],
+      [draftId],
     );
     if (!verdict?.current) throw new AppError(409, 'Finalize the TSC before recording the bidding decision.');
     const actorId = scope.actor.id;

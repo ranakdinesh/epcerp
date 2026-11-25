@@ -49,6 +49,7 @@ type FlowStatus = {
   status_label: string;
   has_documents: boolean;
   tsc_completed: boolean;
+  prebid_review_closed: boolean;
   tsc_decision?: "pending" | "accepted" | "rejected" | "overridden";
   bidding_authorized: boolean;
   bidding_decision?: string;
@@ -252,6 +253,7 @@ export function TenderBiddingApproval({
   }
 
   const isAuthorized = flow?.bidding_authorized;
+  const readyForApproval = flow?.tsc_completed && flow.prebid_review_closed;
 
   return (
     <div className="space-y-6">
@@ -331,10 +333,19 @@ export function TenderBiddingApproval({
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            {flow?.tsc_completed ? "Human sign-off recorded." : "Close pre-bid review and finalize the TSC before approving this tender."}
+            {flow?.tsc_completed ? "Human sign-off recorded." : "Finalize the TSC before approving this tender."}
           </p>
         </div>
       </div>
+
+      {flow && !flow.prebid_review_closed && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+          <p className="text-sm">Close pre-bid review before recording the bidding decision.</p>
+          <button type="button" className={secondaryBtn} onClick={() => onNavigateStep("LG-04")}>
+            Review pre-bid replies
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs font-semibold text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200">
@@ -435,7 +446,7 @@ export function TenderBiddingApproval({
       )}
 
       {/* Authorization Form */}
-      {canWrite && flow?.tsc_completed && (
+      {canWrite && readyForApproval && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <h3 className="text-base font-bold text-slate-900 dark:text-white">
             {bidding ? "Update Bidding Decision & Directives" : "Grant Formal Bidding Authorization"}

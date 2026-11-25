@@ -3,7 +3,7 @@ import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 const load=async path=>{const code=ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)};
-const {generationLabel,processingTitle,questionProgress}=await load('../src/components/tenders/tsc-processing-model.ts');
+const {generationLabel,processingElapsed,processingTitle,questionProgress}=await load('../src/components/tenders/tsc-processing-model.ts');
 const {processingStatus}=await load('../src/server/tenders/tsc/progress.ts');
 const now=Date.parse('2026-11-04T16:11:14Z'),created='2026-11-04T16:08:21Z';
 const q={id:'q1',manual_review:false},snapshot={questions:[q,{id:'manual',manual_review:true}],sources:[{id:'pdf'}]},blank={question_id:'q1',answer:'',status:'needs_review',origin:'manual',accepted:false,citations:[]};
@@ -21,4 +21,16 @@ test('progress distinguishes preparing, waiting, saving and completed answers fr
 });
 test('a failed request with retained answers is labelled as a partial draft',()=>{
  assert.equal(generationLabel({state:'ready',mode:'gemini',error_code:'provider_unavailable',processing:{phase:'partial'}}),'Partial draft — answers saved');
+});
+test('live progress distinguishes a queued request, finalising an error, and an authorised retry',()=>{
+ const job={state:'processing',error_code:'',mode:'gemini',created_at:created};
+ const rejected={state:'failed',http_status:503};
+ const queued=processingStatus({...job,state:'queued'},snapshot,[blank],undefined,undefined,now);
+ assert.equal(processingTitle(queued,'Gemini'),'Waiting to start');
+ const finishing=processingStatus(job,snapshot,[blank],undefined,rejected,now);
+ assert.equal(processingTitle(finishing,'Gemini'),'Finalising this attempt');
+ const retry=processingStatus(job,{...snapshot,recover_overload:true},[blank],undefined,rejected,now);
+ assert.match(processingTitle(retry,'Gemini'),/Recovering from temporary Gemini overload/);
+ assert.equal(processingElapsed(queued.elapsed_seconds),'2m 53s');
+ assert.equal(processingElapsed(8),'8s');
 });

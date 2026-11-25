@@ -58,6 +58,9 @@ export function TenderPrebidQueries({
   draftId,
   reviewing,
   closed,
+  skipped,
+  repliesSkipped,
+  tscCompleted,
   onRefresh,
   canWrite = true,
   onNavigateStep,
@@ -65,12 +68,16 @@ export function TenderPrebidQueries({
   draftId: string;
   reviewing: boolean;
   closed: boolean;
+  skipped: boolean;
+  repliesSkipped: boolean;
+  tscCompleted: boolean;
   onRefresh: () => Promise<void>;
   canWrite?: boolean;
   onNavigateStep?: (step: string) => void;
 }) {
   const [queries, setQueries] = useState<PrebidQuery[]>([]);
   const [loading, setLoading] = useState(true);
+  const [queriesLoaded, setQueriesLoaded] = useState(false);
   const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingQuery, setEditingQuery] = useState<PrebidQuery | null>(null);
@@ -82,6 +89,7 @@ export function TenderPrebidQueries({
   const [queryDesc, setQueryDesc] = useState("");
   const [justification, setJustification] = useState("");
   const [saving, setSaving] = useState(false);
+  const [skipSelected, setSkipSelected] = useState(false);
 
   // Response edit state
   const [activeResponseQuery, setActiveResponseQuery] = useState<PrebidQuery | null>(null);
@@ -96,9 +104,15 @@ export function TenderPrebidQueries({
       const res = await fetch(`/api/tender-fms/drafts/${draftId}/prebid-queries`, { signal });
       if (!res.ok) throw new Error("Failed to load pre-bid queries");
       const data = await res.json();
-      setQueries(data);
+      if (!signal?.aborted) {
+        setQueries(data);
+        setQueriesLoaded(true);
+      }
     } catch (e) {
-      if (!signal?.aborted) setError(e instanceof Error ? e.message : "Error loading queries");
+      if (!signal?.aborted) {
+        setQueriesLoaded(false);
+        setError(e instanceof Error ? e.message : "Error loading queries");
+      }
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -188,20 +202,35 @@ export function TenderPrebidQueries({
     }
   }
 
-  async function saveReview(query?: PrebidQuery) {
+  const continueToBidding = repliesSkipped || tscCompleted;
+  const afterReview = continueToBidding ? "TS-02" : "TS-TSC";
+  const afterReviewLabel = continueToBidding ? "Continue to bidding approval" : "Return to Step 3 to finalize the TSC";
+  const canWriteReview = canWrite && !closed && !loading && queriesLoaded;
+  const hasDraftQueries = queries.some(query => query.status === "draft");
+  const skipSaved = reviewing ? repliesSkipped : skipped;
+  const emptyReview = queries.length === 0;
+  const canSelectSkip = canWrite && !skipSaved && !loading && queriesLoaded &&
+    (reviewing ? !hasDraftQueries && (!closed || emptyReview) : emptyReview);
+  const willSkip = canSelectSkip && skipSelected;
+
+  async function saveReview(query?: PrebidQuery, action: "close" | "skip" | "skip-replies" = "close") {
     setSaving(true);
     setError("");
     try {
-      const path = query?.id ?? "close";
+      const path = query?.id ?? action;
       const response = await fetch(`/api/tender-fms/drafts/${draftId}/prebid-queries/${path}`, query ? {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "submitted" }),
       } : { method: "POST" });
-      if (!response.ok) throw new Error((await response.json()).detail || "Failed to save pre-bid review");
+      if (!response.ok) {
+        const detail = (await response.json()).detail;
+        if (action !== "close" && response.status === 409) await Promise.all([loadQueries(), onRefresh()]);
+        throw new Error(detail || "Failed to save pre-bid review");
+      }
       await Promise.all([loadQueries(), onRefresh()]);
       window.dispatchEvent(new Event("tender-progress-saved"));
-      if (!query) onNavigateStep?.("TS-TSC");
+      if (action !== "close") onNavigateStep?.("TS-02");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to save pre-bid review");
     } finally {
@@ -260,11 +289,23 @@ export function TenderPrebidQueries({
               </h2>
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {reviewing ? "Record issuer replies and upload any formal corrigenda with the tender documents before closing review." : "Prepare questions before the clarification deadline. Submit them through the channel specified in the tender and mark them submitted here."}
+              {skipped ? "Pre-bid queries and replies were skipped."
+                : reviewing && repliesSkipped ? "Replies review was skipped. Pre-bid queries are still available below."
+                : reviewing ? "Record issuer replies and upload any formal corrigenda with the tender documents before closing review." : "Prepare questions before the clarification deadline. Submit them through the channel specified in the tender and mark them submitted here."}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <ValidatedLabel className="flex min-h-11 items-center gap-3 text-sm font-semibold">
+              <ValidatedInput
+                type="checkbox"
+                className="h-5 w-5 accent-blue-700"
+                checked={skipSaved || willSkip}
+                disabled={!canSelectSkip || saving}
+                onChange={event => setSkipSelected(event.target.checked)}
+              />
+              {reviewing ? "Skip pre-bid replies review" : "Skip pre-bid queries and replies"}
+            </ValidatedLabel>
             {queries.length > 0 && (
               <button
                 type="button"
@@ -458,27 +499,45 @@ export function TenderPrebidQueries({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {!reviewing ? (
-          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.("LG-04")}>
-            Review replies or confirm no queries <ArrowRightIcon className="h-4 w-4" />
+      <div className="space-y-2">
+        {willSkip ? (
+          <button
+            type="button"
+            className={primaryBtn}
+            disabled={saving}
+            onClick={() => void saveReview(undefined, reviewing ? "skip-replies" : "skip")}
+          >
+            {saving ? "Saving…" : "Skip and continue"} <ArrowRightIcon className="h-4 w-4" />
           </button>
-        ) : closed ? (
-          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.("TS-TSC")}>
-            Continue to TSC <ArrowRightIcon className="h-4 w-4" />
+        ) : skipped || (reviewing && closed) ? (
+          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.(afterReview)}>
+            {afterReviewLabel} <ArrowRightIcon className="h-4 w-4" />
+          </button>
+        ) : !reviewing ? (
+          <button
+            type="button"
+            className={primaryBtn}
+            disabled={saving}
+            onClick={() => onNavigateStep?.("LG-04")}
+          >
+            Review pre-bid replies
+            <ArrowRightIcon className="h-4 w-4" />
           </button>
         ) : canWrite && (
           <button
             type="button"
             className={primaryBtn}
-            disabled={loading || saving || answeredCount !== queries.length}
+            disabled={!canWriteReview || saving || answeredCount !== queries.length}
             onClick={() => void saveReview()}
           >
-            {queries.length ? "Close review and continue to TSC" : "Confirm no queries and continue to TSC"}
+            {queries.length ? "Close pre-bid review" : "Confirm no queries and close review"}
           </button>
         )}
         {reviewing && !closed && answeredCount !== queries.length &&
-          <p className="text-sm text-slate-600 dark:text-slate-400">Submit draft queries and record all outstanding replies before closing review.</p>}
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {hasDraftQueries ? "Submit draft queries in Step 3.1 before completing this step."
+              : "Record outstanding replies to close review, or skip this step to continue with the replies on file."}
+          </p>}
       </div>
 
       {/* Modal: Add Query */}

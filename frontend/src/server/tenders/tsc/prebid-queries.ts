@@ -20,6 +20,10 @@ export type PrebidQuery = {
   version: number;
 };
 
+function isResolved(status: PrebidQuery['status']) {
+  return status === 'answered' || status === 'accepted' || status === 'rejected';
+}
+
 export async function listPrebidQueries(draftId: string): Promise<PrebidQuery[]> {
   const db = pool();
   const res = await db.query<PrebidQuery>(
@@ -103,7 +107,7 @@ export async function updatePrebidQuery(
   const clientResponse = input.client_response !== undefined ? input.client_response.trim() : existing.client_response;
   const corrigendumRef = input.corrigendum_reference !== undefined ? input.corrigendum_reference.trim() : existing.corrigendum_reference;
 
-  if (['answered', 'accepted', 'rejected'].includes(status) && !clientResponse && !corrigendumRef) {
+  if (isResolved(status) && !clientResponse && !corrigendumRef) {
     throw new AppError(422, 'Record the issuer reply or corrigendum reference before resolving the query');
   }
 
@@ -113,7 +117,7 @@ export async function updatePrebidQuery(
   }
 
   let respondedAt = existing.responded_at;
-  if ((status === 'answered' || status === 'accepted' || status === 'rejected') && !existing.responded_at) {
+  if (isResolved(status) && !existing.responded_at) {
     respondedAt = new Date().toISOString();
   }
 
@@ -142,35 +146,68 @@ export async function updatePrebidQuery(
       draftId,
     ]
   );
-  await reopenPrebidReview(db, draftId);
-  return res.rows[0];
+  const updated = res.rows[0];
+  const clarificationChanged = (isResolved(existing.status) || isResolved(updated.status)) &&
+    (['category', 'clause_reference', 'tender_specification', 'query_description', 'status',
+      'client_response', 'corrigendum_reference'] as const).some(field => existing[field] !== updated[field]);
+  await reopenPrebidReview(db, draftId, clarificationChanged);
+  return updated;
 }
 
 export async function deletePrebidQuery(db: DB, draftId: string, queryId: string): Promise<{ ok: boolean }> {
-  const res = await db.query(
-    `DELETE FROM tender.prebid_queries WHERE id = $1 AND draft_id = $2`,
+  const { rows: [deleted] } = await db.query<Pick<PrebidQuery, 'status'>>(
+    `DELETE FROM tender.prebid_queries WHERE id = $1 AND draft_id = $2 RETURNING status`,
     [queryId, draftId]
   );
-  if (res.rowCount === 0) throw new AppError(404, 'Pre-bid query not found');
-  await reopenPrebidReview(db, draftId);
+  if (!deleted) throw new AppError(404, 'Pre-bid query not found');
+  await reopenPrebidReview(db, draftId, isResolved(deleted.status));
   return { ok: true };
 }
 
-async function reopenPrebidReview(db: DB, draftId: string) {
+async function reopenPrebidReview(db: DB, draftId: string, clarificationChanged = false) {
+  if (clarificationChanged) {
+    await db.query(`
+      UPDATE tender.tsc_eligibility_verdicts SET human_verified=false, version=version+1
+      WHERE draft_id=$1 AND human_verified
+    `, [draftId]);
+  }
   await db.query(`
     UPDATE tender.document_drafts SET prebid_reviewed_at=NULL, prebid_reviewed_by_id=NULL
     WHERE id=$1 AND prebid_reviewed_at IS NOT NULL
   `, [draftId]);
 }
 
-export async function closePrebidReview(db: DB, draftId: string, actorId: string) {
+export async function closePrebidReview(db: DB, draftId: string, actorId: string, action: 'close' | 'skip' | 'skip-replies') {
   const { rows: [row] } = await db.query(`
-    SELECT EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status IN ('draft','submitted')) AS open
+    SELECT EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1) AS has_queries,
+           EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status='draft') AS has_drafts,
+           EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status='submitted') AS has_pending_replies
   `, [draftId]);
-  if (row.open) throw new AppError(409, 'Resolve all draft queries and outstanding issuer replies before closing pre-bid review.');
+  if (action === 'skip' && row.has_queries) throw new AppError(409, 'This tender has pre-bid queries. Review them before continuing.');
+  if (action === 'skip-replies' && row.has_drafts) {
+    throw new AppError(409, 'Submit draft pre-bid queries before skipping the replies step.');
+  }
+  if (action === 'close' && (row.has_drafts || row.has_pending_replies)) throw new AppError(409, 'Resolve all draft queries and outstanding issuer replies before closing pre-bid review.');
   await db.query(`
     UPDATE tender.document_drafts SET prebid_reviewed_at=clock_timestamp(), prebid_reviewed_by_id=$2
     WHERE id=$1 AND prebid_reviewed_at IS NULL
   `, [draftId, actorId]);
-  return { prebid_review_closed: true };
+  if (action !== 'close') {
+    const eventType = action === 'skip' ? 'prebid_queries_skipped' : 'prebid_replies_skipped';
+    await db.query(`
+      INSERT INTO tender.draft_events(id, draft_id, action, created_at, created_by_id)
+      SELECT gen_random_uuid(), d.id, $3, d.prebid_reviewed_at, $2
+      FROM tender.document_drafts d WHERE d.id=$1 AND NOT EXISTS (
+        SELECT FROM tender.draft_events e
+        WHERE e.draft_id=d.id AND e.action=$3 AND e.created_at=d.prebid_reviewed_at
+      )
+    `, [draftId, actorId, eventType]);
+  }
+  const { rows: [status] } = await db.query(`
+    SELECT EXISTS(
+      SELECT FROM tender.draft_events e
+      WHERE e.draft_id=d.id AND e.action='prebid_queries_skipped' AND e.created_at=d.prebid_reviewed_at
+    ) AS prebid_review_skipped FROM tender.document_drafts d WHERE d.id=$1
+  `, [draftId]);
+  return { prebid_review_closed: true, prebid_review_skipped: status.prebid_review_skipped };
 }

@@ -134,7 +134,10 @@ type Draft = {
   status_label?: string;
   completed_steps?: number[];
   basic_details?: BasicDetails;
+  has_verified_batches?: boolean;
   prebid_review_closed?: boolean;
+  prebid_review_skipped?: boolean;
+  prebid_replies_skipped?: boolean;
   tsc_completed?: boolean;
   bidding_authorized?: boolean;
   created_by_id?: string;
@@ -830,7 +833,7 @@ function DeleteDraft({
 }
 
 const workspaceStages: readonly Stage[] = [
-  "details", "documents", "queries", "replies", "tsc", "bidding", "boq", "quotes", "costing", "award",
+  "details", "documents", "tsc", "queries", "replies", "bidding", "boq", "quotes", "costing", "award",
 ];
 
 function DraftDetail({
@@ -927,9 +930,14 @@ function DraftDetail({
   const currentIndex = workspaceStages.indexOf(stage);
   const currentCode = activeStep && stageForStep(activeStep) === stage ? activeStep : stepForStage(stage);
   const workStep = tenderProcess.steps.find(item => item.code === currentCode);
-  const prevStage = workspaceStages[currentIndex - 1];
-  const nextStage = workspaceStages[currentIndex + 1];
-  const canContinue = stage === "replies" ? data.prebid_review_closed
+  const prebidStage = stage === "queries" || stage === "replies";
+  const prevStage = stage === "bidding" && data.prebid_replies_skipped
+    ? data.prebid_review_skipped ? "tsc" : "queries"
+    : workspaceStages[currentIndex - 1];
+  const hasVerifiedDocuments = Boolean(data.has_verified_batches || verifiedBatches);
+  const tscNextStage = data.prebid_review_closed ? "bidding" : "queries";
+  const nextStage = stage === "tsc" ? tscNextStage : workspaceStages[currentIndex + 1];
+  const canContinue = stage === "documents" ? hasVerifiedDocuments
     : stage === "tsc" ? data.tsc_completed
     : stage === "bidding" ? data.bidding_authorized : true;
 
@@ -996,11 +1004,14 @@ function DraftDetail({
           onViewArtifact={(title, text) => setArtifact({ title, text })}
         />
       ) : stage === "tsc" ? (
-        data.prebid_review_closed ? (
+        hasVerifiedDocuments || data.tsc_completed || data.prebid_review_closed ? (
           <CloudTSCWorkspace
             onDone={onDone}
             onDirty={onDirty}
-            onProceedToBidding={() => changeStage("bidding")}
+            nextStep={{
+              label: stepName(stepForStage(tscNextStage)),
+              navigate: () => changeStage(tscNextStage),
+            }}
             draftID={data.id}
             sourceVersion={data.version}
             readyForGeneration={
@@ -1015,8 +1026,8 @@ function DraftDetail({
           />
         ) : (
           <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <p>Close the pre-bid review before preparing or finalizing the TSC.</p>
-            <button type="button" className={primary} onClick={() => changeStage("replies")}>Review pre-bid replies</button>
+            <p>Verify the tender documents in Step 2 before preparing the TSC.</p>
+            <button type="button" className={primary} onClick={() => changeStage("documents")}>Read &amp; verify documents</button>
           </section>
         )
       ) : stage === "bidding" ? (
@@ -1027,10 +1038,14 @@ function DraftDetail({
           onNavigateStep={(st) => changeStage(stageForStep(st))}
           onDone={onDone}
         />
-      ) : stage === "queries" || stage === "replies" ? (
+      ) : prebidStage ? (
         <TenderPrebidQueries
+          key={stage}
           reviewing={stage === "replies"}
           closed={Boolean(data.prebid_review_closed)}
+          skipped={Boolean(data.prebid_review_skipped)}
+          repliesSkipped={Boolean(data.prebid_replies_skipped)}
+          tscCompleted={Boolean(data.tsc_completed)}
           onRefresh={refresh}
           draftId={data.id}
           canWrite={canWrite}
@@ -1085,7 +1100,7 @@ function DraftDetail({
           )}
         </div>
 
-        <div>
+        {!prebidStage && <div>
           {nextStage ? (
             <button
               type="button"
@@ -1102,7 +1117,7 @@ function DraftDetail({
               Process Flow Completed
             </span>
           )}
-        </div>
+        </div>}
       </div>
 
       {artifact && (

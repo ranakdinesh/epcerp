@@ -1,6 +1,5 @@
 import 'server-only';
 import { pool, transaction, type DB } from '../../db';
-import { requireClosedPrebidReview } from '../flow';
 import { AppError } from '../../errors';
 import { decrypt } from './crypto';
 import { getCompanyProfile } from '../../company/service';
@@ -346,7 +345,6 @@ export async function verifyEligibilityDecision(
   remarks: string,
   actorId: string
 ): Promise<EligibilityVerdict> {
-  await requireClosedPrebidReview(db, draftId);
   const updated = await db.query<EligibilityVerdict>(
     `UPDATE tender.tsc_eligibility_verdicts SET
       human_verified = true,
