@@ -11,9 +11,10 @@ export function CategoryForm({ kind, data, record, parentCategoryId, onAddUnit, 
   const category = data.categories.find(c => c.id === categoryId);
   const inherited = data.units.find(u => u.id === category?.unit_id);
   const singular = kind === "categories" ? "category" : kind === "subcategories" ? "subcategory" : "unit";
+  const needsReason = Boolean(record) || kind !== "categories";
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const values = new FormData(form);
-    const payload = { code: record && String(values.get("code")) === record.code ? record.code : String(values.get("code") ?? "").trim().toUpperCase(), name: String(values.get("name") ?? "").trim(), reason: String(values.get("reason") ?? "").trim(), ...(record ? {version:record.version} : kind === "categories" ? { unit_id: String(values.get("unit_id")) } : kind === "subcategories" ? { category_id: categoryId } : {}) };
+    const payload = { code: record && String(values.get("code")) === record.code ? record.code : String(values.get("code") ?? "").trim().toUpperCase(), name: String(values.get("name") ?? "").trim(), ...(needsReason ? { reason: String(values.get("reason") ?? "").trim() } : {}), ...(record ? {version:record.version} : kind === "categories" ? { unit_id: String(values.get("unit_id")) } : kind === "subcategories" ? { category_id: categoryId } : {}) };
     setBusy(true); setError("");
     try { const response = await fetch(`/api/settings/categories/${kind}${record ? `/${record.id}` : ""}`, { method: record ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const body = await response.json(); if (!response.ok) { if (!displayServerErrors(form, body)) setError(typeof body.detail === "string" ? body.detail : "Unable to save this record. Check your access or try again."); return; } onSaved(body as CatalogueRecord); }
     catch { setError("Unable to connect. Please try again."); } finally { setBusy(false); }
@@ -25,7 +26,7 @@ export function CategoryForm({ kind, data, record, parentCategoryId, onAddUnit, 
     {kind === "subcategories" && <><p className="text-sm">Category: <strong>{category ? `${category.name} (${category.code})` : "Unavailable"}</strong></p><p className="text-sm">Base unit: <strong>{inherited ? `${inherited.code} — ${inherited.name}` : "Unavailable"}</strong>. Inherited from the category.</p>{!record && <p className="text-sm">Specification configuration will be pending after creation.</p>}</>}
     {kind === "units" && record && <p className="text-sm">Correcting this shared unit updates its label in every category using it; it does not convert quantities.</p>}
     {record?.unit_id && <p className="text-sm">Base unit: <strong>{data.units.find(u => u.id === record.unit_id)?.code}</strong>. Unit relationships are preserved during corrections.</p>}
-    <Label>{record ? "Reason for correction" : "Reason for creation"}<Textarea name="reason" required maxLength={2000} /></Label>
+    {needsReason && <Label>{record ? "Reason for correction" : "Reason for creation"}<Textarea name="reason" required maxLength={2000} /></Label>}
     {error && <p role="alert" className="text-red-700">{error}</p>}
     <button type="submit" className="rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white">{busy ? "Saving…" : record ? "Save changes" : `Create ${singular}`}</button>
   </fieldset></ValidatedForm>;

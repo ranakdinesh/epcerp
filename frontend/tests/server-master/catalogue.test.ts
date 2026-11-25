@@ -34,7 +34,8 @@ test("native catalogue preserves owned records, revisions, identities and atomic
         });
         await t.test("units, categories and subcategories retain parent relationships and audit history", async () => {
             unit = await call("POST", "/categories/units", { code: prefix, name: prefix + " Unit", reason: "QA base unit" }, 201);
-            category = await call("POST", "/categories/categories", { code: prefix + "C", name: prefix + " Category", unit_id: unit.id, reason: "QA category" }, 201);
+            category = await call("POST", "/categories/categories", { code: prefix + "C", name: prefix + " Category", unit_id: unit.id }, 201);
+            assert.equal((await pool().query("SELECT reason FROM category_catalogue_changes WHERE subject_id=$1 AND action='create'", [category.id])).rows[0].reason, "Category created");
             type = await call("POST", "/categories/subcategories", { code: prefix + "T", name: prefix + " Type", category_id: category.id, reason: "QA type" }, 201);
             assert.equal(type.unit_id, unit.id);
             assert.equal(type.category_id, category.id);
@@ -53,6 +54,7 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             assert.equal(page.rows[0].id, type.id);
             assert.equal(typeof page.rows[0].child_count, "number");
             const old = category;
+            await call("PATCH", `/categories/categories/${category.id}`, { code: category.code, name: category.name + " corrected", version: category.version }, 422);
             category = await call("PATCH", `/categories/categories/${category.id}`, { code: category.code, name: category.name + " corrected", reason: "QA name correction", version: category.version });
             assert.equal(category.version, 2);
             assert.equal(category.created_at, old.created_at);
@@ -82,7 +84,8 @@ test("native catalogue preserves owned records, revisions, identities and atomic
             assert.equal(count, "1");
         });
         await t.test("manufacturers keep eligibility, optimistic versions and history", async () => {
-            make = await call("POST", "/manufacturers", { code: prefix, name: prefix + " Make", data: { eligible: [category.code], notes: "QA" }, reason: "QA make" }, 201);
+            make = await call("POST", "/manufacturers", { code: prefix, name: prefix + " Make", data: { eligible: [category.code], notes: "QA" } }, 201);
+            assert.equal((await pool().query("SELECT reason FROM manufacturers_events WHERE subject_id=$1 AND action='create'", [make.id])).rows[0].reason, "Manufacturer created");
             await call("POST", "/manufacturers", { code: prefix + "X", name: make.name.toUpperCase(), data: { eligible: [category.code] }, reason: "QA duplicate" }, 422);
             await call("POST", "/manufacturers", { code: prefix + "Y", name: prefix + " invalid eligibility", data: { eligible: ["MISSING"] }, reason: "QA missing" }, 422);
             const choices = await call("GET", `/manufacturers/eligibility?codes=${category.code},${type.code}`);
@@ -91,6 +94,7 @@ test("native catalogue preserves owned records, revisions, identities and atomic
                 is_active: boolean;
             }) => v.is_active));
             const old = make;
+            await call("PATCH", `/manufacturers/${make.id}/profile`, { name: make.name + " corrected", data: make.data, version: make.version }, 422);
             make = await call("PATCH", `/manufacturers/${make.id}/profile`, { name: make.name + " corrected", data: { eligible: [category.code, type.code], notes: "Edited" }, version: make.version, reason: "QA profile correction" });
             assert.equal(make.code, old.code);
             assert.equal(make.created_at, old.created_at);

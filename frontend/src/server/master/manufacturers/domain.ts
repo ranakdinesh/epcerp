@@ -25,7 +25,7 @@ export type ManufacturerData = {
 export const nameKey = (s: string) => fold(trim(s));
 export function parseManufacturer(value: unknown, kind: "create" | "profile" | "active") {
     const input = strictObject(value, kind === "active" ? ["is_active", "version", "reason"] : kind === "profile" ? ["name", "data", "version", "reason"] : ["code", "name", "data", "reason"]);
-    const reason = stringField(input, "reason", 1, 2000);
+    const reason = kind === "create" && input.reason === undefined ? "Manufacturer created" : stringField(input, "reason", 1, 2000);
     const version = kind === "create" ? 0 : integer(input.version);
     if (kind !== "create" && version < 1)
         invalid("A current record version is required");

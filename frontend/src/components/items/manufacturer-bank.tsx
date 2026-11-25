@@ -212,10 +212,9 @@ function ManufacturerEditor({
       await request(
         `/api/settings/manufacturers${source ? `/${source.id}/profile` : ""}`,
         {
-          ...(source ? { version: source.version } : { code }),
+          ...(source ? { version: source.version, reason } : { code }),
           name,
           data: { eligible, notes },
-          reason,
         },
         source ? "PATCH" : "POST",
       );
@@ -279,7 +278,7 @@ function ManufacturerEditor({
             onChange={(e) => setNotes(e.target.value)}
           />
         </ValidatedLabel>
-        <ValidatedLabel className="block">
+        {source && <ValidatedLabel className="block">
           Change reason
           <ValidatedInput name="reason"
             className={input}
@@ -287,7 +286,7 @@ function ManufacturerEditor({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
-        </ValidatedLabel>
+        </ValidatedLabel>}
         <div className="flex flex-wrap gap-2">
           <button type="submit" className={button}>{busy ? "Saving…" : source ? "Save changes" : "Create manufacturer"}</button>
           {source && (
