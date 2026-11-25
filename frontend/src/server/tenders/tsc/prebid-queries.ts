@@ -177,14 +177,16 @@ async function reopenPrebidReview(db: DB, draftId: string, clarificationChanged 
   `, [draftId]);
 }
 
-export async function closePrebidReview(db: DB, draftId: string, actorId: string) {
+export async function closePrebidReview(db: DB, draftId: string, actorId: string, { skip }: { skip: boolean }) {
   const { rows: [row] } = await db.query(`
-    SELECT EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status IN ('draft','submitted')) AS open
+    SELECT EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1) AS has_queries,
+           EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status IN ('draft','submitted')) AS open
   `, [draftId]);
+  if (skip && row.has_queries) throw new AppError(409, 'This tender has pre-bid queries. Review them before continuing.');
   if (row.open) throw new AppError(409, 'Resolve all draft queries and outstanding issuer replies before closing pre-bid review.');
   await db.query(`
     UPDATE tender.document_drafts SET prebid_reviewed_at=clock_timestamp(), prebid_reviewed_by_id=$2
     WHERE id=$1 AND prebid_reviewed_at IS NULL
   `, [draftId, actorId]);
-  return { prebid_review_closed: true };
+  return { prebid_review_closed: true, prebid_review_skipped: !row.has_queries };
 }

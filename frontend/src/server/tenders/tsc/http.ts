@@ -63,10 +63,10 @@ export async function handleTSC(request: Request): Promise<Response> {
                 await transaction(async (db) => authorizeTender(db, token, draft, 'read'));
                 return json(await listPrebidQueries(draft));
             }
-            if (parts.length === 5 && job === 'close' && method === 'POST') {
+            if (parts.length === 5 && (job === 'close' || job === 'skip') && method === 'POST') {
                 return json(await transaction(async (db) => {
                     const { actor } = await authorizeTender(db, token, draft, 'write');
-                    return closePrebidReview(db, draft, actor.id);
+                    return closePrebidReview(db, draft, actor.id, { skip: job === 'skip' });
                 }));
             }
             if (parts.length === 4 && method === 'POST') {

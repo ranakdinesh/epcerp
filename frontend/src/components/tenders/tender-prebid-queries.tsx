@@ -58,6 +58,7 @@ export function TenderPrebidQueries({
   draftId,
   reviewing,
   closed,
+  skipped,
   tscCompleted,
   onRefresh,
   canWrite = true,
@@ -66,6 +67,7 @@ export function TenderPrebidQueries({
   draftId: string;
   reviewing: boolean;
   closed: boolean;
+  skipped: boolean;
   tscCompleted: boolean;
   onRefresh: () => Promise<void>;
   canWrite?: boolean;
@@ -73,6 +75,7 @@ export function TenderPrebidQueries({
 }) {
   const [queries, setQueries] = useState<PrebidQuery[]>([]);
   const [loading, setLoading] = useState(true);
+  const [queriesLoaded, setQueriesLoaded] = useState(false);
   const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingQuery, setEditingQuery] = useState<PrebidQuery | null>(null);
@@ -84,6 +87,7 @@ export function TenderPrebidQueries({
   const [queryDesc, setQueryDesc] = useState("");
   const [justification, setJustification] = useState("");
   const [saving, setSaving] = useState(false);
+  const [skipQueries, setSkipQueries] = useState(false);
 
   // Response edit state
   const [activeResponseQuery, setActiveResponseQuery] = useState<PrebidQuery | null>(null);
@@ -98,9 +102,15 @@ export function TenderPrebidQueries({
       const res = await fetch(`/api/tender-fms/drafts/${draftId}/prebid-queries`, { signal });
       if (!res.ok) throw new Error("Failed to load pre-bid queries");
       const data = await res.json();
-      setQueries(data);
+      if (!signal?.aborted) {
+        setQueries(data);
+        setQueriesLoaded(true);
+      }
     } catch (e) {
-      if (!signal?.aborted) setError(e instanceof Error ? e.message : "Error loading queries");
+      if (!signal?.aborted) {
+        setQueriesLoaded(false);
+        setError(e instanceof Error ? e.message : "Error loading queries");
+      }
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -190,19 +200,28 @@ export function TenderPrebidQueries({
     }
   }
 
-  async function saveReview(query?: PrebidQuery) {
+  const afterReview = tscCompleted ? "TS-02" : "TS-TSC";
+  const afterReviewLabel = tscCompleted ? "Continue to bidding approval" : "Return to Step 3 to finalize the TSC";
+  const canSkip = canWrite && !reviewing && !closed && !loading && queriesLoaded && queries.length === 0;
+
+  async function saveReview(query?: PrebidQuery, skip = false) {
     setSaving(true);
     setError("");
     try {
-      const path = query?.id ?? "close";
+      const path = query?.id ?? (skip ? "skip" : "close");
       const response = await fetch(`/api/tender-fms/drafts/${draftId}/prebid-queries/${path}`, query ? {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "submitted" }),
       } : { method: "POST" });
-      if (!response.ok) throw new Error((await response.json()).detail || "Failed to save pre-bid review");
+      if (!response.ok) {
+        const detail = (await response.json()).detail;
+        if (skip && response.status === 409) await Promise.all([loadQueries(), onRefresh()]);
+        throw new Error(detail || "Failed to save pre-bid review");
+      }
       await Promise.all([loadQueries(), onRefresh()]);
       window.dispatchEvent(new Event("tender-progress-saved"));
+      if (skip) onNavigateStep?.(afterReview);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to save pre-bid review");
     } finally {
@@ -261,7 +280,8 @@ export function TenderPrebidQueries({
               </h2>
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {reviewing ? "Record issuer replies and upload any formal corrigenda with the tender documents before closing review." : "Prepare questions before the clarification deadline. Submit them through the channel specified in the tender and mark them submitted here."}
+              {skipped ? "Pre-bid queries and replies were skipped."
+                : reviewing ? "Record issuer replies and upload any formal corrigenda with the tender documents before closing review." : "Prepare questions before the clarification deadline. Submit them through the channel specified in the tender and mark them submitted here."}
             </p>
           </div>
 
@@ -459,14 +479,32 @@ export function TenderPrebidQueries({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {!reviewing ? (
-          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.("LG-04")}>
-            Review replies or confirm no queries <ArrowRightIcon className="h-4 w-4" />
+      <div className="space-y-2">
+        {canSkip && (
+          <ValidatedLabel className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-sm font-semibold">
+            <ValidatedInput
+              type="checkbox"
+              className="h-5 w-5 accent-blue-700"
+              checked={skipQueries}
+              disabled={saving}
+              onChange={event => setSkipQueries(event.target.checked)}
+            />
+            Skip pre-bid queries and replies
+          </ValidatedLabel>
+        )}
+        {skipped || (reviewing && closed) ? (
+          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.(afterReview)}>
+            {afterReviewLabel} <ArrowRightIcon className="h-4 w-4" />
           </button>
-        ) : closed ? (
-          <button type="button" className={primaryBtn} onClick={() => onNavigateStep?.(tscCompleted ? "TS-02" : "TS-TSC")}>
-            {tscCompleted ? "Continue to bidding approval" : "Return to Step 3 to finalize the TSC"} <ArrowRightIcon className="h-4 w-4" />
+        ) : !reviewing ? (
+          <button
+            type="button"
+            className={primaryBtn}
+            disabled={saving}
+            onClick={() => canSkip && skipQueries ? void saveReview(undefined, true) : onNavigateStep?.("LG-04")}
+          >
+            {canSkip && skipQueries ? (saving ? "Saving…" : "Skip and continue") : "Review pre-bid replies"}
+            <ArrowRightIcon className="h-4 w-4" />
           </button>
         ) : canWrite && (
           <button

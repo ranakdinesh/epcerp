@@ -136,6 +136,7 @@ type Draft = {
   basic_details?: BasicDetails;
   has_verified_batches?: boolean;
   prebid_review_closed?: boolean;
+  prebid_review_skipped?: boolean;
   tsc_completed?: boolean;
   bidding_authorized?: boolean;
   created_by_id?: string;
@@ -928,14 +929,12 @@ function DraftDetail({
   const currentIndex = workspaceStages.indexOf(stage);
   const currentCode = activeStep && stageForStep(activeStep) === stage ? activeStep : stepForStage(stage);
   const workStep = tenderProcess.steps.find(item => item.code === currentCode);
-  const prevStage = workspaceStages[currentIndex - 1];
+  const prebidStage = stage === "queries" || stage === "replies";
+  const prevStage = stage === "bidding" && data.prebid_review_skipped ? "tsc" : workspaceStages[currentIndex - 1];
   const hasVerifiedDocuments = Boolean(data.has_verified_batches || verifiedBatches);
   const tscNextStage = data.prebid_review_closed ? "bidding" : "queries";
-  const nextStage = stage === "tsc" ? tscNextStage
-    : stage === "replies" && data.prebid_review_closed && !data.tsc_completed ? "tsc"
-    : workspaceStages[currentIndex + 1];
+  const nextStage = stage === "tsc" ? tscNextStage : workspaceStages[currentIndex + 1];
   const canContinue = stage === "documents" ? hasVerifiedDocuments
-    : stage === "replies" ? data.prebid_review_closed
     : stage === "tsc" ? data.tsc_completed
     : stage === "bidding" ? data.bidding_authorized : true;
 
@@ -1036,10 +1035,11 @@ function DraftDetail({
           onNavigateStep={(st) => changeStage(stageForStep(st))}
           onDone={onDone}
         />
-      ) : stage === "queries" || stage === "replies" ? (
+      ) : prebidStage ? (
         <TenderPrebidQueries
           reviewing={stage === "replies"}
           closed={Boolean(data.prebid_review_closed)}
+          skipped={Boolean(data.prebid_review_skipped)}
           tscCompleted={Boolean(data.tsc_completed)}
           onRefresh={refresh}
           draftId={data.id}
@@ -1095,7 +1095,7 @@ function DraftDetail({
           )}
         </div>
 
-        <div>
+        {!prebidStage && <div>
           {nextStage ? (
             <button
               type="button"
@@ -1112,7 +1112,7 @@ function DraftDetail({
               Process Flow Completed
             </span>
           )}
-        </div>
+        </div>}
       </div>
 
       {artifact && (

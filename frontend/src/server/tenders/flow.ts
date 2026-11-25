@@ -70,6 +70,7 @@ export function tenderFlow(row: Record<string, unknown>) {
     has_documents: Boolean(row.has_verified),
     has_verified_batches: Boolean(row.has_verified),
     prebid_review_closed: reviewed,
+    prebid_review_skipped: reviewed && !row.has_queries,
     tsc_completed: finalized,
     tsc_decision: finalized ? verdict?.human_decision : undefined,
     bidding_authorized: authorized,

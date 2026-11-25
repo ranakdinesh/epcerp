@@ -124,22 +124,34 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.equal(signedOff.next_step, 'LG-03');
             await tender('bidding-approval', 'POST', { decision: 'conditional' }, 409);
 
-            await tender('prebid-queries/close', 'POST');
-            assert.equal((await tender('flow-status')).next_step, 'TS-02');
+            const skip = await tender('prebid-queries/skip', 'POST');
+            assert.equal(skip.prebid_review_skipped, true);
+            await tender('prebid-queries/skip', 'POST');
+            const afterSkip = await tender('flow-status');
+            assert.equal(afterSkip.next_step, 'TS-02');
+            assert.equal(afterSkip.prebid_review_skipped, true);
+            assert.equal(afterSkip.tsc_completed, true);
+            await tender('bidding-approval', 'POST', { decision: 'conditional' }, 201);
 
             const query = await tender('prebid-queries', 'POST', {
                 tender_specification: 'Equipment rating', query_description: 'Confirm minimum rating',
             }, 201);
-            assert.equal((await tender('flow-status')).next_step, 'LG-03');
+            const withQueries = await tender('flow-status');
+            assert.equal(withQueries.next_step, 'LG-03');
+            assert.equal(withQueries.prebid_review_skipped, false);
+            assert.equal(withQueries.bidding_authorized, false);
+            await tender('prebid-queries/skip', 'POST', undefined, 409);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'submitted' });
             assert.equal((await tender('flow-status')).next_step, 'LG-04');
             await tender('prebid-queries/close', 'POST', undefined, 409);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered' }, 422);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered', client_response: 'Use the rating in Corrigendum 1', corrigendum_reference: '1' });
             await tender('prebid-queries/close', 'POST');
+            await tender('prebid-queries/skip', 'POST', undefined, 409);
             assert.equal((await tender('tsc/options')).clarifications[0].corrigendum_reference, '1');
             const needsReverification = await tender('flow-status');
             assert.equal(needsReverification.tsc_completed, false);
+            assert.equal(needsReverification.prebid_review_skipped, false);
             assert.equal(needsReverification.next_step, 'TS-TSC');
             await tender('bidding-approval', 'POST', { decision: 'conditional' }, 409);
             await verify(200);
