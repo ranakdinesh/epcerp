@@ -141,11 +141,27 @@ test('remaining native platform contracts without a Go backend', { skip: !proces
             assert.equal(withQueries.prebid_review_skipped, false);
             assert.equal(withQueries.bidding_authorized, false);
             await tender('prebid-queries/skip', 'POST', undefined, 409);
+            await tender('prebid-queries/skip-replies', 'POST', undefined, 409);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'submitted' });
             assert.equal((await tender('flow-status')).next_step, 'LG-04');
             await tender('prebid-queries/close', 'POST', undefined, 409);
+            await tender('prebid-queries/skip-replies', 'POST');
+            await tender('prebid-queries/skip-replies', 'POST');
+            const skippedReplies = await tender('flow-status');
+            assert.equal(skippedReplies.next_step, 'TS-02');
+            assert.equal(skippedReplies.prebid_review_closed, true);
+            assert.equal(skippedReplies.prebid_replies_skipped, true);
+            assert.equal(skippedReplies.prebid_review_skipped, false);
+            assert.equal((await tender('prebid-queries'))[0].status, 'submitted');
+            assert.equal((await sql.query(`SELECT id FROM tender.draft_events
+                WHERE draft_id=$1 AND action='prebid_replies_skipped'`, [draft])).rowCount, 1);
+            await tender('bidding-approval', 'POST', { decision: 'conditional' }, 201);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered' }, 422);
             await tender(`prebid-queries/${query.id}`, 'PATCH', { status: 'answered', client_response: 'Use the rating in Corrigendum 1', corrigendum_reference: '1' });
+            const repliesReopened = await tender('flow-status');
+            assert.equal(repliesReopened.prebid_replies_skipped, false);
+            assert.equal(repliesReopened.prebid_review_closed, false);
+            assert.equal(repliesReopened.bidding_authorized, false);
             await tender('prebid-queries/close', 'POST');
             await tender('prebid-queries/skip', 'POST', undefined, 409);
             assert.equal((await tender('tsc/options')).clarifications[0].corrigendum_reference, '1');

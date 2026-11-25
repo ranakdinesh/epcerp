@@ -137,6 +137,7 @@ type Draft = {
   has_verified_batches?: boolean;
   prebid_review_closed?: boolean;
   prebid_review_skipped?: boolean;
+  prebid_replies_skipped?: boolean;
   tsc_completed?: boolean;
   bidding_authorized?: boolean;
   created_by_id?: string;
@@ -930,7 +931,9 @@ function DraftDetail({
   const currentCode = activeStep && stageForStep(activeStep) === stage ? activeStep : stepForStage(stage);
   const workStep = tenderProcess.steps.find(item => item.code === currentCode);
   const prebidStage = stage === "queries" || stage === "replies";
-  const prevStage = stage === "bidding" && data.prebid_review_skipped ? "tsc" : workspaceStages[currentIndex - 1];
+  const prevStage = stage === "bidding" && data.prebid_replies_skipped
+    ? data.prebid_review_skipped ? "tsc" : "queries"
+    : workspaceStages[currentIndex - 1];
   const hasVerifiedDocuments = Boolean(data.has_verified_batches || verifiedBatches);
   const tscNextStage = data.prebid_review_closed ? "bidding" : "queries";
   const nextStage = stage === "tsc" ? tscNextStage : workspaceStages[currentIndex + 1];
@@ -1040,6 +1043,7 @@ function DraftDetail({
           reviewing={stage === "replies"}
           closed={Boolean(data.prebid_review_closed)}
           skipped={Boolean(data.prebid_review_skipped)}
+          repliesSkipped={Boolean(data.prebid_replies_skipped)}
           tscCompleted={Boolean(data.tsc_completed)}
           onRefresh={refresh}
           draftId={data.id}

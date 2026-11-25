@@ -177,16 +177,26 @@ async function reopenPrebidReview(db: DB, draftId: string, clarificationChanged 
   `, [draftId]);
 }
 
-export async function closePrebidReview(db: DB, draftId: string, actorId: string, { skip }: { skip: boolean }) {
+export async function closePrebidReview(db: DB, draftId: string, actorId: string, action: 'close' | 'skip' | 'skip-replies') {
   const { rows: [row] } = await db.query(`
     SELECT EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1) AS has_queries,
-           EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status IN ('draft','submitted')) AS open
+           EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status='draft') AS has_drafts,
+           EXISTS(SELECT FROM tender.prebid_queries WHERE draft_id=$1 AND status='submitted') AS has_pending_replies
   `, [draftId]);
-  if (skip && row.has_queries) throw new AppError(409, 'This tender has pre-bid queries. Review them before continuing.');
-  if (row.open) throw new AppError(409, 'Resolve all draft queries and outstanding issuer replies before closing pre-bid review.');
+  if (action === 'skip' && row.has_queries) throw new AppError(409, 'This tender has pre-bid queries. Review them before continuing.');
+  if (action === 'skip-replies' && row.has_drafts) {
+    throw new AppError(409, 'Submit draft pre-bid queries before skipping the replies step.');
+  }
+  if (action === 'close' && (row.has_drafts || row.has_pending_replies)) throw new AppError(409, 'Resolve all draft queries and outstanding issuer replies before closing pre-bid review.');
   await db.query(`
-    UPDATE tender.document_drafts SET prebid_reviewed_at=clock_timestamp(), prebid_reviewed_by_id=$2
-    WHERE id=$1 AND prebid_reviewed_at IS NULL
-  `, [draftId, actorId]);
+    WITH closed AS (
+      UPDATE tender.document_drafts SET prebid_reviewed_at=clock_timestamp(), prebid_reviewed_by_id=$2
+      WHERE id=$1 AND prebid_reviewed_at IS NULL
+      RETURNING id, prebid_reviewed_at
+    )
+    INSERT INTO tender.draft_events(id, draft_id, action, created_at, created_by_id)
+    SELECT gen_random_uuid(), id, 'prebid_replies_skipped', prebid_reviewed_at, $2
+    FROM closed WHERE $3
+  `, [draftId, actorId, action === 'skip-replies']);
   return { prebid_review_closed: true, prebid_review_skipped: !row.has_queries };
 }
