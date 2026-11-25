@@ -67,7 +67,10 @@
 .go-account-menu summary:focus-visible { outline: 2px solid var(--go-blue); }
 .go-account-dropdown { position: absolute; right: 0; top: calc(100% + 10px); width: 240px; padding: 8px; border: 1px solid var(--go-line); background: var(--go-panel); border-radius: 12px; box-shadow: 0 12px 32px #0f172a22; }
 .go-account-dropdown p { margin: 8px 10px; font-size: 12px; color: var(--go-muted); }
-.go-account-dropdown button { width: 100%; text-align: left; border: 0; border-radius: 6px; }
+.go-account-dropdown, .go-profile-tabs { --account-action-text: var(--action-color); }
+html[data-theme="dark"] :is(.go-account-dropdown, .go-profile-tabs) { --account-action-text: #61d6ca; }
+.go-account-dropdown > button { width: 100%; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--account-action-text); }
+.go-account-dropdown > button:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
 .go-account-dropdown hr { border-color: var(--go-line); margin: 8px 0; }
 .go-mobile-toggle { display: none; }
 .go-mobile-navigation { display: none; }
@@ -166,20 +169,18 @@
 .go-profile-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:650;margin-left:10px;padding:2px 8px;border:1px solid var(--go-line);border-radius:20px;color:var(--go-ink);background:var(--go-panel)}
 .go-profile-photo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.go-profile-photo-actions button{min-height:44px;border:1px solid var(--go-line);border-radius:8px;background:var(--go-panel);padding:8px 12px;color:var(--go-ink);font-size:12px;font-weight:650;cursor:pointer}.go-profile-photo-actions button.go-profile-remove{border-color:transparent;background:transparent;color:var(--go-muted)}.go-profile-summary .go-profile-photo-help{margin-top:6px;font-size:11px}
 .go-profile-tabs {
-  --profile-tab-color: var(--action-color);
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   border-bottom: 1px solid var(--go-line);
   padding: 0 28px;
 }
-html[data-theme="dark"] .go-profile-tabs { --profile-tab-color: #61d6ca; }
 .go-profile-tabs > button {
   min-height: 48px;
   padding: 8px 12px;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--profile-tab-color);
+  color: var(--account-action-text);
   cursor: pointer;
 }
 .go-profile-tabs > button[aria-current="page"] { border-bottom-color: currentColor; }

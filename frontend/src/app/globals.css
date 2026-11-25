@@ -229,7 +229,7 @@ html[data-theme="dark"] section[aria-label="Employee login"] button[type="button
   @media screen {
     :where(button, [role="button"], input:is([type="button"], [type="submit"], [type="reset"]),
       a:is(.app-action, .ui-action, .quotation-action, .primary, .grid-page-action,
-        [class~="min-h-11"][class*="rounded"])):not(:where(.go-profile-tabs > button)) {
+        [class~="min-h-11"][class*="rounded"])):not(:where(.go-profile-tabs > button, .go-account-dropdown > button)) {
       background-color: var(--action-color) !important;
       border-color: var(--action-color) !important;
       color: var(--action-ink) !important;
