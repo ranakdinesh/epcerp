@@ -11,6 +11,7 @@ import { DataGrid, type GridQuery } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { displayServerErrors } from "@/components/ui/server-field-errors";
 import { RequiredSelection, ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedTextarea } from "@/components/ui/validated-controls";
+import { newUserMobileLength, newUserMobileMessage, newUserMobilePattern } from "@/lib/auth/new-user-mobile";
 
 type PlatformUser = UserDetailRecord;
 type Role = { is_active?: boolean; id: string; name: string };
@@ -43,7 +44,8 @@ export function UserManagement() {
   const [selectedRoleNames, setSelectedRoleNames] = useState<string[]>([]);
   const [superadmin, setSuperadmin] = useState(false);
   const [revision, setRevision] = useState(0);
-  const manualCreate = dialogMode === "create" && onboardingEmailEnabled === false;
+  const creating = dialogMode === "create";
+  const manualCreate = creating && onboardingEmailEnabled === false;
   const rolesOptional = superadmin || (dialogMode === "edit" && selectedUser?.is_superuser === true);
   const canManage = (user: PlatformUser) => canWrite && (!user.is_superuser || actor.is_superuser === true);
   const changeQuery = useCallback((query: GridQuery) => setGridQuery(query), []);
@@ -285,7 +287,16 @@ export function UserManagement() {
             <ValidatedLabel className="block text-sm font-bold">Username{actor.is_superuser && <span className="font-normal text-xs text-slate-500"> (editable by Superadmin)</span>}<ValidatedInput name="username" readOnly={!actor.is_superuser} defaultValue={selectedUser.username} className={input+(!actor.is_superuser?" bg-slate-100":"")}/></ValidatedLabel>
             {(!selectedUser.first_name||!selectedUser.last_name||!selectedUser.mobile)&&<p role="status" className="ui-notice--warning rounded-xl p-3 text-sm">No saved value for {[!selectedUser.first_name&&"first name",!selectedUser.last_name&&"last name",!selectedUser.mobile&&"mobile number"].filter(Boolean).join(", ")}. Enter the missing details to complete this user’s profile.</p>}
           </>}
-          {dialogMode==="create"&&<p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">{manualCreate ? "Set a temporary password and share it securely with the user. It expires after 24 hours and must be changed at first sign-in." : "The user will receive a welcome email with a temporary password and a sign-in link. They must change the password at first sign-in."}</p>}<div className="grid gap-3 sm:grid-cols-2"><ValidatedLabel required className="block text-sm font-bold">First name<ValidatedInput name="first_name" required maxLength={100} defaultValue={selectedUser?.first_name} className={input}/></ValidatedLabel><ValidatedLabel required className="block text-sm font-bold">Last name<ValidatedInput name="last_name" required maxLength={100} defaultValue={selectedUser?.last_name} className={input}/></ValidatedLabel></div><ValidatedLabel required className="block text-sm font-bold">Mobile number<ValidatedInput name="mobile" type="tel" required minLength={8} maxLength={24} defaultValue={selectedUser?.mobile} className={input}/></ValidatedLabel>{dialogMode==="create"&&<><ValidatedLabel required className="block text-sm font-bold">Username<ValidatedInput name="username" required minLength={3} maxLength={64} pattern="[a-zA-Z0-9._\-]+" className={input}/></ValidatedLabel></>}
+          {dialogMode==="create"&&<p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-900">{manualCreate ? "Set a temporary password and share it securely with the user. It expires after 24 hours and must be changed at first sign-in." : "The user will receive a welcome email with a temporary password and a sign-in link. They must change the password at first sign-in."}</p>}<div className="grid gap-3 sm:grid-cols-2"><ValidatedLabel required className="block text-sm font-bold">First name<ValidatedInput name="first_name" required maxLength={100} defaultValue={selectedUser?.first_name} className={input}/></ValidatedLabel><ValidatedLabel required className="block text-sm font-bold">Last name<ValidatedInput name="last_name" required maxLength={100} defaultValue={selectedUser?.last_name} className={input}/></ValidatedLabel></div><ValidatedLabel required className="block text-sm font-bold">Mobile number<ValidatedInput
+            name="mobile" type="tel" required
+            inputMode={creating ? "numeric" : undefined}
+            minLength={creating ? undefined : 8}
+            maxLength={creating ? newUserMobileLength : 24}
+            pattern={creating ? newUserMobilePattern : undefined}
+            title={creating ? newUserMobileMessage : undefined}
+            placeholder={creating ? "10 digits without +91" : undefined}
+            defaultValue={selectedUser?.mobile} className={input}
+          /></ValidatedLabel>{dialogMode==="create"&&<><ValidatedLabel required className="block text-sm font-bold">Username<ValidatedInput name="username" required minLength={3} maxLength={64} pattern="[a-zA-Z0-9._\-]+" className={input}/></ValidatedLabel></>}
           <ValidatedLabel required className="block text-sm font-bold">Email<ValidatedInput name="email" type="email" required maxLength={255} defaultValue={selectedUser?.email} className={input}/></ValidatedLabel>
           {manualCreate && passwordFields}
           {dialogMode==="edit"&&selectedUser&&<div className="user-access-card space-y-3 rounded-xl border p-4 text-sm"><p className="font-bold">Account status: {selectedUser.is_active?"Active":"Inactive"}</p><p className="text-slate-600">Deactivation blocks access immediately. Handovers are tracked separately and can be completed later.</p>{selectedUser.id!==actor.id&&<button type="button" className={actionButtonClass(selectedUser.is_active?"danger":"success")} onClick={()=>openDialog("status",selectedUser)}>{selectedUser.is_active?"Deactivate user":"Reactivate user"}</button>}</div>}

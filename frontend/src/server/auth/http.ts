@@ -3,7 +3,7 @@ import { AuthError, denied, invalid, reason } from "./domain";
 import * as session from "./sessions";
 import * as admin from "./administration";
 import * as account from "./account";
-import { address, body, boolean, contact, list, names, text, userName, version } from "./validation";
+import { address, body, boolean, contact, list, names, newUserContact, text, userName, version } from "./validation";
 import { requireMail } from "./mail";
 import { limitPublic } from "./rate-limit";
 import registry from "./permissions.json";
@@ -72,7 +72,7 @@ export async function handleAuth(request: Request): Promise<Response> {
     if (route === "GET /users/online/activity") return response(await admin.online(token));
     if (route === "POST /users") {
       const p = await body(request,["username","email","first_name","last_name","mobile","role_names","is_superuser","password","confirmation"]);
-      const superuser = boolean(p,"is_superuser",false), details = contact(p);
+      const superuser = boolean(p,"is_superuser",false), details = newUserContact(p);
       const password = p.password === undefined && p.confirmation === undefined ? undefined : text(p,"password",8,128);
       if (password !== undefined && password !== text(p,"confirmation",8,128)) invalid("Temporary password and confirmation do not match.");
       return response(await admin.createUser(token,{ username:userName(p),email:address(p),first_name:details.first_name!,last_name:details.last_name!,mobile:details.mobile!,role_names:names(p,superuser ? 0 : 1),is_superuser:superuser,password }),201);
