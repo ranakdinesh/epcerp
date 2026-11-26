@@ -3,7 +3,7 @@ import { AppError } from '../errors';
 import { body } from '../auth/validation';
 import { captureFields,ProjectError } from './validation';
 import * as projects from './service';
-export const ownsProjects=(path:string)=>/^\/projects(?:\/[^/]+(?:\/(?:manager|manager-history|metadata-history|metadata-options|schedule-preview))?)?$/.test(path);
+export const ownsProjects=(path:string)=>/^\/projects(?:\/[^/]+(?:\/(?:status|manager|manager-history|metadata-history|metadata-options|schedule-preview))?)?$/.test(path);
 const json=(v:unknown,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff',...(status===401?{'WWW-Authenticate':'Bearer'}:{})}});
 export async function handleProjects(request:Request){try{
     const url=new URL(request.url),parts=url.pathname.replace(/^\/api\/v1/,'').split('/').filter(Boolean),method=request.method,token=/^Bearer ([^\s]+)$/i.exec(request.headers.get('authorization')??'')?.[1]??'';
@@ -15,6 +15,7 @@ export async function handleProjects(request:Request){try{
     if(parts.length===2&&method==='GET')return json(await projects.get(token,parts[1]));
     if(parts.length===2&&method==='PATCH')return json(await projects.update(token,parts[1],await body(request,['name','client_id','reason','expected_version',...captureFields],65536)));
     if(parts.length===3){const id=parts[1],kind=parts[2];
+        if(kind==='status'&&method==='PATCH')return json(await projects.setStatus(token,id,await body(request,['is_active','expected_version'],4096)));
         if(kind==='manager'&&method==='PATCH')return json(await projects.transfer(token,id,await body(request,['project_manager_id','reason','expected_version'],65536)));
         if(kind==='manager-history'&&method==='GET')return json(await projects.managerHistory(token,id));
         if(kind==='metadata-history'&&method==='GET')return json(await projects.metadataHistory(token,id));

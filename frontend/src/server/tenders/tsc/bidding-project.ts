@@ -77,7 +77,7 @@ function purchaseAccess(actor: Principal, project: projects.Project) {
     const hasView = actor.allows('projects.purchase_workflow.view') && actor.allows('projects.purchase_workflow.read');
     const manages = actor.id === project.project_manager_id || actor.allows('projects.purchase_portfolio.write');
     return {
-        can_open_purchase: hasView && (manages || actor.allows('projects.purchase_portfolio.read') || actor.id === project.procurement_executive_id),
+        can_open_purchase: project.is_active && hasView && (manages || actor.allows('projects.purchase_portfolio.read') || actor.id === project.procurement_executive_id),
         can_start_purchase: hasView && manages && actor.allows('projects.purchase_assignments.write') && project.is_active &&
             !['closed', 'on_hold'].includes(project.lifecycle_status),
     };
@@ -86,7 +86,7 @@ function purchaseAccess(actor: Principal, project: projects.Project) {
 function summary(actor: Principal, project: projects.Project) {
     return {
         id: project.id, number: project.project_number, name: project.name, purchase_enabled: project.purchase_enabled,
-        can_open_project: actor.allows('projects.master.view') && actor.allows('projects.master.read') &&
+        can_open_project: project.is_active && actor.allows('projects.master.view') && actor.allows('projects.master.read') &&
             (actor.id === project.project_manager_id || ['projects.portfolio.read', 'projects.portfolio.write', 'projects.manager_assignments.write'].some(permission => actor.allows(permission))),
         ...purchaseAccess(actor, project),
     };
@@ -97,7 +97,7 @@ export function biddingProject(token: string, draftId: string) {
         const { actor, draft } = await authorizeTender(db, token, draftId);
         const projectId = await biddingProjectId(db, draft.id);
         const project = projectId ? await projects.owner(db, await projects.get(db, projectId)) : null;
-        if (project || !canCreate(actor)) return { project: project ? { ...summary(actor, project), quotations_approved: project.purchase_enabled && await projectReady(db, project.id), tender_award_pending: await tenderAwardPending(db, project.id) } : null, setup: null };
+        if (project || !canCreate(actor)) return { project: project ? { ...summary(actor, project), quotations_approved: project.is_active && project.purchase_enabled && await projectReady(db, project.id), tender_award_pending: await tenderAwardPending(db, project.id) } : null, setup: null };
         const options = await clients(db);
         const managers = (await assignmentIdentities(db, [])).filter(canManageProject).map(user => ({ id: user.id, name: user.name }));
         return { project: null, setup: { defaults: await defaults(db, draft, options), clients: options.map(({ id, name, code }) => ({ id, name, code })), managers, actor_id: actor.id } };

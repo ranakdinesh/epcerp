@@ -26,7 +26,7 @@ export async function dashboard(token: string, q = new URLSearchParams()) {
         const a = await actor(db, token);
         const all = portfolio(a);
         const search = f.search ? '%' + f.search.replace(/[\\%_]/g, c => '\\' + c) + '%' : '';
-        const scope = `($1::boolean OR p.project_manager_id=$2 OR EXISTS(
+        const scope = `p.is_active AND ($1::boolean OR p.project_manager_id=$2 OR EXISTS(
             SELECT 1 FROM purchase_fms_workspaces w
             WHERE w.project_id=p.id AND w.purchase_manager_id=$2 AND w.is_active
         ))${f.enabledOnly ? ' AND p.purchase_enabled' : ''}`;

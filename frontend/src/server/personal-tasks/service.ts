@@ -14,7 +14,7 @@ export async function page(token:string,params:URLSearchParams,now=new Date()){
         const rows=[],context=new Map<string,Awaited<ReturnType<typeof source>>>();let total=0;
         if(execute||resolve){
             const search='%'+q.search.replace(/[\\%_]/g,c=>'\\'+c)+'%',values=[actor.id,execute,resolve,q.role,q.state,search];
-            const filter=`p.is_active AND (p.steps @> jsonb_build_array(jsonb_build_object('doer_id',$1::text)) OR p.steps @> jsonb_build_array(jsonb_build_object('blocked_resolver_id',$1::text))) AND (s->>'number')::integer BETWEEN 3 AND 20
+            const filter=`p.is_active AND EXISTS (SELECT 1 FROM projects project WHERE project.id=p.project_id AND project.is_active) AND (p.steps @> jsonb_build_array(jsonb_build_object('doer_id',$1::text)) OR p.steps @> jsonb_build_array(jsonb_build_object('blocked_resolver_id',$1::text))) AND (s->>'number')::integer BETWEEN 3 AND 20
               AND (($2::boolean AND s->>'doer_id'=$1 AND $4 IN('all','doer')) OR ($3::boolean AND s->>'state'='blocked' AND s->>'blocked_resolver_id'=$1 AND $4 IN('all','resolver')))
               AND ($5='all' OR s->>'state'=$5) AND (p.code ILIKE $6 OR p.description ILIKE $6 OR s->>'title' ILIKE $6)`;
             total=Number((await db.query(`SELECT count(*) FROM purchase_work_packages p CROSS JOIN LATERAL jsonb_array_elements(p.steps) s WHERE ${filter}`,values)).rows[0].count);

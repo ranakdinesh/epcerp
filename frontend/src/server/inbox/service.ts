@@ -2,7 +2,7 @@ import 'server-only';
 import { transaction } from '../db';
 import { requireAnyPermission } from '../auth/access';
 import { query, noticeID, receiptVersion, InboxError, invalid } from './validation';
-import { ownNotice, history, notice, exactColumns, timeSQL, timestamp, receiptEvent } from './repository';
+import { ownNotice, history, notice, exactColumns, timeSQL, timestamp, receiptEvent, visibleProject } from './repository';
 async function access(db: Parameters<typeof requireAnyPermission>[0], token: string, write = false) {
     const actor = await requireAnyPermission(db,token,['communication.inbox.read'],'business');
     if (write && !actor.allows('communication.inbox.write')) throw new InboxError(403,'Personal inbox permission denied');
@@ -13,8 +13,8 @@ export async function list(token: string, params: URLSearchParams) {
     const q = query(params);
     return transaction(async db => {
         const actor = await access(db,token), values = [actor.id,q.status];
-        const filter = `recipient_id=$1 AND ($2::text='' OR ($2='unread' AND read_at IS NULL) OR ($2='read' AND read_at IS NOT NULL AND acknowledged_at IS NULL) OR ($2='acknowledged' AND acknowledged_at IS NOT NULL))`;
-        const total = Number((await db.query(`SELECT count(*) FROM communication_notices WHERE ${filter}`,values)).rows[0].count);
+        const filter = `${visibleProject} AND recipient_id=$1 AND ($2::text='' OR ($2='unread' AND read_at IS NULL) OR ($2='read' AND read_at IS NOT NULL AND acknowledged_at IS NULL) OR ($2='acknowledged' AND acknowledged_at IS NOT NULL))`;
+        const total = Number((await db.query(`SELECT count(*) FROM communication_notices n WHERE ${filter}`,values)).rows[0].count);
         const items = (await db.query(`SELECT n.*,${exactColumns} FROM communication_notices n WHERE ${filter} ORDER BY n.created_at DESC,n.id DESC LIMIT $3 OFFSET $4`,[...values,q.size,(q.page-1)*q.size])).rows.map(notice);
         return {items,total,page:q.page,size:q.size,can_write:actor.allows('communication.inbox.write')};
     });

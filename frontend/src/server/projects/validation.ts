@@ -18,11 +18,13 @@ export function text(value: unknown, field: string, max: number, required = fals
 export function version(value: unknown) { if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value >= 2147483647) invalid('expected_version', 'A current project version is required'); return value; }
 export function projectName(value: unknown) { const s = text(value, 'name', 255, true); if ([...s].length < 3) invalid('name', 'Enter at least three characters'); return s; }
 export function filter(params: URLSearchParams) {
-    for (const k of params.keys()) if (!['search', 'page', 'page_size'].includes(k) || params.getAll(k).length !== 1) invalid(k, 'Unknown or repeated query parameter');
+    for (const k of params.keys()) if (!['search', 'page', 'page_size', 'status'].includes(k) || params.getAll(k).length !== 1) invalid(k, 'Unknown or repeated query parameter');
     const number = (k: string, fallback: number) => { const raw = params.get(k); if (raw === null) return fallback; if (!/^[+-]?\d+$/.test(raw)) invalid(k, 'Use an integer'); return Number(raw); };
     const page = number('page', 1), size = number('page_size', 50), raw = params.get('search') ?? '';
     if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || !Number.isSafeInteger(size) || size < 1 || size > 100 || [...raw].length > 255) invalid('query', 'Invalid pagination or search');
-    return { page, size, search: trim(raw) };
+    const status = params.get('status') ?? 'active';
+    if (status !== 'active' && status !== 'inactive') invalid('status', 'Choose Active or Inactive');
+    return { page, size, active: status === 'active', search: trim(raw) };
 }
 export const captureFields = ['purchase_enabled','actual_end_date','short_name','project_type','site_name','site_state','site_city','scope_summary','contract_value','currency','loi_number','po_number','schedule_start_basis','planned_start_date','planned_completion_date','loi_date','po_date','actual_start_date','site_handover_date','planned_duration_days','safety_buffer_percent','safety_buffer_days','remarks'] as const;
 export type Capture = Record<Exclude<typeof captureFields[number], 'purchase_enabled'>, string> & { purchase_enabled: boolean; operations_manager_id: string; schedule_calculation: Calculation };

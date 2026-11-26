@@ -9,7 +9,7 @@ import * as repo from './repository';
 type Actor = Awaited<ReturnType<typeof actor>>;
 const actor = (db: DB, token: string) => requireAnyPermission(db, token, ['projects.team.read'], 'business');
 async function project(db: DB, target: string, lock = false) {
-    const row = (await db.query(`SELECT id,name,project_manager_id,is_active,lifecycle_status AS lifecycle FROM projects WHERE id=$1${lock ? ' FOR UPDATE' : ''}`, [target])).rows[0];
+    const row = (await db.query(`SELECT id,name,project_manager_id,is_active,lifecycle_status AS lifecycle FROM projects WHERE id=$1 AND is_active${lock ? ' FOR UPDATE' : ''}`, [target])).rows[0];
     if (!row) throw missing();
     const owner = (await db.query('SELECT purchase_manager_id FROM purchase_fms_workspaces WHERE project_id=$1 AND is_active', [target])).rows[0];
     return { id: String(row.id), name: String(row.name), project_manager_id: String(row.project_manager_id), procurement_executive_id: String(owner?.purchase_manager_id ?? ''), is_active: row.is_active === true, lifecycle: String(row.lifecycle) };
