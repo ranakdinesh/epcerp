@@ -221,7 +221,6 @@ html[data-theme="dark"] .vtpl-modal :is(input,select,textarea):disabled { backgr
 html[data-theme="dark"] :is(.text-blue-900,.text-blue-950) { color: #a5c2ff; }
 html[data-theme="dark"] section[aria-label="Employee login"] { background: var(--go-panel); border-color: var(--go-line); }
 html[data-theme="dark"] section[aria-label="Employee login"] :is(input:not([type="checkbox"]),select) { background-color: var(--go-hover); color: var(--go-ink); }
-html[data-theme="dark"] section[aria-label="Employee login"] button[type="button"] { color: var(--go-blue); }
 
 
 /* Action colours take precedence over feature and utility styles across both themes. */

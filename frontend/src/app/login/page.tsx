@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
@@ -31,10 +32,6 @@ export default function LoginPage() {
     }
 
     return "";
-  }
-
-  function handleForgotPassword() {
-    router.push("/forgot-password");
   }
 
   async function handleLogin(event: React.FormEvent) {
@@ -239,13 +236,12 @@ export default function LoginPage() {
                 <label htmlFor="login-password" className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  className="text-xs font-bold text-[#1e3a8a] hover:underline"
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-bold text-(--action-color) hover:underline focus-visible:underline dark:text-teal-300"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -277,7 +273,7 @@ export default function LoginPage() {
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-[#1e3a8a] focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
+                  className="go-password-visibility absolute right-1.5 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg bg-transparent text-(--action-color) focus-visible:outline-2 focus-visible:outline-(--action-color) dark:text-teal-300 dark:focus-visible:outline-teal-300"
                 >
                   {showPassword ? (
                     <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
