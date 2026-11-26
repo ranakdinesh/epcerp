@@ -23,6 +23,17 @@
     line-height: 1.5;
   }
 
+  html body .app-data-grid .vtpl-data-table > thead > tr > th {
+    font-size: var(--ui-grid-heading-text);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  html body .app-data-grid .vtpl-data-table > thead > tr > th > button {
+    font-size: inherit !important;
+    line-height: inherit;
+  }
+
   html body .vtpl-data-table > tbody > tr[data-grid-group] > th {
     background: var(--grid-group);
     color: var(--grid-heading-ink);
