@@ -35,7 +35,7 @@ export async function dashboard(token: string, q = new URLSearchParams()) {
         const counts = (await db.query(countScope.length
             ? `SELECT count(*) FILTER (WHERE ${matches}) AS total, count(*) AS scope_total FROM projects p WHERE ${scope}`
             : `SELECT count(*) AS total FROM projects p WHERE ${scope} AND ${matches}`, args)).rows[0];
-        const order = { number: 'p.project_number', name: 'lower(p.name)', state: 'p.lifecycle_status' }[f.sort as 'number' | 'name' | 'state'];
+        const order = { number: 'p.project_number', name: 'lower(p.name)', state: '(NOT p.is_active)' }[f.sort as 'number' | 'name' | 'state'];
         const ids = (await db.query(`SELECT p.id FROM projects p WHERE ${scope} AND ${matches}
             ORDER BY ${order} ${f.direction},p.id LIMIT $4 OFFSET $5`,
             [...args, f.size, (f.page - 1) * f.size])).rows.map(r => r.id as string);

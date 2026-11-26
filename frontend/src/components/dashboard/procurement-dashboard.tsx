@@ -14,7 +14,8 @@ import type {TenderSummary} from "@/server/tenders/summary";
 import {ProcurementCharts} from "./procurement-charts";
 import {ProcurementTaskPanel} from "./procurement-task-panel";
 import {useDashboardSource} from "./use-dashboard-source";
-import {greetingAt,projectStatus,taskAttention} from "./dashboard-model";
+import {greetingAt,taskAttention} from "./dashboard-model";
+import {projectStatus} from "@/components/projects/project-status";
 import "./procurement-dashboard.css";
 type TaskPage={quotation_tasks?:QuotationTask[];rows:PersonalTask[];total:number};
 function RecordedProgress({value}:{value:number|null}){
@@ -35,7 +36,7 @@ export function ProcurementDashboard({purchaseEntry=false}:{purchaseEntry?:boole
  const tasks=useDashboardSource<TaskPage>(taskAccess?"/api/my-tasks?page=1&page_size=20&role=all&state=all":null,revision);
  const changed=useCallback((q:GridQuery)=>setQuery(old=>old.page===q.page&&old.size===q.size&&old.search===q.search&&old.sort===q.sort&&old.direction===q.direction?old:{page:q.page,size:q.size,search:q.search,sort:q.sort,direction:q.direction}),[]);
  const projectRows=projects.data?.items??[],taskRows=tasks.data?.rows??[];
- const active=projectRows.filter(r=>projectStatus(r)==="active").length;
+ const active=projectRows.filter(r=>r.is_active).length;
  const attention=taskAttention(taskRows);
  const refreshing=projects.loading||tasks.loading||tenders.loading;
  const stats=[
@@ -54,7 +55,7 @@ export function ProcurementDashboard({purchaseEntry=false}:{purchaseEntry?:boole
  <DataGrid<PurchaseProject> label={projects.data?.portfolio?"Purchasing projects":"Assigned purchasing projects"} rows={projectRows} loading={projects.loading} remote={{total:projects.data?.total??0,onChange:changed}} initialSort="number" columns={[
  {key:"number",label:"Project",value:r=>r.project_number,render:r=><Link className="go-dashboard-text-link" href={purchaseProjectHref(r.id,r.next_step)}>{r.project_number}</Link>},
  {key:"name",label:"Project name",value:r=>r.name},
- {key:"state",label:"Status",value:projectStatus,render:r=><GridStatus value={projectStatus(r).replaceAll("_"," ")}/>},
+ {key:"state",label:"Status",value:projectStatus,render:r=><GridStatus value={projectStatus(r)}/>},
  {key:"approval",label:"Quotation approvals",sortable:false,value:r=>r.pending_approval_groups||r.returned_groups||r.approved_groups||0,render:r=><span>{r.returned_groups?`${r.returned_groups} returned · `:""}{r.pending_approval_groups?`${r.pending_approval_groups} waiting for approval · `:""}{r.approved_groups?`${r.approved_groups} approved`:!r.pending_approval_groups&&!r.returned_groups?"Not submitted":""}</span>},
  {key:"progress",label:"Purchase progress",sortable:false,value:r=>r.progress_percent??"Not recorded",render:r=><RecordedProgress value={r.progress_percent}/>},
  ]} actions={r=><GridAction label={`Open purchasing for ${r.name}`} onClick={()=>router.push(purchaseProjectHref(r.id,r.next_step))}/>}/>
