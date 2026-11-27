@@ -22,6 +22,7 @@
   --surface-green: #588368;
   --action-color: #007d70;
   --action-ink: #fff;
+  --action-icon-ink: var(--action-color);
   --action-disabled: #d2eeea;
   --action-disabled-ink: #18453e;
   --action-disabled-border: #79aea5;
@@ -221,12 +222,19 @@ html[data-theme="dark"] .vtpl-modal :is(input,select,textarea):disabled { backgr
 html[data-theme="dark"] :is(.text-blue-900,.text-blue-950) { color: #a5c2ff; }
 html[data-theme="dark"] section[aria-label="Employee login"] { background: var(--go-panel); border-color: var(--go-line); }
 html[data-theme="dark"] section[aria-label="Employee login"] :is(input:not([type="checkbox"]),select) { background-color: var(--go-hover); color: var(--go-ink); }
-html[data-theme="dark"] section[aria-label="Employee login"] button[type="button"] { color: var(--go-blue); }
 
+
+html[data-theme="dark"] { --action-icon-ink: #61d6ca; }
 
 /* Action colours take precedence over feature and utility styles across both themes. */
 @layer app-action-colors {
   @media screen {
+    .go-appbar .go-icon-button:where(:not(:disabled, [aria-disabled="true"])) {
+      background-color: transparent !important;
+      border-color: transparent !important;
+      color: var(--action-icon-ink) !important;
+    }
+
     :where(button, [role="button"], input:is([type="button"], [type="submit"], [type="reset"]),
       a:is(.app-action, .ui-action, .quotation-action, .primary, .grid-page-action,
         [class~="min-h-11"][class*="rounded"])):not(:where(.go-profile-tabs > button, .go-account-dropdown > button, .go-password-visibility)) {

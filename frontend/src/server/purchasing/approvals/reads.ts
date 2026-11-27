@@ -18,7 +18,7 @@ export async function queue(token: string, offset = 0) {
             throw forbidden();
         if (!Number.isInteger(offset) || offset < 0 || offset > 1000000)
             invalid('offset', 'Offset must be between 0 and 1000000');
-        const candidates = (await db.query('SELECT project_id,bo_id FROM quotation_approval_sets WHERE is_active ORDER BY bo_id LIMIT 50 OFFSET $1', [offset])).rows, rows = [];
+        const candidates = (await db.query('SELECT project_id,bo_id FROM quotation_approval_sets WHERE is_active AND EXISTS (SELECT 1 FROM projects p WHERE p.id=quotation_approval_sets.project_id AND p.is_active) ORDER BY bo_id LIMIT 50 OFFSET $1', [offset])).rows, rows = [];
         for (const v of candidates) {
             let access;
             try {

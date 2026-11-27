@@ -8,6 +8,7 @@ import { purchaseProjectHref, type Dashboard, type PurchaseProject } from "@/com
 import { actionButtonClass } from "@/components/ui/action-button";
 import { DataGrid, GridAction, GridStatus, type GridQuery } from "@/components/ui/data-grid";
 import { ProcurementOwnerEditor } from "./project-procurement-ownership";
+import { projectStatus } from "./project-status";
 
 export function ProjectPurchaseRegister() {
   const [query, setQuery] = useState({ page: 1, size: 20, search: "", sort: "number", direction: "asc" });
@@ -43,7 +44,7 @@ export function ProjectPurchaseRegister() {
         { key: "name", label: "Project", value: p => p.name },
         { key: "owner", label: "Purchase assignee", sortable: false, value: p => p.purchase_manager_id ?? "Unassigned",
           render: p => p.purchase_manager_id ? <UserIdentity id={p.purchase_manager_id} name="Purchase assignee" /> : "Unassigned" },
-        { key: "state", label: "Status", value: p => p.lifecycle_status, render: p => <GridStatus value={p.lifecycle_status.replaceAll("_", " ")} /> },
+        { key: "state", label: "Status", value: projectStatus, render: p => <GridStatus value={projectStatus(p)} /> },
       ]}
       actions={p => p.can_assign && <GridAction kind="edit" label={`Assign Purchase FMS for ${p.name}`} onClick={() => { setNotice(""); setSelected(p); }} />}
     />

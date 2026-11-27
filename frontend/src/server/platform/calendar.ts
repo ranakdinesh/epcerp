@@ -48,7 +48,7 @@ export async function save(token: string, target: string | undefined, b: Record<
         await journal(db, {
             id, module: 'work_calendar', type: 'holiday', entity: row.id, version: row.version, action: 'saved', actor: a.id, project: null, at: now()
         });
-        const candidates = (await db.query('SELECT id FROM projects WHERE actual_start_date IS NOT NULL AND planned_completion_date IS NOT NULL ORDER BY id FOR UPDATE')).rows;
+        const candidates = (await db.query('SELECT id FROM projects WHERE is_active AND actual_start_date IS NOT NULL AND planned_completion_date IS NOT NULL ORDER BY id FOR UPDATE')).rows;
         for (const c of candidates) {
             const p = await projects.get(db, c.id), calculated = await calculate(db, p), event = randomUUID();
             await db.query('INSERT INTO project_schedule_changes(id,project_id,project_version,before_calculation,after_calculation,created_by_id)VALUES($1,$2,$3,$4,$5,$6)', [event, p.id, p.version + 1, p.schedule_calculation, calculated.schedule_calculation, a.id]);

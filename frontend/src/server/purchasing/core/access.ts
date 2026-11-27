@@ -36,7 +36,7 @@ export const readable = (user: Actor, project: Project, workspace: Workspace) =>
 export const executable = (user: Actor, project: Project, workspace: Workspace) => user.allows('projects.purchase_portfolio.write') || project.project_manager_id === user.id || workspace.is_active && workspace.purchase_manager_id === user.id;
 export const assignable = (user: Actor, project: Project) => user.allows('projects.purchase_assignments.write') && (user.allows('projects.purchase_portfolio.write') || project.project_manager_id === user.id) && open(project);
 export async function project(db: DB, target: string, lock = false): Promise<Project> {
-    const row = (await db.query(`SELECT id,name,project_number,project_manager_id,client_id,is_active,purchase_enabled,lifecycle_status,version FROM projects WHERE id=$1${lock ? ' FOR UPDATE' : ''}`, [uuid(target)])).rows[0];
+    const row = (await db.query(`SELECT id,name,project_number,project_manager_id,client_id,is_active,purchase_enabled,lifecycle_status,version FROM projects WHERE id=$1 AND is_active${lock ? ' FOR UPDATE' : ''}`, [uuid(target)])).rows[0];
     if (!row)
         throw missing();
     return row as Project;

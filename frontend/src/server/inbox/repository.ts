@@ -5,6 +5,7 @@ import type { Notice, History } from './types';
 import { InboxError } from './validation';
 // Keep PostgreSQL microseconds: JavaScript Date would lose source/history precision.
 export const timeSQL = (column: string) => `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+export const visibleProject = `(n.project_id IS NULL OR EXISTS (SELECT 1 FROM projects p WHERE p.id=n.project_id AND p.is_active))`;
 const timestampFields = ['read_at','acknowledged_at','created_at','updated_at'];
 export const exactColumns = timestampFields.map(k => `${timeSQL(k)} AS ${k}`).join(',');
 export function timestamp(value: string | null) { return value?.replace(/(\.\d*?[1-9])0+Z$/,'$1Z').replace(/\.0+Z$/,'Z') ?? null; }
@@ -14,7 +15,7 @@ export function notice(row: Record<string, unknown>): Notice {
         read_at:timestamp(row.read_at as string | null),acknowledged_at:timestamp(row.acknowledged_at as string | null),created_at:timestamp(row.created_at as string)!,updated_at:timestamp(row.updated_at as string)!,created_by_id:row.created_by_id as string | null,updated_by_id:row.updated_by_id as string | null };
 }
 export async function ownNotice(db: DB, id: string, recipient: string) {
-    const row = (await db.query(`SELECT n.*,${exactColumns} FROM communication_notices n WHERE id=$1 AND recipient_id=$2 FOR UPDATE`,[id,recipient])).rows[0];
+    const row = (await db.query(`SELECT n.*,${exactColumns} FROM communication_notices n WHERE id=$1 AND recipient_id=$2 AND ${visibleProject} FOR UPDATE`,[id,recipient])).rows[0];
     if (!row) throw new InboxError(404,'Inbox notice not found');
     return notice(row);
 }

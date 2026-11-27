@@ -11,12 +11,13 @@ import { UserIdentity } from "@/components/personal-profile";
 
 import { useEffect, useState, type SubmitEvent } from "react";
 import { useAuthenticatedUser } from "@/components/auth-user-provider";
-import { DataGrid, type GridColumn } from "@/components/ui/data-grid";
+import { projectStatus } from "./project-status";
+import { DataGrid, GridStatus, type GridColumn } from "@/components/ui/data-grid";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { ValidatedForm, ValidatedInput, ValidatedLabel, ValidatedSelect, ValidatedTextarea } from "@/components/ui/validated-controls";
 import { displayServerErrors } from "@/components/ui/server-field-errors";
 
-type Project = { purchase_enabled?:boolean; schedule_calculation?: Record<string,number|string|null>; id: string; name: string; project_number: string; client_id: string; project_manager_id: string; lifecycle_status: string; version: number; created_at: string } & Partial<Record<typeof captureNames[number],string>>;
+type Project = { purchase_enabled?:boolean; schedule_calculation?: Record<string,number|string|null>; id: string; name: string; project_number: string; client_id: string; project_manager_id: string; lifecycle_status: string; is_active: boolean; version: number; created_at: string } & Partial<Record<typeof captureNames[number],string>>;
 type Assignment = { id: string; previous_manager_id: string | null; project_manager_id: string; reason: string; project_version: number; created_at: string; created_by_id: string | null };
 type Choice = { id: string; name: string };
 type Options = { clients: Choice[]; managers: Choice[]; procurement_executives:Choice[] };
@@ -57,6 +58,8 @@ function ProjectRegister({ initialProject }: { initialProject: string | null }) 
   const allows = (code: string) => user.permissions.includes("system:admin") || user.permissions.includes(code);
   const canRead = allows("projects.master.read");
   const canCreate = canRead && allows("projects.master.write") && allows("projects.portfolio.write") && allows("projects.purchase_assignments.write");
+  const canManageStatus = canRead && allows("projects.master.write") && allows("projects.portfolio.write");
+  const [status, setStatus] = useState<"active" | "inactive">("active");
   const canTransfer = canRead && allows("projects.manager_assignments.write");
   const [rows, setRows] = useState<Project[]>([]);
   const [options, setOptions] = useState<Options>(emptyOptions);
@@ -67,18 +70,18 @@ function ProjectRegister({ initialProject }: { initialProject: string | null }) 
   const [size, setSize] = useState(20);
   const [search, setSearch] = useState("");
   const [total, setTotal] = useState(0);
-  const [editID,setEditID]=useState<string|null>(null);
+  const [editProject,setEditProject]=useState<Pick<Project, "id" | "name" | "is_active" | "version" | "project_manager_id" | "lifecycle_status"> | null>(null);
   const [notice,setNotice]=useState("");
   const [budgetID,setBudgetID]=useState<string|null>(null);
   const [teamID,setTeamID]=useState<string|null>(null);
-  const canEdit=(p:Project)=>allows("projects.master.write")&&(p.project_manager_id===user.id||allows("projects.portfolio.write"))&&p.lifecycle_status==="draft";
+  const canEdit=(p:Pick<Project, "project_manager_id" | "is_active" | "lifecycle_status">)=>p.is_active&&allows("projects.master.write")&&(p.project_manager_id===user.id||allows("projects.portfolio.write"))&&p.lifecycle_status==="draft";
   const [panel, setPanel] = useState<string | null>(initialProject);
   useEffect(() => {
     if (!canRead) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       setLoading(true); setError("");
-      const query = new URLSearchParams({ page: String(page), page_size: String(size), search });
+      const query = new URLSearchParams({ page: String(page), page_size: String(size), search, status });
       Promise.all([
         get<{ items: Project[]; total: number }>(`/api/projects?${query}`, controller.signal),
         canCreate || canTransfer ? get<Options>("/api/projects/assignment-options", controller.signal) : Promise.resolve(emptyOptions),
@@ -87,7 +90,7 @@ function ProjectRegister({ initialProject }: { initialProject: string | null }) 
         .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, search ? 250 : 0);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [canRead, canCreate, canTransfer, page, size, search, reload]);
+  }, [canRead, canCreate, canTransfer, page, size, search, status, reload]);
   const manager = (id: string) => options.managers.find(v => v.id === id)?.name ?? (id === user.id ? user.username : id);
   const client = (id: string) => options.clients.find(v => v.id === id)?.name ?? id;
   const columns: GridColumn<Project>[] = [
@@ -95,22 +98,31 @@ function ProjectRegister({ initialProject }: { initialProject: string | null }) 
     { key: "name", label: "Project", value: p => p.name },
     { key: "client", label: "Client", value: p => client(p.client_id) },
     { key: "manager", label: "Current manager", value: p => manager(p.project_manager_id), render: p => <UserIdentity id={p.project_manager_id} name={manager(p.project_manager_id)} /> },
-    { key: "state", label: "Status", value: p => p.lifecycle_status, render: () => <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold">Draft</span> },
+    { key: "state", label: "Status", value: projectStatus, render: p => <GridStatus value={projectStatus(p)} /> },
   ];
   return <section className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="go-eyebrow">Project delivery</p><h1 className="text-2xl font-bold">Projects</h1></div>{canCreate && <button className="min-h-11 rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white" onClick={() => setPanel("create")}>Create project</button>}</div>
-    <p className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-950">Project activation requires contract, schedule and finance readiness.</p>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="go-eyebrow">Project delivery</p><h1 className="text-2xl font-bold">Projects</h1></div>{canCreate && status === "active" && <button className="min-h-11 rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white" onClick={() => setPanel("create")}>Create project</button>}</div>
     {!canRead ? <p role="alert">Project read permission is required. Contact your administrator.</p> : <>
+      {canManageStatus && <div className="flex flex-wrap gap-2" role="group" aria-label="Filter projects by status">
+        {(["active", "inactive"] as const).map(value => <button key={value} type="button" className={`${buttonClass} aria-pressed:ring-2 aria-pressed:ring-offset-2 aria-pressed:ring-[var(--action-color)]`} aria-pressed={status === value} onClick={() => {
+          if (status === value) return;
+          setStatus(value); setPage(1); setRows([]); setTotal(0); setLoading(true);
+        }}>{value === "active" ? "Active projects" : "Inactive projects"}</button>)}
+      </div>}
       <div className="flex flex-wrap items-end justify-between gap-3"><ValidatedLabel className="text-sm font-semibold">Search projects<ValidatedInput className={inputClass} value={search} maxLength={255} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Name or project number" /></ValidatedLabel><button className={buttonClass} onClick={() => setReload(v => v + 1)}>Refresh projects</button></div>
       {notice&&<p role="status" className="rounded-lg bg-green-50 p-3 text-green-800">{notice}</p>}
       {error && <p role="alert" className="text-red-700">{error}</p>}
-      <DataGrid label="Projects" rows={rows} columns={columns} loading={loading} searchable={false} paginate={false} actions={p => <div className="flex gap-2"><button className={buttonClass} aria-label={`View ${p.name}`} onClick={() => setPanel(p.id)}>View & history</button>{allows("projects.budgets.read")&&<button className={buttonClass} aria-label={`Budget ${p.name}`} onClick={()=>setBudgetID(p.id)}>Budget</button>}{allows("projects.team.read")&&<button className={buttonClass} aria-label={`Team ${p.name}`} onClick={()=>setTeamID(p.id)}>Team</button>}{canEdit(p)&&<button className={buttonClass} aria-label={`Edit ${p.name}`} onClick={()=>{setNotice("");setEditID(p.id)}}>Edit</button>}</div>} />
+      <DataGrid label={status === "active" ? "Active projects" : "Inactive projects"} rows={rows} columns={columns} loading={loading} searchable={false} paginate={false} actions={p => <div className="flex gap-2">{p.is_active && <><button className={buttonClass} aria-label={`View ${p.name}`} onClick={() => setPanel(p.id)}>View & history</button>{allows("projects.budgets.read")&&<button className={buttonClass} aria-label={`Budget ${p.name}`} onClick={()=>setBudgetID(p.id)}>Budget</button>}{allows("projects.team.read")&&<button className={buttonClass} aria-label={`Team ${p.name}`} onClick={()=>setTeamID(p.id)}>Team</button>}</>}{(canEdit(p)||canManageStatus)&&<button className={buttonClass} aria-label={`Edit ${p.name}`} onClick={()=>{setNotice("");setEditProject(p)}}>Edit</button>}</div>} />
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><p>{total ? `${(page - 1) * size + 1}–${Math.min(page * size, total)} of ${total} projects` : "No registered projects in your scope."}</p><div className="flex items-center gap-2"><ValidatedLabel>Rows <ValidatedSelect className="min-h-11 rounded border p-2" value={size} onChange={e => { setSize(Number(e.target.value)); setPage(1); }}>{[20,50,100].map(n => <option key={n}>{n}</option>)}</ValidatedSelect></ValidatedLabel><button className={buttonClass} disabled={page === 1 || loading} onClick={() => setPage(p => p - 1)}>Previous</button><button className={buttonClass} disabled={page * size >= total || loading} onClick={() => setPage(p => p + 1)}>Next</button></div></div>
     </>}
     {budgetID&&<RecordDrawer title="Project budget" onClose={()=>setBudgetID(null)} wide><ProjectBudgetPanel key={budgetID} projectId={budgetID}/></RecordDrawer>}
     {teamID&&<ProjectResponsibilities key={teamID} projectId={teamID} onClose={()=>setTeamID(null)}/>}
-    {editID&&<ProjectMetadataEditor id={editID} onClose={()=>setEditID(null)} onSaved={()=>{setReload(v=>v+1);setNotice("Project details saved.")}}/>}
-    {canRead && panel && <OwnershipPanel key={panel} id={panel} onEdit={(p)=>{setPanel(null);setEditID(p.id)}} canEdit={canEdit} canTransfer={canTransfer} canProcurement={allows("projects.purchase_workflow.view")&&allows("projects.purchase_workflow.read")} options={options} managerName={manager} onClose={() => setPanel(null)} onSaved={() => setReload(v => v + 1)} />}
+    {editProject&&<ProjectMetadataEditor record={editProject} canEditDetails={canEdit(editProject)} canManageStatus={canManageStatus} onClose={()=>setEditProject(null)} onSaved={active=>{
+      setReload(v=>v+1);
+      if (active !== undefined) { setPage(1); setRows([]); setTotal(0); setLoading(true); }
+      setNotice(active === undefined ? "Project details saved." : active ? "Project activated." : "Project made inactive.");
+    }}/>}
+    {canRead && panel && <OwnershipPanel key={panel} id={panel} onEdit={(p)=>{setPanel(null);setEditProject(p)}} canEdit={canEdit} canTransfer={canTransfer} canProcurement={allows("projects.purchase_workflow.view")&&allows("projects.purchase_workflow.read")} options={options} managerName={manager} onClose={() => setPanel(null)} onSaved={() => setReload(v => v + 1)} />}
   </section>;
 }
 function OwnershipPanel({ id, onEdit,canEdit,canTransfer, canProcurement, options, managerName, onClose, onSaved }: { id: string; onEdit:(p:Project)=>void;canEdit:(p:Project)=>boolean;canTransfer: boolean; canProcurement:boolean; options: Options; managerName: (id: string) => string; onClose: () => void; onSaved: () => void }) {
@@ -162,7 +174,7 @@ function OwnershipPanel({ id, onEdit,canEdit,canTransfer, canProcurement, option
     {loading && <p role="status">Loading project ownership…</p>}
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {!creating && <button className={buttonClass} disabled={saving || loading} onClick={refresh}>Refresh record</button>}
-    {project && !loading && <><dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">Project number</dt><dd className="font-semibold">{project.project_number}</dd></div><div><dt className="text-slate-500">Current project manager</dt><dd className="break-words font-semibold"><UserIdentity id={project.project_manager_id} name={managerName(project.project_manager_id)} /></dd></div><div><dt className="text-slate-500">Status</dt><dd>{project.lifecycle_status}</dd></div><div><dt className="text-slate-500">Purchase FMS</dt><dd>{project.purchase_enabled?"Enabled":"Disabled"}</dd></div><div><dt className="text-slate-500">Record version</dt><dd>{project.version}</dd></div></dl><details className="my-4"><summary className="min-h-11 cursor-pointer font-semibold">Project details</summary><dl className="grid gap-3 text-sm sm:grid-cols-2">{captureNames.map(n=><div key={n}><dt className="text-slate-500">{n.replaceAll("_"," ")}</dt><dd className="break-words whitespace-pre-wrap">{n==="procurement_executive_id" && project[n]?<UserIdentity id={project[n]!} name="Procurement Executive"/>:project[n]||"Not recorded"}</dd></div>)}</dl>{project.schedule_calculation&&<dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">{Object.entries(project.schedule_calculation).map(([k,v])=><div key={k}><dt>{k.replaceAll("_"," ")}</dt><dd>{v??"Pending actual start"}</dd></div>)}</dl>}</details>{canEdit(project)&&<button className={buttonClass} onClick={()=>onEdit(project)}>Edit project details</button>}{canTransfer && !handover && <button className={buttonClass} onClick={() => setHandover(true)}>Change project manager</button>}</>}
+    {project && !loading && <><dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">Project number</dt><dd className="font-semibold">{project.project_number}</dd></div><div><dt className="text-slate-500">Current project manager</dt><dd className="break-words font-semibold"><UserIdentity id={project.project_manager_id} name={managerName(project.project_manager_id)} /></dd></div><div><dt className="text-slate-500">Status</dt><dd><GridStatus value={projectStatus(project)} /></dd></div><div><dt className="text-slate-500">Purchase FMS</dt><dd>{project.purchase_enabled?"Enabled":"Disabled"}</dd></div><div><dt className="text-slate-500">Record version</dt><dd>{project.version}</dd></div></dl><details className="my-4"><summary className="min-h-11 cursor-pointer font-semibold">Project details</summary><dl className="grid gap-3 text-sm sm:grid-cols-2">{captureNames.map(n=><div key={n}><dt className="text-slate-500">{n.replaceAll("_"," ")}</dt><dd className="break-words whitespace-pre-wrap">{n==="procurement_executive_id" && project[n]?<UserIdentity id={project[n]!} name="Procurement Executive"/>:project[n]||"Not recorded"}</dd></div>)}</dl>{project.schedule_calculation&&<dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">{Object.entries(project.schedule_calculation).map(([k,v])=><div key={k}><dt>{k.replaceAll("_"," ")}</dt><dd>{v??"Pending actual start"}</dd></div>)}</dl>}</details>{canEdit(project)&&<button className={buttonClass} onClick={()=>onEdit(project)}>Edit project details</button>}{canTransfer && !handover && <button className={buttonClass} onClick={() => setHandover(true)}>Change project manager</button>}</>}
     {!creating&&project&&!loading&&<ProjectQuotationStatus project={project.id} finance={finance}/>}
     {!creating&&project&&!loading&&canProcurement&&<ProjectProcurementOwnership project={project.id} onSaved={()=>{setReload(v=>v+1);onSaved()}}/>}
     {(creating || (handover && project && !loading)) && <ValidatedForm id="project-capture-form" onSubmit={submit} className="space-y-4">

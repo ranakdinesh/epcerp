@@ -8,7 +8,7 @@ async function scoped(db:DB,actor:Actor,project:{id:string;project_manager_id:st
     return (await db.query(`SELECT EXISTS(SELECT 1 FROM project_responsibility_profiles p JOIN auth.roles r ON r.id=p.bundle_id AND r.is_active JOIN auth.user_roles ur ON ur.role_id=r.id AND ur.user_id=p.user_id JOIN auth.role_permissions rp ON rp.role_id=r.id JOIN auth.permissions a ON a.id=rp.permission_id WHERE p.project_id=$1 AND p.user_id=$2 AND p.is_active AND p.permission_codes ? $3 AND a.code=$3) AS allowed`,[project.id,actor.id,permission])).rows[0].allowed as boolean;
 }
 export async function quotationTasks(db:DB,actor:Actor){
-    const rows=(await db.query("SELECT * FROM purchase_quotation_work_tasks WHERE recipient_id=$1 AND state<>'completed' ORDER BY created_at DESC,id LIMIT 100",[actor.id])).rows,out=[];
+    const rows=(await db.query("SELECT * FROM purchase_quotation_work_tasks WHERE recipient_id=$1 AND state<>'completed' AND EXISTS (SELECT 1 FROM projects p WHERE p.id=purchase_quotation_work_tasks.project_id AND p.is_active) ORDER BY created_at DESC,id LIMIT 100",[actor.id])).rows,out=[];
     for(const r of rows){
         const finance=r.kind==='finance',permission=finance?'accounts.quotation_approvals.read':'projects.group_comparisons.read';
         if(!actor.allows(permission))continue;

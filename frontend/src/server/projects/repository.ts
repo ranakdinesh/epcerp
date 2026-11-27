@@ -39,8 +39,8 @@ export async function insert(db: DB, input: { name: string; nameKey: string; cli
     const values = [id, input.name, input.nameKey, input.client, input.manager, input.actor, ...columns.map(column => column.value)];
     await db.query(
         `WITH number AS (SELECT nextval('project_number_sequence') AS value)
-         INSERT INTO projects(id,project_number,name,normalized_name,client_id,project_manager_id,created_by_id,updated_by_id,${columns.map(column => column.key).join(',')})
-         SELECT $1,'PRJ-'||CASE WHEN value<1000000 THEN lpad(value::text,6,'0') ELSE value::text END,$2,$3,$4,$5,$6,$6,${columns.map((column,i) => '$'+(i+7)+'::'+column.cast).join(',')} FROM number`,
+         INSERT INTO projects(id,project_number,name,normalized_name,client_id,project_manager_id,created_by_id,updated_by_id,is_active,${columns.map(column => column.key).join(',')})
+         SELECT $1,'PRJ-'||CASE WHEN value<1000000 THEN lpad(value::text,6,'0') ELSE value::text END,$2,$3,$4,$5,$6,$6,true,${columns.map((column,i) => '$'+(i+7)+'::'+column.cast).join(',')} FROM number`,
         values
     );
     const project = await get(db, id);

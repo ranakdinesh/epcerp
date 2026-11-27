@@ -7,6 +7,7 @@ import { login } from '../../src/server/auth/sessions';
 import { createRole } from '../../src/server/auth/administration';
 import { pool } from '../../src/server/db';
 import { handleProjects,ownsProjects } from '../../src/server/projects/http';
+import { handlePurchasing } from '../../src/server/purchasing/http';
 import { project as clientFixture } from '../server-inbox/fixtures';
 const oracle=(Actor:string,Method:string,Path:string,Body?:unknown)=>JSON.parse(execFileSync(process.env.EPCERP_PROJECTS_ORACLE!,[],{input:JSON.stringify({Actor,Method,Path,Body})}).toString());
 test('native Projects preserves Go creation, scope, schedules, handovers and audit history',{skip:!process.env.EPCERP_DATABASE_URL},async t=>{
@@ -59,6 +60,39 @@ test('native Projects preserves Go creation, scope, schedules, handovers and aud
         });
         await t.test('duplicate names, unsupported lifecycle and ownership fields are rejected without unintended edits',async()=>{
             const b=body();b.name=p.name;await json('POST','',b,409);await json('PATCH','/'+p.id,{...b,lifecycle_status:'closed'},422);await json('POST','',{...body(),operations_manager_id:actor},422);for(const value of [null,'true',1])await json('POST','',{...body(),purchase_enabled:value},422);
+        });
+        await t.test('project management can suspend and restore an active project without deleting its records', async () => {
+            const project = await json('POST', '', body(), 201);
+            assert.equal(project.is_active, true);
+            const projectPath = '/' + project.id;
+            const search = '?search=' + encodeURIComponent(project.name);
+            const purchase = async (path: string, status = 200) => {
+                const response = await handlePurchasing(new Request('http://fixture.invalid/api/v1/purchase-fms' + path, {
+                    headers: { Authorization: 'Bearer ' + token },
+                }));
+                assert.equal(response.status, status);
+                return response.json();
+            };
+            const update = { is_active: false, expected_version: project.version };
+            await json('PATCH', projectPath + '/status', update, 403, manager.token);
+            await json('GET', search + '&status=inactive', undefined, 403, manager.token);
+            assert.equal((await purchase(search)).items[0].id, project.id);
+
+            const inactive = await json('PATCH', projectPath + '/status', update);
+            assert.deepEqual(inactive, { is_active: false, version: project.version + 1 });
+            await json('PATCH', projectPath + '/status', update, 409);
+            assert.equal((await json('GET', search)).total, 0);
+            assert.equal((await json('GET', search + '&status=inactive')).items[0].id, project.id);
+            await json('GET', projectPath, undefined, 404);
+            await purchase('/projects' + projectPath, 404);
+            assert.equal((await purchase(search)).total, 0);
+            assert.equal((await sql.query('SELECT count(*) FROM project_manager_history WHERE project_id=$1',[project.id])).rows[0].count,'1');
+
+            const restored = await json('PATCH', projectPath + '/status', { is_active: true, expected_version: inactive.version });
+            assert.equal(restored.is_active, true);
+            assert.equal((await json('GET', search)).items[0].id, project.id);
+            assert.equal((await json('GET', search + '&status=inactive')).total, 0);
+            assert.equal((await purchase(search)).items[0].id, project.id);
         });
         await t.test('revoked accounts lose access and native path ownership excludes source workspaces',async()=>{
             await sql.query('UPDATE auth.roles SET is_active=false WHERE id=$1',[next.role]);await json('GET','/'+p.id,undefined,403,next.token);await sql.query('UPDATE auth.roles SET is_active=true WHERE id=$1',[next.role]);await sql.query('UPDATE auth.users SET is_active=false WHERE id=$1',[next.id]);await json('GET','/'+p.id,undefined,401,next.token);await sql.query('UPDATE auth.users SET is_active=true WHERE id=$1',[next.id]);

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { projectStatus } from "../projects/project-status";
 import type { PurchaseProject } from "./data";
 
 /** Project identity belongs to the process shell, not individual stages. */
@@ -6,7 +7,7 @@ export function PurchaseProjectHeader({project, status}: {project: PurchaseProje
   return <header className="purchase-project-header">
     <div className="purchase-project-identity">
       <h1><span>{project.project_number}</span><span> · </span>{project.name}</h1>
-      <span className="purchase-project-state">{project.is_active ? project.lifecycle_status.replaceAll("_", " ") : "Inactive"}</span>
+      <span className="purchase-project-state">{projectStatus(project)}</span>
     </div>
     <div className="purchase-progress-strip" role="status">
       <strong>Purchase progress: {project.progress_percent === null ? "Not recorded" : `${project.progress_percent}%`}</strong>

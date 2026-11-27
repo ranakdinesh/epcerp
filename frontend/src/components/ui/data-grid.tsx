@@ -167,7 +167,7 @@ export function DataGrid<T extends { id: string }>({
           aria-label={label}
           aria-busy={loading}
         >
-          <thead className="text-xs uppercase">
+          <thead>
             <tr>
               {columns.map((c) => (
                 <th
