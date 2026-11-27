@@ -11,6 +11,18 @@ import type { ApprovalRecord, Attempt } from './types';
 import { fingerprint } from './fingerprint';
 import { money } from './policy';
 import { now } from '../core/time';
+export async function requireRecordedSelfApproval(db: DB, projectId: string, boId: string, attempt: Attempt) {
+    if (attempt.submitted_by_id !== attempt.reviewed_by_id)
+        return;
+    const { rowCount } = await db.query(`
+        SELECT 1 FROM finance_quotation_decisions
+        WHERE id=$1 AND project_id=$2 AND bo_id=$3 AND attempt_id=$4
+          AND submitted_by_id=$5 AND created_by_id=$5 AND outcome='approved' AND is_active
+    `, [attempt.decision_id || null, projectId, boId, attempt.id, attempt.submitted_by_id]);
+    if (!rowCount)
+        invalid('approval', 'The recorded Superadmin Finance approval could not be verified');
+}
+
 export async function decide(db: DB, a: Actor, r: ApprovalRecord, attempt: Attempt, reason: string) {
     const live = await assignmentIdentity(db, a.id);
     if (!live?.active)

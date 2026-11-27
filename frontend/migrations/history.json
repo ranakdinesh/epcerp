@@ -16,5 +16,8 @@
   },
   "000124_purchase_indent_default_terms.up.sql": {
     "sha256": "2159d7e753979332c66fe73d1344673a1d463d0585fed6b2e124c32ce791950d"
+  },
+  "000125_superadmin_award_handoff.up.sql": {
+    "sha256": "ead5b3534c5c8b6bc3254cbb026609cae7e148c92064888165f8519f9c315b37"
   }
 }

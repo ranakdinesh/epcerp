@@ -12,6 +12,7 @@ import { purchaseTaskItem } from '../../master/items/task-reader';
 import { purchaseVendors } from '../../master/vendors/purchase-reader';
 import { demandLink } from '../bo/repository';
 import { approved, commercial } from '../approvals/service';
+import { requireRecordedSelfApproval } from '../approvals/finance';
 import { fingerprint } from '../approvals/fingerprint';
 import { invalid, trim } from '../core/validation';
 import { missing } from './policy';
@@ -86,6 +87,7 @@ export async function verify(db: DB, p: string, id: string, o: Offer): Promise<P
     const line = a.lines.find(l => l.line_id === link.line_id && l.item.id === link.item_id);
     if (!line)
         continue;
+    await requireRecordedSelfApproval(db, p, link.bo_id, a);
     const price = prices.find(v => v.attempt_id === a.id && v.line_id === link.line_id && v.item_id === link.item_id && v.vendor_id === a.vendor_id && v.quote_key === a.quote_key)?.price;
     if (!price)
         invalid('financial_approval', 'Exact current approved price evidence is missing');
