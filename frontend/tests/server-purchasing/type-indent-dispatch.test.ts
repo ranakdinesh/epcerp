@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import test from 'node:test';
+import { handleBudget } from '../../src/server/projects/budgets/http';
 import { initializeAuth } from '../../src/server/auth/bootstrap';
 import { login } from '../../src/server/auth/sessions';
 import { pool } from '../../src/server/db';
@@ -14,7 +15,7 @@ import { indiaDate } from '../../src/server/personal-tasks/validation';
 import { project as createProject } from '../server-inbox/fixtures';
 import { definition } from '../server-master/catalogue-fixtures';
 
-test('category indent dispatch unlocks quotation pricing only after the last vendor dispatch', {
+test('vendor dispatch gates pricing and a sole Superadmin can submit and approve the resulting shortlist', {
     skip: !process.env.EPCERP_DATABASE_URL,
 }, async () => {
     assert.match(new URL(process.env.EPCERP_DATABASE_URL!).pathname, /^\/epcerp_auth_qa_purchase_/);
@@ -157,10 +158,7 @@ test('category indent dispatch unlocks quotation pricing only after the last ven
         });
         assert.equal(corrected.ready_to_freeze, true);
         await json(handlePurchasing, quotes + '/freeze', { version: quoteVersion });
-        const reviewer = randomUUID();
-        await sql.query(`INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser)
-            SELECT $1,$2,$3,password_hash,true,true FROM auth.users WHERE id=$4`,
-        [reviewer, 'qa' + reviewer.replaceAll('-', ''), reviewer + '@fixture.invalid', actor]);
+        assert.equal((await sql.query('SELECT count(*) FROM auth.users WHERE is_active')).rows[0].count, '1');
         const approval = await json(handlePurchasing, boPath + '/quotation-approvals/submit', {
             version: 0, reason: 'Fixture Finance handoff',
             proposals: [{ quote_key: first.id + ':2', best_price: true, preferred: true,
@@ -169,8 +167,61 @@ test('category indent dispatch unlocks quotation pricing only after the last ven
         assert.equal(approval.attempts[0].effective_state, 'pending_accounts');
         assert.equal(approval.attempts[0].lines[0].months, 12);
         assert.equal(approval.attempts[0].lines[0].quoted, '25.00');
-        const notices = await sql.query("SELECT title FROM communication_notices WHERE recipient_id=$1 AND project_id=$2 AND notice_kind='quotation'", [reviewer, project]);
+        const notices = await sql.query("SELECT title FROM communication_notices WHERE recipient_id=$1 AND project_id=$2 AND notice_kind='quotation'", [actor, project]);
         assert.match(notices.rows[0]?.title, /Quotation shortlist submitted/);
+        assert.equal(approval.attempts[0].submitted_by_id, actor);
+        const queued = await json(handlePurchasing, '/quotation-approvals');
+        assert.ok(queued.rows.some((row: { attempt_id: string }) => row.attempt_id === approval.attempts[0].id));
+
+        const reviewPath = boPath + '/quotation-approvals/review';
+        const decision = {
+            version: approval.version, attempt_id: approval.attempts[0].id,
+            selected_quote_key: first.id + ':2', reason: 'Fixture Finance approval',
+            decisions: [{ line_id: line, decision: 'accept', comment: '' }],
+        };
+        await json(handlePurchasing, reviewPath, decision, 422);
+        await sql.query("UPDATE projects SET contract_value=1000 WHERE id=$1", [project]);
+        await sql.query(
+            'INSERT INTO organisation_director_designation(id,user_id,version) VALUES($1,$2,1)',
+            [randomUUID(), actor],
+        );
+        const head = randomUUID(), budgetPath = base + '/budget';
+        const budget = await json(handleBudget, budgetPath, {
+            action: 'save', version: 0, reason: 'Fixture budget',
+            data: {
+                total: '100', currency: 'INR', owner_id: actor, notes: '',
+                heads: [{ id: head, parent_id: null, name: 'Purchase', kind: 'purchase', amount: '100', owner_id: actor, is_active: true }],
+                allocations: [{ id: randomUUID(), bo_id: bo, line_id: line, head_id: head, amount: '100', owner_id: actor, is_active: true }],
+            },
+        });
+        await json(handleBudget, budgetPath, { action: 'approve', version: budget.record.version, reason: 'Fixture budget approval' });
+        const reviewed = await json(handlePurchasing, reviewPath, decision);
+        assert.equal(reviewed.attempts[0].effective_state, 'approved');
+        assert.equal(reviewed.attempts[0].reviewed_by_id, actor);
+        const decisionId = reviewed.attempts[0].decision_id;
+        assert.deepEqual((await sql.query(
+            'SELECT submitted_by_id, created_by_id FROM finance_quotation_decisions WHERE id=$1', [decisionId],
+        )).rows, [{ submitted_by_id: actor, created_by_id: actor }]);
+        assert.equal((await sql.query(
+            'SELECT count(*) FROM communication_notices WHERE decision_id=$1 AND recipient_id=$2 AND notice_kind=$3',
+            [decisionId, actor, 'director'],
+        )).rows[0].count, '1');
+
+        const nonAdmin = randomUUID();
+        await sql.query(`INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser)
+            SELECT $1,$2,$3,password_hash,true,false FROM auth.users WHERE id=$4`,
+            [nonAdmin, 'qa' + nonAdmin.replaceAll('-', ''), nonAdmin + '@fixture.invalid', actor]);
+        await assert.rejects(sql.query(`
+            INSERT INTO finance_quotation_decisions (
+                id,project_id,bo_id,attempt_id,source_version,submitted_by_id,outcome,amount,currency,
+                source_fingerprint,reason,is_active,created_at,updated_at,created_by_id,updated_by_id
+            )
+            SELECT $1,project_id,bo_id,$2,source_version,$3,outcome,amount,currency,
+                   source_fingerprint,reason,is_active,created_at,updated_at,$3,$3
+            FROM finance_quotation_decisions WHERE id=$4
+        `, [randomUUID(), randomUUID(), nonAdmin, decisionId]), {
+            code: '23514', message: 'Only the authenticated Superadmin can review their own quotation',
+        });
 
     } finally {
         await sql.end();

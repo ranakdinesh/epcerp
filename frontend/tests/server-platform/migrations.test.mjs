@@ -62,11 +62,11 @@ test('Node migrator refuses unsafe schema states and applies owned SQL', { skip:
       }
     });
 
-    await t.test('fresh owned history reaches 122 and repeats without DDL changes', async () => {
+    await t.test('fresh owned history reaches 123 and repeats without DDL changes', async () => {
       const first = run();
       assert.equal(first.status, 0, first.stderr);
       assert.deepEqual((await db.query('SELECT version,dirty FROM schema_migrations')).rows, [
-        { version: '122', dirty: false },
+        { version: '123', dirty: false },
       ]);
       const second = run();
       assert.equal(second.status, 0, second.stderr);
@@ -84,14 +84,14 @@ test('Node migrator refuses unsafe schema states and applies owned SQL', { skip:
 
     await t.test('dirty, newer, and pre-baseline fixture states fail closed', async () => {
       const { rows: [original] } = await db.query('SELECT version,dirty FROM schema_migrations');
-      assert.deepEqual(original, { version: '122', dirty: false });
+      assert.deepEqual(original, { version: '123', dirty: false });
       try {
         await db.query('UPDATE schema_migrations SET dirty=true');
         assert.equal(run().status, 1);
         assert.equal((await db.query('SELECT dirty FROM schema_migrations')).rows[0].dirty, true);
-        await db.query('UPDATE schema_migrations SET dirty=false,version=123');
+        await db.query('UPDATE schema_migrations SET dirty=false,version=124');
         assert.equal(run().status, 1);
-        assert.equal((await db.query('SELECT version FROM schema_migrations')).rows[0].version, '123');
+        assert.equal((await db.query('SELECT version FROM schema_migrations')).rows[0].version, '124');
         await db.query('UPDATE schema_migrations SET version=118');
         assert.match(run().stderr, /Schema version 118 predates baseline 119/);
         assert.equal((await db.query('SELECT version FROM schema_migrations')).rows[0].version, '118');

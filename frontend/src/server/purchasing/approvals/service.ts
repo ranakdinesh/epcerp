@@ -70,7 +70,7 @@ export async function execute(token: string, p: string, b: string, action: strin
             changed.reason = c.reason;
             if (changed.proposals?.length) {
                 for (const candidate of await assignmentIdentities(db, [])) {
-                    if (candidate.id !== a.id && candidate.allows('accounts.quotation_approvals.write') && (await actions(db, candidate, p)).caps.review)
+                    if ((candidate.id !== a.id || a.superuser) && candidate.allows('accounts.quotation_approvals.write') && (await actions(db, candidate, p)).caps.review)
                         recipients.push(candidate.id);
                 }
                 if (!recipients.length)
@@ -91,7 +91,7 @@ export async function execute(token: string, p: string, b: string, action: strin
                 invalid('attempt_id', reason);
             if (attempt.state !== 'pending_accounts')
                 invalid('attempt_id', 'This quotation has already been decided');
-            if (attempt.submitted_by_id === a.id)
+            if (attempt.submitted_by_id === a.id && !a.superuser)
                 throw new PurchaseError(403, 'Another Accounts user must review this submission');
             changed = decide(selectProposal(attempt, c.selected_quote_key), c.decisions);
             if (attempt.proposals?.length) {

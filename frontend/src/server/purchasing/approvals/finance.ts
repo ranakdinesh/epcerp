@@ -21,7 +21,7 @@ export async function decide(db: DB, a: Actor, r: ApprovalRecord, attempt: Attem
             throw new PurchaseError(403, 'Financial decision permission or project scope denied');
         await projectAccess(db, a, p, code, code.endsWith('.write'));
     }
-    if (attempt.submitted_by_id === a.id)
+    if (attempt.submitted_by_id === a.id && (!a.superuser || !live.superuser))
         throw new PurchaseError(403, 'Financial decision permission or project scope denied');
     money(attempt.total);
     if (!/^[A-Z]{3}$/.test(attempt.currency))
