@@ -70,15 +70,17 @@ test("native catalogue preserves owned records, revisions, identities and atomic
         });
         await t.test("template publication and preview preserve Go fingerprints, controlled options and reasons", async () => {
             await call("GET", `/configuration-templates/${type.id}`, undefined, 404);
-            template = await call("POST", `/configuration-templates/${type.id}/publish`, { definition: def(), expected_revision: 0, reason: "QA reviewed configuration" });
+            template = await call("POST", `/configuration-templates/${type.id}/publish`, { definition: def(), expected_revision: 0 });
             assert.equal(template.revision, 1);
             assert.equal(template.source_fingerprint, undefined);
+            assert.equal((await pool().query("SELECT reason FROM template_publications WHERE template_id=$1", [template.id])).rows[0].reason, "Initial configuration created");
             const preview = await call("POST", `/configuration-templates/${type.id}/preview`, { values: { SIZE: "S1" } });
             assert.equal(preview.description, "Size 10 mm");
             assert.match(preview.engineering_key, /^[a-f0-9]{64}$/);
             await call("POST", `/configuration-templates/${type.id}/preview`, { values: { SIZE: "invalid" } }, 422);
             await call("POST", `/configuration-templates/${type.id}/preview`, { values: { SIZE: "__NA__" } });
             const newer = { ...def(), fields: [{ ...def().fields[0], options: [...def().fields[0].options, { code: "S3", label: "30", sort_order: 3, is_active: true }] }] };
+            await call("POST", `/configuration-templates/${type.id}/publish`, { definition: newer, expected_revision: 1 }, 422);
             template = await call("POST", `/configuration-templates/${type.id}/publish`, { definition: newer, expected_revision: 1, reason: "QA add controlled option" });
             assert.equal(template.revision, 2);
             await call("POST", `/configuration-templates/${type.id}/publish`, { definition: newer, expected_revision: 1, reason: "QA stale editor" }, 409);

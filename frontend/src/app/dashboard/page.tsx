@@ -3,7 +3,7 @@ import {NotificationBell} from "@/components/dashboard/notification-bell";
 import {HolidayCalendar} from "@/components/work-calendar/holiday-calendar";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { EnvelopeIcon, HomeIcon, FolderIcon, BuildingOfficeIcon, TagIcon, GlobeAsiaAustraliaIcon, MapIcon, MapPinIcon, UsersIcon, ShieldCheckIcon, Bars3Icon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, XMarkIcon, SunIcon, MoonIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { EnvelopeIcon, HomeIcon, FolderIcon, BuildingOfficeIcon, TagIcon, GlobeAsiaAustraliaIcon, MapIcon, MapPinIcon, UsersIcon, ShieldCheckIcon, Bars3Icon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, XMarkIcon, SunIcon, MoonIcon, ChevronDownIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { PersonalAccountDialog, UserIdentity } from "@/components/personal-profile";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -59,11 +59,11 @@ const navigation = [
   { screen: "industries", label: "Industries", group: "Global masters", permission: "settings.industries.view" },
   { screen: "states", label: "States", group: "Global masters", permission: "settings.locations.view" },
   { screen: "cities", label: "Cities", group: "Global masters", permission: "settings.locations.view" },
-  {screen:"application-settings",label:"Application settings",group:"Settings",permission:"system:admin"},
+  {screen:"application-settings",label:"Application settings",group:"Settings",permission:null},
   { screen: "users", label: "Users", group: "Administration", permission: "admin.users.view" },
   { screen: "roles", label: "Roles & permissions", group: "Administration", permission: "admin.roles.view" },
 ] as const;
-const icons = {"application-settings":ShieldCheckIcon,"tsc-formats":FolderIcon,offboarding:UsersIcon,organisation:BuildingOfficeIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
+const icons = {"application-settings":Cog6ToothIcon,"tsc-formats":FolderIcon,offboarding:UsersIcon,organisation:BuildingOfficeIcon,"my-team":UsersIcon,"my-tasks":FolderIcon,"purchase-advances":ShieldCheckIcon, "quotation-approvals":ShieldCheckIcon, inbox:EnvelopeIcon, holidays:MapIcon, "purchase-fms": FolderIcon, "tender-fms": FolderIcon, items: TagIcon, manufacturers: BuildingOfficeIcon, categories: TagIcon, projects: FolderIcon, clients: BuildingOfficeIcon, suppliers: BuildingOfficeIcon, "client-types": TagIcon, industries: GlobeAsiaAustraliaIcon, states: MapIcon, cities: MapPinIcon, users: UsersIcon, roles: ShieldCheckIcon };
 function subscribePreference(cb: () => void) { window.addEventListener("epcerp-preference", cb); window.addEventListener("storage", cb); return () => { window.removeEventListener("epcerp-preference", cb); window.removeEventListener("storage", cb); }; }
 function preference(key: string) { try { return localStorage.getItem(key); } catch { return null; } }
 function savePreference(key: string, value: string) { try { localStorage.setItem(key, value); } catch {} window.dispatchEvent(new Event("epcerp-preference")); }
@@ -81,7 +81,7 @@ export default function DashboardPage() {
   const params = useSearchParams();
   const router = useRouter();
   const permissions = new Set(user.permissions);
-  const visible = navigation.filter(item => permissions.has("system:admin") || (permissions.has(item.permission) || (item.screen === "suppliers" && permissions.has("accounts.vendor_verification.view")) || (item.screen === "organisation" && (permissions.has("settings.company.view") || permissions.has("settings.company.read") || permissions.has("admin.organisation.view")))));
+  const visible = navigation.filter(item => item.permission === null || permissions.has("system:admin") || (permissions.has(item.permission) || (item.screen === "suppliers" && permissions.has("accounts.vendor_verification.view")) || (item.screen === "organisation" && (permissions.has("settings.company.view") || permissions.has("settings.company.read") || permissions.has("admin.organisation.view")))));
   const selected = visible.find(item => item.screen === params.get("screen"));
   const screen = selected?.screen ?? "overview";
   const draftID = params.get("draft") ?? undefined;
@@ -107,7 +107,7 @@ export default function DashboardPage() {
       <a href="#workspace-content" className="go-skip-link">Skip to workspace</a>
       <header className="go-appbar">
         <div className="go-brand-group"><button type="button" className="go-icon-button go-mobile-toggle" aria-label="Open navigation" aria-haspopup="dialog" onClick={() => mobileNav.current?.showModal()}><Bars3Icon /></button><Link href="/dashboard" className="go-brand">VTPL <strong>CORE</strong><span>epcERP</span></Link></div>
-        <div className="go-account"><NotificationBell/><button type="button" className="go-icon-button" title={dark ? "Switch to light mode" : "Switch to dark mode"} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={toggleTheme}>{dark ? <SunIcon /> : <MoonIcon />}</button><details ref={accountMenu} className="go-account-menu"><summary aria-label="Open Me menu"><UserIdentity id={user.id} name={user.username} /><ChevronDownIcon aria-hidden="true" /></summary><div className="go-account-dropdown"><p>My account</p><button type="button" onClick={() => { accountMenu.current?.removeAttribute("open"); setAccount("profile"); }}>Me · Edit profile</button><button type="button" onClick={() => { accountMenu.current?.removeAttribute("open"); setAccount("password"); }}>Change password</button><hr /><button type="button" onClick={() => void logout()}>Sign out</button></div></details></div>
+        <div className="go-account"><Link href="/dashboard?screen=application-settings" className="go-icon-button" title="Settings" aria-label="Settings" aria-current={screen === "application-settings" ? "page" : undefined}><Cog6ToothIcon aria-hidden="true" /></Link><NotificationBell/><button type="button" className="go-icon-button" title={dark ? "Switch to light mode" : "Switch to dark mode"} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={toggleTheme}>{dark ? <SunIcon /> : <MoonIcon />}</button><details ref={accountMenu} className="go-account-menu"><summary aria-label="Open Me menu"><UserIdentity id={user.id} name={user.username} /><ChevronDownIcon aria-hidden="true" /></summary><div className="go-account-dropdown"><p>My account</p><button type="button" onClick={() => { accountMenu.current?.removeAttribute("open"); setAccount("profile"); }}>Me · Edit profile</button><button type="button" onClick={() => { accountMenu.current?.removeAttribute("open"); setAccount("password"); }}>Change password</button><hr /><button type="button" onClick={() => void logout()}>Sign out</button></div></details></div>
       </header>
       <nav id="desktop-navigation" aria-label={process ? `${process.label} process navigation` : "Primary navigation"} className="go-navigation go-desktop-navigation"><button type="button" className="go-icon-button go-desktop-toggle" title={collapsed ? "Expand navigation" : "Collapse navigation"} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed} aria-controls="desktop-navigation" onClick={() => savePreference("epcerp-sidebar", collapsed ? "expanded" : "collapsed")}>{collapsed ? <ChevronDoubleRightIcon /> : <ChevronDoubleLeftIcon />}</button>{navLinks()}</nav>
       <dialog ref={mobileNav} className="go-mobile-navigation" aria-label="Navigation" onClick={e => { if (e.target === e.currentTarget && e.clientX > e.currentTarget.getBoundingClientRect().right) mobileNav.current?.close(); }}><div className="go-dialog-header"><strong>{process?.label ?? "Workspace"}</strong><button type="button" aria-label="Close navigation" className="go-icon-button" onClick={() => mobileNav.current?.close()}><XMarkIcon /></button></div><nav aria-label={process ? `${process.label} mobile process navigation` : "Mobile navigation"} className="go-navigation">{navLinks(true)}</nav></dialog>
@@ -121,7 +121,7 @@ export default function DashboardPage() {
           </section>
           {permissions.has("projects.budgets.view")&&<p className="text-sm text-slate-600">Open <Link href="/dashboard?screen=projects" className="text-blue-700 underline">Projects</Link> to review budgets within your assigned Finance responsibility. Supplier reviews appear in My tasks; submitted quotations appear in Quotation approvals.</p>}
         </> : screen === "projects" ? <Projects key={params.get("project") ?? ""} initialProject={params.get("project")} />
-          : screen === "application-settings" ? <ApplicationSettings />
+          : screen === "application-settings" ? <ApplicationSettings openAccount={setAccount} />
           : screen === "organisation" ? <CompanyProfile />
           : screen === "tsc-formats" ? <TSCFormats />
           : screen === "clients" ? <Clients />

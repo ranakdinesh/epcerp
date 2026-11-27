@@ -12,9 +12,9 @@ import { chargeEstimate, decimalMoney, lineEstimate, editPrice, fixedPrice, type
 const field = "block min-h-11 w-full min-w-20 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm tabular-nums";
 const durations = [6, 12, 24, 48];
 const coverageLabels = {
-  warranty: "Warranty",
+  warranty: "Onsite warranty",
   guarantee: "Guarantee",
-  both: "Warranty and guarantee",
+  both: "Onsite warranty and guarantee",
 };
 
 function coverageLabel(line: Quote["lines"][number] | undefined) {
@@ -25,7 +25,7 @@ function coverageLabel(line: Quote["lines"][number] | undefined) {
 export function QuotationItemPrices({document, previous, money, taxRate, negotiating=false, canWrite=false, landedCosts}: {canWrite?:boolean; landedCosts?:{line_id:string;landed:string|null}[];document: VendorIndent; previous?: Quote; negotiating?:boolean; taxRate:string; money: (value: string | null | undefined)=>string}) {
   const [entries,setEntries] = useState<Record<string,PriceInput>>(()=>Object.fromEntries(document.data.lines.map(line=>{
     const old=previous?.lines.find(entry=>entry.line_id===line.id);
-    const initial:PriceInput={pricing_mode:previous?.amount_mode==="total_only"?"unit_price":old?.pricing_mode??"unit_price",unit_price:previous?.amount_mode==="total_only"?"":old?.unit_price??"",line_total:previous?.amount_mode==="total_only"?"":old?.line_total??"",discount_pct:old?.discount_pct??"0",tax_pct:canWrite?taxRate:old?.tax_pct??taxRate};
+    const initial:PriceInput={pricing_mode:previous?.amount_mode==="total_only"?"unit_price":old?.pricing_mode??"unit_price",unit_price:previous?.amount_mode==="total_only"?"":old?.unit_price??"",line_total:previous?.amount_mode==="total_only"?"":old?.line_total??"",discount_pct:old?.discount_pct??"0",tax_pct:previous?.amount_mode==="total_only"?taxRate:old?.tax_pct??taxRate};
     return [line.id,editPrice(initial,initial.pricing_mode==="line_total"?"line_total":"unit_price",initial.pricing_mode==="line_total"?initial.line_total:initial.unit_price,line.quantity??"0")];
   })));
   const [activeItem, setActiveItem] = useState<number | null>(null);
@@ -58,7 +58,7 @@ export function QuotationItemPrices({document, previous, money, taxRate, negotia
   const coverageHelp = useId();
   type Row = typeof rows[number];
   function numberCell(row: Row, key: keyof Omit<PriceInput,"pricing_mode">, name: string, label: string, step: string, required=false, disabled=false, max?: number) {
-    return <ValidatedLabel className="block text-sm font-semibold"><span>{label}</span><ValidatedInput aria-label={`${label} item ${row.position}`} name={`${name}_${row.id}`} title={key==="line_total"?"Total before discount and tax":undefined} type="number" min="0" max={max} step={step} required={required&&!readOnly} disabled={disabled} value={disabled ? "" : row.entry[key]} placeholder={disabled ? "—" : undefined} className={`${field} mt-1 text-right disabled:bg-slate-100 ${negotiating&&key==="discount_pct"?"ring-2 ring-amber-400":""}`} readOnly={key==="tax_pct"} onBlur={event=>{if(key==="unit_price"||key==="line_total")update(row.id,{[key]:fixedPrice(event.target.value)})}} onChange={event=>{if(key==="unit_price"||key==="line_total")setEntries(current=>({...current,[row.id]:editPrice(current[row.id],key,event.target.value,row.quantity??"0")}));else update(row.id,{[key]:event.target.value})}}/></ValidatedLabel>;
+    return <ValidatedLabel className="block text-sm font-semibold"><span>{label}</span><ValidatedInput aria-label={`${label} item ${row.position}`} name={`${name}_${row.id}`} title={key==="line_total"?"Total before discount and tax":undefined} type="number" min="0" max={max} step={step} required={required&&!readOnly} disabled={disabled} value={disabled ? "" : row.entry[key]} placeholder={disabled ? "—" : key === "tax_pct" ? "0 if blank" : undefined} className={`${field} mt-1 text-right disabled:bg-slate-100 ${negotiating&&key==="discount_pct"?"ring-2 ring-amber-400":""}`} onBlur={event=>{if(key==="unit_price"||key==="line_total")update(row.id,{[key]:fixedPrice(event.target.value)})}} onChange={event=>{if(key==="unit_price"||key==="line_total")setEntries(current=>({...current,[row.id]:editPrice(current[row.id],key,event.target.value,row.quantity??"0")}));else update(row.id,{[key]:event.target.value})}}/></ValidatedLabel>;
   }
   return <div className="min-w-0 space-y-4 [&_table]:min-w-[600px]">
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-bold">Quotation pricing</h3><span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">{totalOnly ? `${rows.length} items covered` : `${valid.length} / ${rows.length} items priced`}</span></div>
@@ -109,7 +109,7 @@ export function QuotationItemPrices({document, previous, money, taxRate, negotia
           <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="break-all text-sm font-bold">{row.sku}</p><p className="mt-2 text-sm text-slate-600">{row.item_snapshot.description||row.sku}</p><p className="mt-3 text-sm font-semibold">Quantity · <span className="tabular-nums">{Number(row.quantity??0).toFixed(2)} {row.item_snapshot.uom}</span></p></div>
           <fieldset disabled={readOnly} className="space-y-5">
           <ValidatedInput type="hidden" name={`pricing_mode_${row.id}`} value={row.entry.pricing_mode}/>
-          <div className="grid gap-4 sm:grid-cols-2">{numberCell(row,"unit_price","price","Unit price","0.01")}{numberCell(row,"line_total","line_total","Line amount","0.01")}{numberCell(row,"discount_pct","discount","Discount %","0.01",true,false,100)}{numberCell(row,"tax_pct","tax","Tax % (fixed)","0.01",true,false,100)}</div>
+          <div className="grid gap-4 sm:grid-cols-2">{numberCell(row,"unit_price","price","Unit price","0.01")}{numberCell(row,"line_total","line_total","Line amount","0.01")}{numberCell(row,"discount_pct","discount","Discount %","0.01",true,false,100)}{numberCell(row,"tax_pct","tax","Tax %","0.01",false,false,100)}</div>
           <ValidatedLabel className="indent-selection flex min-h-11 items-center gap-3 text-sm font-semibold"><ValidatedInput aria-label={`Technical compliance ${row.sku}`} name={`compliant_${row.id}`} type="checkbox" defaultChecked={row.old?.compliant??false}/>Technical compliance confirmed</ValidatedLabel>
           <ValidatedLabel className="block text-sm font-semibold">{row.quoted?"Item notes":"Reason not quoted"}<ValidatedInput required={!row.quoted&&!readOnly} aria-label={`Notes item ${row.position}`} name={`notes_${row.id}`} maxLength={2000} defaultValue={row.old?.notes??""} className={`${field} mt-1`}/></ValidatedLabel>
           </fieldset>

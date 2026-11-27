@@ -15,11 +15,12 @@ import { RecordDrawer } from "@/components/ui/record-drawer";
 import { PurchaseSectionHeader } from "./purchase-layout";
 import { purchaseProjectHref, read } from "./data";
 import { purchaseCategory } from "./purchase-items-model";
+import { indiaDate } from "./acceptance-model";
 
 type Item = { id: string; category: string | null; category_name: string | null; sku: string | null; description: string | null; quantity: string; unit: string | null; required_date: string };
 type Draft = { category: string; version: number; terms: string; vendorIds: string[] };
 type DispatchRow = { id: string; version: number; category: string; group: string; vendor: string; number: string; itemCount: number; generatedDate: string; sentDate: string | null };
-type Workspace = { items: Item[]; drafts: Draft[]; details: { client: string; site: string }; can_edit: boolean; vendors_ready: boolean; vendor_counts: Record<string, number>; dispatches: DispatchRow[]; can_dispatch: boolean; dispatch_complete: boolean; reissue_required: boolean };
+type Workspace = { items: Item[]; drafts: Draft[]; default_terms: string; details: { client: string; site: string }; can_edit: boolean; vendors_ready: boolean; vendor_counts: Record<string, number>; dispatches: DispatchRow[]; can_dispatch: boolean; dispatch_complete: boolean; reissue_required: boolean };
 const action = "app-action inline-flex min-h-11 items-center rounded-lg px-4 font-semibold disabled:opacity-50";
 
 export function TypeIndents({ project, projectName }: { project: string; projectName: string }) {
@@ -28,15 +29,18 @@ export function TypeIndents({ project, projectName }: { project: string; project
   const category = params.get("indentType");
   const view = params.get("indentView");
   const path = `/api/projects/${encodeURIComponent(project)}/purchase-indents/by-type`;
-  const dataPath = view === "dispatch" ? `${path}/dispatch` : path;
-  const [data, setData] = useState<Workspace | null>(null);
-  const [error, setError] = useState("");
+  const dataPath = view === "dispatch" ? `${path}/dispatch` : category ? `${path}?defaults=1` : path;
+  const [loaded, setLoaded] = useState<{ path: string; data: Workspace } | null>(null);
+  const [failure, setFailure] = useState<{ path: string; message: string } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     void read<Workspace>(dataPath, controller.signal).then(value => {
-      if (!controller.signal.aborted) setData(value);
+      if (!controller.signal.aborted) {
+        setFailure(null);
+        setLoaded({ path: dataPath, data: value });
+      }
     }).catch(error => {
-      if (!controller.signal.aborted) setError(error.message);
+      if (!controller.signal.aborted) setFailure({ path: dataPath, message: error.message });
     });
     return () => controller.abort();
   }, [dataPath]);
@@ -49,14 +53,15 @@ export function TypeIndents({ project, projectName }: { project: string; project
     else next.delete("indentType");
     return `/dashboard?${next}`;
   }
-  if (error) return <p role="alert" className="text-red-700">{error}</p>;
+  if (failure?.path === dataPath) return <p role="alert" className="text-red-700">{failure.message}</p>;
+  const data = loaded?.path === dataPath ? loaded.data : null;
   if (!data) return <p role="status">Loading indent lists…</p>;
 
   if (category && view === "dispatch") return <IndentDispatch key={category} path={path}
     rows={data.dispatches.filter(row => row.category === category)} canDispatch={data.can_dispatch} complete={data.dispatch_complete}
     listHref={href()} quotationHref={purchaseProjectHref(project, "PUR-03")}
     onRecorded={() => read<Workspace>(dataPath).then(value => {
-      setData(value);
+      setLoaded({ path: dataPath, data: value });
       window.dispatchEvent(new Event("purchase-progress-saved"));
     })} />;
 
@@ -83,13 +88,10 @@ export function TypeIndents({ project, projectName }: { project: string; project
     </section>;
     const draft = data.drafts.find(row => row.category === category);
     return <IndentWorkspace key={category} path={path} projectName={projectName}
-      details={data.details} category={category} draft={draft} items={selectedItems}
+      details={data.details} category={category} draft={draft} defaultTerms={data.default_terms} items={selectedItems}
       view={view} links={{ list: href(), draft: href(category), items: href(category, "items") }}
-      editable={data.can_edit} reissueRequired={data.reissue_required} onSaved={async () => {
-        const updated = await read<Workspace>(path);
-        setData(updated);
-        router.push(href(category, "dispatch"));
-      }} />;
+      editable={data.can_edit} reissueRequired={data.reissue_required}
+      onSaved={() => router.push(href(category, "dispatch"))} />;
   }
   const rows = [...grouped].map(([id, items]) => ({
     id, name: id === "unclassified" ? purchaseCategory() : items[0].category_name && !["CAB", "PAN", "LED"].includes(id) ? items[0].category_name : purchaseCategory(id), count: items.length,
@@ -111,19 +113,19 @@ export function TypeIndents({ project, projectName }: { project: string; project
   </section>;
 }
 
-function IndentWorkspace({ path, projectName, details, category, draft, items, view, links, editable, reissueRequired, onSaved }: {
+function IndentWorkspace({ path, projectName, details, category, draft, defaultTerms, items, view, links, editable, reissueRequired, onSaved }: {
   path: string; projectName: string; details: Workspace["details"]; category: string;
-  draft?: Draft; items: Item[]; view: string | null;
-  links: { list: string; draft: string; items: string }; editable: boolean; reissueRequired: boolean; onSaved: () => Promise<void>;
+  draft?: Draft; defaultTerms: string; items: Item[]; view: string | null;
+  links: { list: string; draft: string; items: string }; editable: boolean; reissueRequired: boolean; onSaved: () => void;
 }) {
-  const [content, setContent] = useState(() => readIndentContent(draft?.terms ?? ""));
+  const [content, setContent] = useState(() => readIndentContent(draft?.terms, defaultTerms));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
     if (!validateIndentContent(content)) {
-      setError("Enter specifications and keep the total content within 24,000 characters.");
+      setError("Use supported formatting and keep the total content within 24,000 characters.");
       return;
     }
     const reissue = new FormData(event.currentTarget).has("reissue");
@@ -134,7 +136,7 @@ function IndentWorkspace({ path, projectName, details, category, draft, items, v
         body: JSON.stringify({ category, content, version: draft?.version ?? 0, reissue }) });
       const value = await response.json();
       if (!response.ok) throw new Error(typeof value.detail === "string" ? value.detail : value.detail?.[0]?.msg ?? "The indent could not be saved.");
-      await onSaved();
+      onSaved();
     } catch (error) {
       setError(error instanceof Error ? error.message : "The indent could not be saved.");
     } finally {
@@ -190,6 +192,7 @@ function IndentDispatch({ path, rows, canDispatch, complete, listHref, quotation
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<DispatchRow | null>(null);
   const pdf = (row: DispatchRow) => `${path}/pdf?document=${encodeURIComponent(row.id)}`;
+  const today = recording ? indiaDate() : undefined;
 
   async function record(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -238,7 +241,8 @@ function IndentDispatch({ path, rows, canDispatch, complete, listHref, quotation
     {recording && <RecordDrawer title={`Record dispatch · ${recording.vendor}`} onClose={() => { if (!busy) setRecording(null); }}>
       <ValidatedForm onSubmit={record} className="space-y-4">
         <ValidatedLabel className="block">Date sent
-          <ValidatedInput className="mt-1 block w-full rounded-lg border p-2" type="date" name="sent_date" min={recording.generatedDate.slice(0, 10)} required />
+          <ValidatedInput className="mt-1 block w-full rounded-lg border p-2" type="date" name="sent_date"
+            defaultValue={today} min={indiaDate(new Date(recording.generatedDate))} max={today} required />
         </ValidatedLabel>
         <ValidatedLabel className="block">Channel
           <ValidatedSelect className="mt-1 block w-full rounded-lg border p-2" name="channel" defaultValue="" required>
@@ -291,12 +295,12 @@ function IndentHTMLPreview({ typeName, projectName, details, items, content }: {
         </tr>
       </thead>
       <tbody>
-        <tr>
+        {content.specifications.some(p => p.some(run => run.text.trim())) && <tr>
           <td colSpan={4} className="indent-document-specifications">
             <h3 className="font-bold">Specifications</h3>
             <IndentParagraphs paragraphs={content.specifications} spacing={content.spacing?.specifications} />
           </td>
-        </tr>
+        </tr>}
         {items.map((item, index) => <tr key={item.id}>
           <td>{index + 1}</td>
           <td>{item.description ?? item.sku}</td>

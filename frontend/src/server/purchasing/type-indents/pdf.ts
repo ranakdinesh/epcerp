@@ -147,7 +147,8 @@ export async function renderIndentDraft(model: DraftPrint) {
         }
         page.space(55);
         header();
-        richSection(indentFields[0][1], content.specifications, content.spacing?.specifications, header);
+        if (content.specifications.some(p => p.some(run => run.text.trim())))
+            richSection(indentFields[0][1], content.specifications, content.spacing?.specifications, header);
         const tableRows = model.items.map((item, index) => ({ ...item, number: String(index + 1) }));
         for (const item of tableRows) {
             const description = item.description;

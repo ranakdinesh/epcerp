@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import test from 'node:test';
 import { handleBudget } from '../../src/server/projects/budgets/http';
+import { readIndentContent } from '../../src/lib/indent-content';
+import { purchaseIndentReadPermissions } from '../../src/lib/purchase-indent-settings';
 import { initializeAuth } from '../../src/server/auth/bootstrap';
 import { login } from '../../src/server/auth/sessions';
 import { pool } from '../../src/server/db';
@@ -65,14 +67,35 @@ test('vendor dispatch gates pricing and a sole Superadmin can submit and approve
         const indent = base + '/purchase-indents/by-type';
         const dispatch = indent + '/dispatch';
         const quotes = base + '/purchase-bo/' + bo + '/group-quotations';
+        const settingsPath = '/purchase-fms/indent-settings';
+        const patchSettings = (terms: string, version: number, authorization = headers.Authorization) => handlePurchasing(new Request(root + settingsPath, {
+            method: 'PATCH', headers: { ...headers, Authorization: authorization }, body: JSON.stringify({ terms, version }),
+        }));
+        const settings = await json(handlePurchasing, settingsPath);
+        const updatedSettings = await patchSettings('First common clause\r\n\r\nSecond common clause', settings.version);
+        assert.equal(updatedSettings.status, 200);
+        assert.equal((await updatedSettings.json()).terms, 'First common clause\n\nSecond common clause');
+        assert.equal((await patchSettings('Stale changes', settings.version)).status, 409);
+        const reader = randomUUID(), role = randomUUID(), readerName = 'qa' + reader.replaceAll('-', '').slice(0, 16);
+        await sql.query(`INSERT INTO auth.users(id,username,email,password_hash,is_active,is_superuser)
+            SELECT $1,$2,$3,password_hash,true,false FROM auth.users WHERE id=$4`, [reader, readerName, readerName + '@fixture.invalid', actor]);
+        await sql.query("INSERT INTO auth.roles(id,name,description,is_active) VALUES($1,$2,'Purchase Indent reader fixture',true)", [role, readerName]);
+        await sql.query('INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)', [reader, role]);
+        await sql.query(`INSERT INTO auth.role_permissions(role_id,permission_id)
+            SELECT $1,id FROM auth.permissions WHERE code=ANY($2::text[])`, [role, purchaseIndentReadPermissions]);
+        const readerAuthorization = 'Bearer ' + (await login(readerName, process.env.VTPL_BOOTSTRAP_SUPERADMIN_PASSWORD!)).access_token;
+        const readOnly = await handlePurchasing(new Request(root + settingsPath, { headers: { Authorization: readerAuthorization } }));
+        assert.equal(readOnly.status, 200);
+        assert.equal((await readOnly.json()).can_write, false);
+        assert.equal((await patchSettings('Restricted edit', settings.version + 1, readerAuthorization)).status, 403);
+        await sql.query('UPDATE auth.users SET is_active=false WHERE id=$1', [reader]);
         await json(handlePurchasing, base + '/purchase-indents/project-vendors', {
             version: 0, itemSets: [{ category: category.code, itemIds: [line], vendorIds }],
         });
-        const content = {
-            specifications: [[{ text: 'Fixture specifications', bold: true, underline: true }]],
-            notes: [[{ text: 'Fixture important note', italic: true }]],
-            conditions: [[{ text: 'Fixture conditions' }]],
-        };
+        const preview = await json(handlePurchasing, indent + '?defaults=1');
+        const content = readIndentContent(undefined, preview.default_terms);
+        assert.deepEqual(content.conditions, [[{ text: 'First common clause' }], [], [{ text: 'Second common clause' }]]);
+        content.conditions[0] = [{ text: 'Edited on this indent', bold: true }];
         const legacyGroup = randomUUID(), boPath = base + '/purchase-bo/' + bo;
         const legacy = await json(handlePurchasing, boPath + '/indent-groups', {
             action: 'create', version: 0, bo_version: completed.version, reason: 'Fixture legacy group',
@@ -100,6 +123,9 @@ test('vendor dispatch gates pricing and a sole Superadmin can submit and approve
         assert.equal(list.dispatches.length, 3);
         assert.equal(list.dispatch_complete, false);
         const [first] = list.dispatches;
+        assert.equal((await patchSettings('Terms for future indents', settings.version + 1)).status, 200);
+        const snapshot = await sql.query("SELECT data->'type_indent'->>'content' AS content FROM purchase_indent_documents WHERE id=$1", [first.id]);
+        assert.deepEqual(readIndentContent(snapshot.rows[0].content), content);
         const pdf = await request(handlePurchasing, indent + '/pdf?document=' + first.id);
         assert.equal(pdf.status, 200);
         const bytes = Buffer.from(await pdf.arrayBuffer());
@@ -111,7 +137,7 @@ test('vendor dispatch gates pricing and a sole Superadmin can submit and approve
             no_document_reason: 'Fixture prices provided manually', received_date: today, valid_until: today,
             currency: 'INR', freight: '0', other_charges: '0', delivery_days: 14,
             delivery_terms: 'Ex works', payment_terms: 'Fixture terms',
-            lines: [{ line_id: line, unit_price: '12', discount_pct: '0', tax_pct: '0', compliant: true, warranty_months: 12 }],
+            lines: [{ line_id: line, unit_price: '12', discount_pct: '0', tax_pct: '12.5', compliant: true, warranty_months: 12 }],
         } };
         await json(handlePurchasing, quotes, quotation, 422);
         for (const [index, row] of list.dispatches.entries()) {
@@ -121,7 +147,17 @@ test('vendor dispatch gates pricing and a sole Superadmin can submit and approve
             assert.equal(result.dispatch_complete, index === 2);
         }
         assert.equal((await json(handlePurchasing, quotes)).dispatch_complete, true);
-        assert.equal((await json(handlePurchasing, quotes, quotation)).record.quotes[0].lines[0].unit_price, '12.00');
+        const savedQuote = (await json(handlePurchasing, quotes, quotation)).record.quotes[0];
+        assert.equal(savedQuote.lines[0].unit_price, '12.00');
+        assert.equal(savedQuote.lines[0].tax_pct, '12.50');
+        assert.equal(savedQuote.calculation.total, '33.75');
+        for (const tax_pct of ['', undefined]) {
+            const noTax = normalizeMoney(input({ ...quotation, quote: {
+                ...quotation.quote, lines: [{ ...quotation.quote.lines[0], tax_pct }],
+            } }).quote);
+            assert.equal(noTax.lines[0].tax_pct, '0.00');
+            assert.equal(calculate(noTax, { ...older, id: first.id, data: { ...older.data, sent_date: today } }, today).total, '30.00');
+        }
         const lumpSum = { ...quotation.quote, amount_mode: 'total_only', total_amount: '25.00',
             lines: [{ ...quotation.quote.lines[0], unit_price: null }] };
         await json(handlePurchasing, quotes, { ...quotation, version: 1, quote: {

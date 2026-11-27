@@ -32,7 +32,7 @@ export function input(raw: Record<string, unknown>) {
     amount(quote.other_charges, 14, 2);
     for (const raw of q.lines) {
         const l = object(raw, ['line_id', 'unit_price', 'pricing_mode', 'line_total', 'coverage_type', 'warranty_months', 'discount_pct', 'tax_pct', 'compliant', 'notes']);
-        const line: LineInput = { line_id: uuid(l.line_id), unit_price: l.unit_price == null ? null : string(l.unit_price, 'unit_price'), pricing_mode: string(l.pricing_mode, 'pricing_mode', ''), line_total: l.line_total == null ? null : string(l.line_total, 'line_total'), coverage_type: string(l.coverage_type, 'coverage_type', ''), warranty_months: l.warranty_months == null ? null : version(l.warranty_months, 'warranty_months'), discount_pct: string(l.discount_pct, 'discount_pct', ''), tax_pct: string(l.tax_pct, 'tax_pct', ''), compliant: l.compliant === true, notes: string(l.notes, 'notes', '') };
+        const line: LineInput = { line_id: uuid(l.line_id), unit_price: l.unit_price == null ? null : string(l.unit_price, 'unit_price'), pricing_mode: string(l.pricing_mode, 'pricing_mode', ''), line_total: l.line_total == null ? null : string(l.line_total, 'line_total'), coverage_type: string(l.coverage_type, 'coverage_type', ''), warranty_months: l.warranty_months == null ? null : version(l.warranty_months, 'warranty_months'), discount_pct: string(l.discount_pct, 'discount_pct', ''), tax_pct: trim(string(l.tax_pct ?? '', 'tax_pct')) || '0', compliant: l.compliant === true, notes: string(l.notes, 'notes', '') };
         if (l.compliant !== undefined && typeof l.compliant !== 'boolean')
             invalid('compliant', 'Use true or false');
         if (line.warranty_months !== null && ![6, 12, 24, 48].includes(line.warranty_months))
@@ -62,7 +62,7 @@ export function input(raw: Record<string, unknown>) {
     return { version: version(b.version ?? 0), reason: text(b.reason, 'reason', 1, 2000), quote };
 }
 export function normalizeMoney(raw: QuoteInput) { const q = structuredClone(raw); for (const l of q.lines) {
-    l.tax_pct = q.amount_mode === 'total_only' ? '0.00' : '18.00';
+    l.tax_pct = q.amount_mode === 'total_only' ? '0.00' : amount(l.tax_pct, 3, 2).fixed();
     if (l.unit_price !== null)
         l.unit_price = amount(l.unit_price, 12, 2).fixed();
     if (l.line_total !== null)

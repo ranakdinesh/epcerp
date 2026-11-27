@@ -159,7 +159,7 @@ export function GroupQuotationWorkspace({ project, boId, initialStep, receiptBlo
                     unit_price: !byLineTotal && price ? String(price) : null,
                     line_total: byLineTotal && lineTotal ? String(lineTotal) : null,
                     discount_pct: String(f.get(`discount_${id}`)),
-                    tax_pct: String(f.get(`tax_${id}`)),
+                    tax_pct: String(f.get(`tax_${id}`) ?? ""),
                     notes: String(f.get(`notes_${id}`)),
                 };
             }),

@@ -8,6 +8,7 @@ import { purchaseVendors } from '../../master/vendors/purchase-reader';
 import { actor, project, scope } from '../core/access';
 import { invalid, object, PurchaseError, uuid, version } from '../core/validation';
 import { workspace } from '../workspace/repository';
+import { indentDefaults } from '../application-settings';
 
 import { currentDocuments, prepareDispatch, type ItemSet } from './dispatch';
 import { recordDispatch } from '../indent-documents/service';
@@ -116,7 +117,7 @@ export function chooseProjectVendors(token: string, target: string, input?: Reco
     });
 }
 
-export function typeIndents(token: string, target: string, input?: Record<string, unknown>, dispatch = false) {
+export function typeIndents(token: string, target: string, input?: Record<string, unknown>, dispatch = false, includeDefaults = false) {
     return transaction(async client => {
         const user = await actor(client, token, ['projects.purchase_bo.read', permission]);
         const p = await project(client, target, Boolean(input));
@@ -151,7 +152,7 @@ export function typeIndents(token: string, target: string, input?: Record<string
             const terms = content ? 'indent-rich-v1\n' + JSON.stringify(content)
                 : typeof input.terms === 'string' ? input.terms.trim() : '';
             if (input.content !== undefined && !content)
-                invalid('content', 'Enter specifications and keep the total content within 24,000 characters.');
+                invalid('content', 'Use supported formatting and keep the total content within 24,000 characters.');
             if (!content && (!terms || terms.length > 8000))
                 invalid('terms', 'Enter specifications within 8,000 characters.');
             const expected = version(input.version);
@@ -181,6 +182,7 @@ export function typeIndents(token: string, target: string, input?: Record<string
         }
         return {
             items, details, projectName: p.name,
+            default_terms: includeDefaults ? (await indentDefaults(client)).terms : '',
             reissue_required: current.some(doc => !doc.data.type_indent && Boolean(doc.data.sent_date)),
             dispatch_complete: Boolean(dispatch && await dispatchComplete()),
             can_dispatch: user.allows(dispatchPermission) && user.allows('projects.purchase_indent_groups.read') && access.can_write && p.purchase_enabled,

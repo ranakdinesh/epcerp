@@ -44,7 +44,7 @@ export function publishTemplate(token: string, id: string, value: unknown) {
         if (input.expected_revision == null)
             invalid("Expected revision is required");
         const expected = integer(input.expected_revision), reason = text(input.reason);
-        if (!trim(reason) || byteLength(reason) > 1000)
+        if ((expected > 0 && !trim(reason)) || byteLength(reason) > 1000)
             invalid("Review reason must contain 1 to 1000 characters");
         if (expected < 0 || expected >= 2147483647)
             invalid("Expected revision is out of range");
@@ -67,7 +67,7 @@ export function publishTemplate(token: string, id: string, value: unknown) {
         if (!parent.active)
             invalid("Activate the subcategory, category and unit before configuring it");
         const saved = newTemplate(def, id, expected + 1, hash(def));
-        await repo.insert(saved, def, actor.id, "publish", before, reason);
+        await repo.insert(saved, def, actor.id, "publish", before, trim(reason) ? reason : "Initial configuration created");
         return templateView(saved);
     });
 }
