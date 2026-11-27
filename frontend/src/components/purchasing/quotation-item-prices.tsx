@@ -12,9 +12,9 @@ import { chargeEstimate, decimalMoney, lineEstimate, editPrice, fixedPrice, type
 const field = "block min-h-11 w-full min-w-20 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm tabular-nums";
 const durations = [6, 12, 24, 48];
 const coverageLabels = {
-  warranty: "Onsite warranty",
+  warranty: "Warranty",
   guarantee: "Guarantee",
-  both: "Onsite warranty and guarantee",
+  both: "Warranty and guarantee",
 };
 
 function coverageLabel(line: Quote["lines"][number] | undefined) {
@@ -68,9 +68,12 @@ export function QuotationItemPrices({document, previous, money, taxRate, negotia
         <ValidatedSelect name="indent_coverage" required={totalOnly || rows.some(row => row.quoted)} aria-describedby={coverageHelp} className={`${field} mt-1`}
           defaultValue={!mixedCoverage && recordedCoverage?.warranty_months && durations.includes(recordedCoverage.warranty_months) ? `${recordedCoverage.coverage_type ?? "warranty"}:${recordedCoverage.warranty_months}` : ""}>
           <option value="">Choose coverage and duration</option>
-          {Object.entries(coverageLabels).map(([type, label]) => <optgroup key={type} label={label}>
-            {durations.map(months => <option key={months} value={`${type}:${months}`}>{label} · {months} months</option>)}
-          </optgroup>)}
+          {Object.entries(coverageLabels).map(([type, label]) => {
+            const optionLabel = type === "guarantee" ? label : `Onsite ${label.toLowerCase()}`;
+            return <optgroup key={type} label={optionLabel}>
+              {durations.map(months => <option key={months} value={`${type}:${months}`}>{optionLabel} · {months} months</option>)}
+            </optgroup>;
+          })}
         </ValidatedSelect>
       </ValidatedLabel>
       <p id={coverageHelp} className="text-sm text-slate-600">{mixedCoverage ? "The previous revision had different terms by item. Choose one to apply to every item in this indent." : "Applies to every item in this indent."}</p>
