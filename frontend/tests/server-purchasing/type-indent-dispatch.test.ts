@@ -7,7 +7,8 @@ import { readIndentContent } from '../../src/lib/indent-content';
 import { purchaseIndentReadPermissions } from '../../src/lib/purchase-indent-settings';
 import { initializeAuth } from '../../src/server/auth/bootstrap';
 import { login } from '../../src/server/auth/sessions';
-import { pool } from '../../src/server/db';
+import { pool, transaction } from '../../src/server/db';
+import { currentReleasedFact } from '../../src/server/purchasing/sourcing/reader';
 import { handleMaster } from '../../src/server/master/http';
 import { save, change } from '../../src/server/purchasing/bo/service';
 import { calculate } from '../../src/server/purchasing/quotations/calculation';
@@ -61,7 +62,9 @@ test('vendor dispatch gates pricing and a sole Superadmin can submit and approve
         const vendorIds = [randomUUID(), randomUUID(), randomUUID()];
         for (const [index, id] of vendorIds.entries()) {
             const code = prefix + 'V' + index;
-            await sql.query("INSERT INTO suppliers(id,code,name,data,is_active) VALUES($1,$2,$2,'{}',true)", [id, code]);
+            await sql.query("INSERT INTO suppliers(id,code,name,data,is_active) VALUES($1,$2,$2,$3,true)", [
+                id, code, { registration_reference: 'QA registration', contact: 'QA contact', location: 'QA location' },
+            ]);
         }
         const base = '/projects/' + project;
         const indent = base + '/purchase-indents/by-type';
@@ -258,6 +261,30 @@ test('vendor dispatch gates pricing and a sole Superadmin can submit and approve
         `, [randomUUID(), randomUUID(), nonAdmin, decisionId]), {
             code: '23514', message: 'Only the authenticated Superadmin can review their own quotation',
         });
+
+        await sql.query('INSERT INTO auth.user_roles(user_id,role_id) VALUES($1,$2)', [nonAdmin, role]);
+        await sql.query(
+            'INSERT INTO auth.role_permissions(role_id,permission_id) SELECT $1,id FROM auth.permissions WHERE code=$2',
+            [role, 'projects.purchase_workflow.resolve'],
+        );
+        const handoff = await json(handlePurchasing, base + '/purchase-awards', {
+            attempt_id: reviewed.attempts[0].id, doer_id: actor, resolver_id: nonAdmin,
+            planned_date: today, reason: 'Fixture award from existing Finance approval',
+        });
+        assert.equal(handoff.Packages.length, 1);
+        const packageId = handoff.Packages[0].id;
+        const sourcingPath = base + '/purchase-workflow/' + packageId + '/sourcing';
+        const sourcing = await json(handlePurchasing, sourcingPath);
+        assert.equal(sourcing.case.proposed_by_id, actor);
+        assert.equal(sourcing.case.approved_by_id, actor);
+        const loi = await json(handlePurchasing, sourcingPath, {
+            version: sourcing.case.version, action: 'release', sent_date: today, channel: 'manual',
+            dispatch_reference: 'Fixture LOI', reason: 'Fixture record of LOI dispatch',
+        });
+        assert.equal(loi.case.state, 'released');
+        const released = await transaction(db => currentReleasedFact(db, project, packageId));
+        assert.match(released!.loi_reference, /^LOI-/);
+
 
     } finally {
         await sql.end();

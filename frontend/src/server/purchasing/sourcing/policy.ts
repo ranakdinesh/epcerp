@@ -19,6 +19,12 @@ export function selected(c: Case, today: string) { const o = c.offers.find(o => 
     invalid('offer_id', 'Select a received technically compliant quotation'); if (!o.valid_until || o.valid_until < today)
     invalid('valid_until', 'Selected quotation expired; return to draft and revise it'); return o; }
 export const sameSource = (a: Source, b: Source) => a.package_id === b.package_id && a.demand_id === b.demand_id && a.demand_version === b.demand_version && a.quantity === b.quantity && a.currency === b.currency;
+function hasApproval(c: Case): c is Case & { approved_at: string } {
+    return Boolean(c.approved_by_id && c.approved_at && (
+        c.approved_by_id !== c.proposed_by_id ||
+        (c.award_reference && c.decision_snapshot?.financial_reference?.startsWith(c.award_reference + ':'))
+    ));
+}
 export function accessGuard(a: Actor, caps: Capabilities, c: Case | null, action: string) { if (!a.active || !a.id)
     throw new PurchaseError(401, 'Authentication required'); if (!caps.read)
     throw forbidden(); if (action === 'decide') {
@@ -236,8 +242,8 @@ export function apply(base: Case | null, a: Actor, caps: Capabilities, raw: Comm
         Object.assign(c, { state: 'draft', approved_by_id: '', approved_at: null, proposed_by_id: '', decision_snapshot: null });
     }
     else if (q.action === 'release') {
-        if (c.state !== 'approved' || !c.approved_at || !c.approved_by_id || c.approved_by_id === c.proposed_by_id)
-            invalid('state', 'Independent approval is required before LOI release');
+        if (c.state !== 'approved' || !hasApproval(c))
+            invalid('state', 'A recorded approval is required before LOI release');
         const o = selected(c, today), s = suppliers.find(s => s.id === o.supplier_id);
         supplierGuard(s, true);
         if (s.version !== o.supplier_snapshot.version)
@@ -257,7 +263,7 @@ export function apply(base: Case | null, a: Actor, caps: Capabilities, raw: Comm
     return c;
 }
 export function released(c: Case) { if (!c.is_active || c.state !== 'released')
-    return null; if (!c.decision_snapshot || !c.released_at || !c.loi_reference || !c.decision_snapshot.financial_reference || !c.approved_by_id || !c.approved_at || c.approved_by_id === c.proposed_by_id || c.approved_by_id !== c.approver_id || !c.decision_snapshot.offer.supplier_id)
+    return null; if (!c.decision_snapshot || !c.released_at || !c.loi_reference || !c.decision_snapshot.financial_reference || !hasApproval(c) || c.approved_by_id !== c.approver_id || !c.decision_snapshot.offer.supplier_id)
     invalid('loi', 'Released commercial evidence is incomplete'); return { case_id: c.id, project_id: c.project_id, package_id: c.package_id, version: c.version, source: structuredClone(c.decision_snapshot.source), loi_terms: c.decision_snapshot.terms, loi_reference: c.loi_reference, offer: structuredClone(c.decision_snapshot.offer), total: total(c.decision_snapshot.offer, c.decision_snapshot.source.quantity), financial_reference: c.decision_snapshot.financial_reference, released_at: c.released_at }; }
 export function currentReleased(c: Case, current: Source, supplier: Supplier | undefined, proof: Proof | null, today: string) { const fact = released(c); if (!fact)
     return null; guard(current); if (!sameSource(fact.source, current))

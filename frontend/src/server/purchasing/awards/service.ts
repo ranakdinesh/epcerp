@@ -6,6 +6,7 @@ import { invalid, object, string, isoDate } from '../core/validation';
 import { quantity } from '../core/decimal';
 import { now } from '../core/time';
 import { id } from '../approvals/validation';
+import { requireRecordedSelfApproval } from '../approvals/finance';
 import { members, source as workSource } from '../workflow/context';
 import { assign, guard, stale } from '../workflow/policy';
 import { text } from '../workflow/policy';
@@ -64,8 +65,9 @@ export async function execute(token: string, p: string, raw: Record<string, unkn
         if (existing)
             return repo.handoffView(existing);
         const approval = c.attempt;
-        if (!approval.reviewed_by_id || !approval.reviewed_at || approval.reviewed_by_id === approval.submitted_by_id || !c.lines.length)
-            invalid('approval', 'Independent Finance approval evidence is incomplete');
+        if (!approval.reviewed_by_id || !approval.reviewed_at || !c.lines.length)
+            invalid('approval', 'Finance approval evidence is incomplete');
+        await requireRecordedSelfApproval(db, p, c.bo_id, approval);
         const plan = Array.from({ length: 18 }, (_, i) => ({ number: i + 3, team: 'Procurement / project team', doer_id: doer, resolver_id: resolver, planned_date: planned })), at = now(), options = await members(db);
         assign({ steps: definitions() } as workPackage, plan, options, a.id, at);
         const all = await indents.list(db, p), indentID = randomUUID(), input = { currency: approval.currency, doer_id: doer, resolver_id: resolver, documents: 'Approved quotation ' + approval.reference + ' / ' + approval.quote_key, lines: [] as Line[] }, released: Release[] = [], versions: Record<string, number> = {};
