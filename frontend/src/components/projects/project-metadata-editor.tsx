@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState,type SubmitEvent} from "react";
 import {RecordDrawer} from "@/components/ui/record-drawer";
-import {ValidatedForm,ValidatedLabel,ValidatedTextarea} from "@/components/ui/validated-controls";
+import {ValidatedForm,ValidatedInput,ValidatedLabel,ValidatedTextarea} from "@/components/ui/validated-controls";
 import {displayServerErrors} from "@/components/ui/server-field-errors";
 import {ProjectCaptureFields} from "./project-capture-fields";
 import {metadataPayload} from "./project-metadata";
@@ -54,7 +54,7 @@ export function ProjectMetadataEditor({record,canEditDetails,canManageStatus,onC
  {stale&&canEditDetails&&<button className="min-h-11 rounded-lg border px-4" onClick={()=>{setProject(null);setRevision(v=>v+1)}}>Reload latest project</button>}
  {canEditDetails&&!project&&!error&&<p role="status">Loading saved project details…</p>}
  {canManageStatus && <ValidatedForm onSubmit={saveStatus} className="mb-5 space-y-3 rounded-lg border p-4">
-  <ValidatedLabel className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={active} onChange={event=>setActive(event.target.checked)} disabled={saving||stale||canEditDetails&&!project} className="h-5 w-5 accent-[var(--action-color)]" /> Project is active</ValidatedLabel>
+  <ValidatedLabel className="flex items-center gap-2 font-semibold"><ValidatedInput type="checkbox" checked={active} onChange={event=>setActive(event.target.checked)} disabled={saving||stale||canEditDetails&&!project} className="h-5 w-5 accent-[var(--action-color)]" /> Project is active</ValidatedLabel>
   <p className="text-sm">Inactive projects and their records are hidden from operational views. To restore access, open Inactive projects and select this checkbox.</p>
   <button type="submit" className="min-h-11 rounded-lg px-4 font-semibold" disabled={saving||stale||active===(project?.is_active??record.is_active)}>Save status</button>
  </ValidatedForm>}
