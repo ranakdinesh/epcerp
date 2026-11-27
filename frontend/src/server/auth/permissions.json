@@ -555,6 +555,11 @@
     "group": "purchasing"
   },
   {
+    "code": "settings.purchase_indent_terms.write",
+    "description": "Edit the company-wide default terms and conditions for purchase indents",
+    "group": "purchasing"
+  },
+  {
     "code": "projects.purchase_holds.view",
     "description": "Open purchase hold controls",
     "group": "purchasing"

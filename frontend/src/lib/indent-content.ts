@@ -32,17 +32,24 @@ export function validateIndentContent(value: unknown): IndentContent | null {
       }
     }
   }
-  return length <= 24000 && content.specifications.some(p => p.some(run => run.text.trim())) ? content : null;
+  return length <= 24000 ? content : null;
 }
 
-export function readIndentContent(saved: string): IndentContent {
+export function readIndentContent(saved: string | undefined, defaultTerms = ""): IndentContent {
+  if (saved === undefined) {
+    return {
+      specifications: [],
+      notes: [],
+      conditions: defaultTerms ? defaultTerms.split("\n").map(text => text ? [{ text }] : []) : [],
+    };
+  }
   if (saved.startsWith("indent-rich-v1\n")) {
     try {
       const content = validateIndentContent(JSON.parse(saved.slice("indent-rich-v1\n".length)));
       if (content) return content;
     } catch {}
   }
-  return { specifications: saved.split(/\r?\n/).map(text => [{ text }]), notes: [], conditions: [] };
+  return { specifications: saved ? saved.split(/\r?\n/).map(text => [{ text }]) : [], notes: [], conditions: [] };
 }
 
 export const indentApprovalLabels = ["Indent Raised by", "Checked by", "Approved by"] as const;

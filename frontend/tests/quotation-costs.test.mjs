@@ -20,6 +20,8 @@ test("zero prices are quoted; missing and invalid entries do not claim complete 
  assert.equal(lineEstimate({...entry,unit_price:"0"},"3").total,0n);
  for(const unit_price of ["","-1","Infinity","1.23456"]){assert.equal(lineEstimate({...entry,unit_price},"3"),null);}
  assert.equal(lineEstimate({...entry,tax_pct:"101"},"3"),null);
+ assert.equal(lineEstimate({...entry,tax_pct:""},"3").total,2878n);
+ assert.equal(lineEstimate({...entry,tax_pct:"12.5"},"3").total,3238n);
  assert.equal(chargeEstimate("1.001"),null);
  assert.equal(lineEstimate(entry,"0"),null);
 });

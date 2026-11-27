@@ -13,5 +13,8 @@
   },
   "000123_superadmin_quotation_review.up.sql": {
     "sha256": "51c620da052117d6f4c1a0cca44e2bec879d0497fa3237e901fd44b559a65553"
+  },
+  "000124_purchase_indent_default_terms.up.sql": {
+    "sha256": "2159d7e753979332c66fe73d1344673a1d463d0585fed6b2e124c32ce791950d"
   }
 }

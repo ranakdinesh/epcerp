@@ -5,7 +5,7 @@ import { json, body, query, binary, multipart } from './http-input';
 import * as materials from './materials/service';
 import * as bo from './bo/service';
 import { chooseProjectVendors, typeIndentDocument, typeIndents } from './type-indents/service';
-import { purchaseSettings } from './application-settings';
+import { purchaseIndentSettings, purchaseSettings } from './application-settings';
 import * as groups from './groups/service';
 import * as indentDocuments from './indent-documents/service';
 import * as indents from './indents/service';
@@ -52,6 +52,10 @@ export async function handlePurchasing(request: Request) {
             if (n === 2 && parts[1] === 'application-settings') {
                 if (m === 'GET') return json(await purchaseSettings(token));
                 if (m === 'PATCH') return json(await purchaseSettings(token, await body(request, ['item_list_mode'], 4096)));
+            }
+            if (n === 2 && parts[1] === 'indent-settings') {
+                if (m === 'GET') return json(await purchaseIndentSettings(token));
+                if (m === 'PATCH') return json(await purchaseIndentSettings(token, await body(request, ['terms', 'version'], 80 * 1024)));
             }
             if (parts[1] === 'projects') {
                 const p = parts[2];
@@ -236,7 +240,7 @@ export async function handlePurchasing(request: Request) {
                 if (m === 'POST') return json(await chooseProjectVendors(token, p, await body(request, ['itemSets', 'version'], 32768)));
             }
             if (n === 4 && id === 'by-type') {
-                if (m === 'GET') return json(await typeIndents(token, p));
+                if (m === 'GET') return json(await typeIndents(token, p, undefined, false, q.get('defaults') === '1'));
                 if (m === 'POST') return json(await typeIndents(token, p, await body(request, ['category', 'terms', 'content', 'version', 'reissue'], 524288)));
             }
             if (n === 3 && m === 'GET')

@@ -15,7 +15,7 @@ export function lineEstimate(entry: PriceInput, quantity: string) {
     const qty = scaled(quantity, 4);
     if (qty <= BigInt(0)) return null;
     const base = entry.pricing_mode === "line_total" ? scaled(value, 2) : rounded(qty * scaled(value, 2), BigInt(10000));
-    const discountPercent = scaled(entry.discount_pct, 2), taxPercent = scaled(entry.tax_pct, 2);
+    const discountPercent = scaled(entry.discount_pct, 2), taxPercent = scaled(entry.tax_pct || "0", 2);
     if (discountPercent > BigInt(10000) || taxPercent > BigInt(10000)) return null;
     const discount = rounded(base * discountPercent, BigInt(10000));
     const net = base - discount, tax = rounded(net * taxPercent, BigInt(10000));
